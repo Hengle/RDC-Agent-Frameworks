@@ -1,10 +1,10 @@
 ---
-name: "Debugger Triage & Taxonomy"
-description: "Classify symptoms and propose initial SOP"
+name: "RenderDoc/RDC Triage"
+description: "Normalize symptoms, triggers, and SOP entrypoints"
 agent_id: "triage_agent"
-model: inherit
+model: "grok-4.1"
 tools: Bash,Read,Write
-skills: debugger
+skills: renderdoc-rdc-gpu-debug
 color: "#8E44AD"
 ---
 

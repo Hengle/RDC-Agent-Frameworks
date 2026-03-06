@@ -1,4 +1,4 @@
-# Debugger Framework · Trigger Taxonomy
+﻿# RenderDoc/RDC GPU Debug · Trigger Taxonomy
 # 触发条件分类学 — 机器可读版本
 # 格式版本: 1.0 | 最后更新: 2026-02-27
 #
@@ -379,3 +379,4 @@ categories:
   rendering_pipeline:
     label: 渲染管线阶段
     tags: [deferred_rendering, forward_rendering, shadow_pass, post_processing, ray_tracing]
+

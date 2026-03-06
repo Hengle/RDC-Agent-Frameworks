@@ -1,7 +1,8 @@
 ---
-name: "Debugger Capture & Repro"
-description: "Capture A/B evidence and anchor the failing event"
+name: "RenderDoc/RDC Capture"
+description: "Establish reproducible captures and anchors"
 agent_id: "capture_repro_agent"
+model: "inherit"
 tools: ["bash","read"]
 color: "#2ECC71"
 ---

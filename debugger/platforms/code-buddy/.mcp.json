@@ -1,16 +1,15 @@
-{
+﻿{
   "mcpServers": {
-    "rdx-mcp": {
+    "renderdoc-platform-mcp": {
       "command": "uv",
       "args": [
         "run",
         "--project",
-        "${CODEBUDDY_PLUGIN_ROOT}/../../../rdx-mcp",
+        "${DEBUGGER_PLATFORM_TOOLS_ROOT}",
         "python",
-        "-m",
-        "rdx.server"
+        "mcp/run_mcp.py"
       ],
-      "description": "RenderDoc MCP Server with unified core execution."
+      "description": "RenderDoc/RDC platform MCP entrypoint. Set DEBUGGER_PLATFORM_TOOLS_ROOT to the concrete platform tools workspace."
     }
   }
 }

@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Sync platform agent prompts from common/agents SSOT."""
 
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
-from typing import Dict, List
-
 
 COMMON_ORDER = [
     "01_team_lead.md",
@@ -33,15 +32,15 @@ CLAUDE_WORK_NAMES = {
 }
 
 META = {
-    "01_team_lead.md": ("Debugger Team Lead / Orchestrator", "Coordinate delegates and enforce quality gates", "#E74C3C"),
-    "02_triage_taxonomy.md": ("Debugger Triage & Taxonomy", "Classify symptoms and propose initial SOP", "#8E44AD"),
-    "03_capture_repro.md": ("Debugger Capture & Repro", "Capture A/B evidence and anchor the failing event", "#2ECC71"),
-    "04_pass_graph_pipeline.md": ("Debugger Pass Graph / Pipeline", "Trace event divergence through render passes", "#3498DB"),
-    "05_pixel_value_forensics.md": ("Debugger Pixel Value Forensics", "Locate first bad event using pixel evidence", "#1ABC9C"),
-    "06_shader_ir.md": ("Debugger Shader & IR", "Analyze shader source/disassembly/debug state", "#9B59B6"),
-    "07_driver_device.md": ("Debugger Driver & Device", "Perform cross-device attribution and API/ISA checks", "#F39C12"),
-    "08_skeptic.md": ("Debugger Skeptic / Adversarial Reviewer", "Challenge weak claims and sign off only when proven", "#C0392B"),
-    "09_report_knowledge_curator.md": ("Debugger Report & Knowledge Curator", "Produce BugFull/BugCard and curate reusable knowledge", "#16A085"),
+    "01_team_lead.md": ("RenderDoc/RDC Orchestrator", "Coordinate the GPU debug workflow and enforce verdict gates", "#E74C3C"),
+    "02_triage_taxonomy.md": ("RenderDoc/RDC Triage", "Normalize symptoms, triggers, and SOP entrypoints", "#8E44AD"),
+    "03_capture_repro.md": ("RenderDoc/RDC Capture", "Establish reproducible captures and anchors", "#2ECC71"),
+    "04_pass_graph_pipeline.md": ("RenderDoc/RDC Pipeline", "Trace pass divergence and dependency chains", "#3498DB"),
+    "05_pixel_value_forensics.md": ("RenderDoc/RDC Forensics", "Locate first bad event using pixel evidence", "#1ABC9C"),
+    "06_shader_ir.md": ("RenderDoc/RDC Shader", "Analyze shader source, IR, and suspicious fingerprints", "#9B59B6"),
+    "07_driver_device.md": ("RenderDoc/RDC Driver", "Perform cross-device attribution and platform checks", "#F39C12"),
+    "08_skeptic.md": ("RenderDoc/RDC Verifier", "Challenge weak claims and sign off only when proven", "#C0392B"),
+    "09_report_knowledge_curator.md": ("RenderDoc/RDC Curator", "Produce reports and merge reusable GPU debug knowledge", "#16A085"),
 }
 
 AGENT_IDS = {
@@ -58,12 +57,11 @@ AGENT_IDS = {
 
 
 def _root() -> Path:
-    # .../extensions/debugger/scripts/sync_platform_agents.py
     return Path(__file__).resolve().parents[1]
 
 
 def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+    return path.read_text(encoding="utf-8-sig")
 
 
 def _write(path: Path, text: str) -> None:
@@ -71,64 +69,61 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text.rstrip() + "\n", encoding="utf-8")
 
 
-def _frontmatter_claude_code(name: str, desc: str, color: str, agent_id: str) -> str:
-    return "\n".join(
-        [
+def _load_model_map() -> dict:
+    config_path = _root() / "common" / "config" / "model_routing.json"
+    payload = json.loads(config_path.read_text(encoding="utf-8-sig"))
+    return payload["platform_mappings"]
+
+
+def _frontmatter_for(platform_key: str, name: str, desc: str, color: str, agent_id: str) -> str:
+    model = _load_model_map()[platform_key][agent_id]
+    if platform_key == "claude-code":
+        return "\n".join([
             "---",
             f'name: "{name}"',
             f'description: "{desc}"',
             f'agent_id: "{agent_id}"',
-            'model: "claude-sonnet-4-5"',
+            f'model: "{model}"',
             'tools: "bash,read"',
             f'color: "{color}"',
             "---",
-        ],
-    )
-
-
-def _frontmatter_code_buddy(name: str, desc: str, color: str, agent_id: str) -> str:
-    return "\n".join(
-        [
+        ])
+    if platform_key == "code-buddy":
+        return "\n".join([
             "---",
             f'name: "{name}"',
             f'description: "{desc}"',
             f'agent_id: "{agent_id}"',
-            "model: inherit",
+            f'model: "{model}"',
             "tools: Bash,Read,Write",
-            "skills: debugger",
+            "skills: renderdoc-rdc-gpu-debug",
             f'color: "{color}"',
             "---",
-        ],
-    )
-
-
-def _frontmatter_copilot(name: str, desc: str, color: str, agent_id: str) -> str:
-    return "\n".join(
-        [
+        ])
+    if platform_key == "copilot-cli":
+        return "\n".join([
             "---",
             f'name: "{name}"',
             f'description: "{desc}"',
             f'agent_id: "{agent_id}"',
-            'model: "claude-sonnet-4-5"',
-            'tools: ["bash", "read"]',
+            f'model: "{model}"',
+            'tools: ["bash", "read", "write"]',
+            "skills: renderdoc-rdc-gpu-debug",
             f'color: "{color}"',
             "---",
-        ],
-    )
-
-
-def _frontmatter_claude_work(name: str, desc: str, color: str, agent_id: str) -> str:
-    return "\n".join(
-        [
+        ])
+    if platform_key == "claude-work":
+        return "\n".join([
             "---",
             f'name: "{name}"',
             f'description: "{desc}"',
             f'agent_id: "{agent_id}"',
+            f'model: "{model}"',
             'tools: ["bash","read"]',
             f'color: "{color}"',
             "---",
-        ],
-    )
+        ])
+    raise KeyError(platform_key)
 
 
 def _wrap(frontmatter: str, body: str) -> str:
@@ -139,7 +134,7 @@ def _wrap(frontmatter: str, body: str) -> str:
     )
 
 
-def _sync_indexed_platform(target_dir: Path, frontmatter_builder) -> None:
+def _sync_indexed_platform(platform_key: str, target_dir: Path) -> None:
     common_dir = _root() / "common" / "agents"
     for filename in COMMON_ORDER:
         src = common_dir / filename
@@ -148,7 +143,7 @@ def _sync_indexed_platform(target_dir: Path, frontmatter_builder) -> None:
         name, desc, color = META[filename]
         agent_id = AGENT_IDS[filename]
         body = _read(src)
-        fm = frontmatter_builder(name, desc, color, agent_id)
+        fm = _frontmatter_for(platform_key, name, desc, color, agent_id)
         _write(target_dir / filename, _wrap(fm, body))
 
 
@@ -162,24 +157,20 @@ def _sync_claude_work(target_dir: Path) -> None:
         agent_id = AGENT_IDS[filename]
         dst_name = CLAUDE_WORK_NAMES[filename]
         body = _read(src)
-        fm = _frontmatter_claude_work(name, desc, color, agent_id)
+        fm = _frontmatter_for("claude-work", name, desc, color, agent_id)
         _write(target_dir / dst_name, _wrap(fm, body))
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Sync platform agent prompts from common/agents")
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="Only print planned targets (no writes)",
-    )
+    parser.add_argument("--check", action="store_true", help="Only print planned targets (no writes)")
     args = parser.parse_args()
 
     root = _root()
     targets = [
         root / "platforms" / "claude-code" / "agents",
         root / "platforms" / "code-buddy" / "agents",
-        root / "platforms" / "copilot" / "agents",
+        root / "platforms" / "copilot-cli" / "agents",
         root / "platforms" / "claude-work" / "agents",
     ]
 
@@ -189,9 +180,9 @@ def main() -> int:
             print(f"  - {item}")
         return 0
 
-    _sync_indexed_platform(targets[0], _frontmatter_claude_code)
-    _sync_indexed_platform(targets[1], _frontmatter_code_buddy)
-    _sync_indexed_platform(targets[2], _frontmatter_copilot)
+    _sync_indexed_platform("claude-code", targets[0])
+    _sync_indexed_platform("code-buddy", targets[1])
+    _sync_indexed_platform("copilot-cli", targets[2])
     _sync_claude_work(targets[3])
     print("platform agent sync complete")
     return 0

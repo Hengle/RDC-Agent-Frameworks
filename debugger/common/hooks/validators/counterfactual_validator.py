@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-反事实验证记录检查器 — Debugger Framework M4 Quality Hooks
+反事实验证记录检查器 — RenderDoc/RDC GPU Debug M4 Quality Hooks
 
 检查调试 session 的 evidence 集合中是否存在有效的反事实验证记录。
 
@@ -149,3 +149,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

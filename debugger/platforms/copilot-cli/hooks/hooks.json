@@ -1,0 +1,35 @@
+﻿{
+  "PostToolUse": [
+    {
+      "matcher": "Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python common/hooks/utils/codebuddy_hook_dispatch.py write-bugcard",
+          "description": "Validate BugCard before write"
+        }
+      ]
+    },
+    {
+      "matcher": "Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python common/hooks/utils/codebuddy_hook_dispatch.py write-skeptic",
+          "description": "Validate skeptic signoff artifact"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python common/hooks/utils/codebuddy_hook_dispatch.py stop-gate",
+          "description": "Finalization gate"
+        }
+      ]
+    }
+  ]
+}

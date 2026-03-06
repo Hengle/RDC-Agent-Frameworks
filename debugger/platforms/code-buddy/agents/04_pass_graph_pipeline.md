@@ -1,10 +1,10 @@
 ---
-name: "Debugger Pass Graph / Pipeline"
-description: "Trace event divergence through render passes"
+name: "RenderDoc/RDC Pipeline"
+description: "Trace pass divergence and dependency chains"
 agent_id: "pass_graph_pipeline_agent"
-model: inherit
+model: "grok-4.1"
 tools: Bash,Read,Write
-skills: debugger
+skills: renderdoc-rdc-gpu-debug
 color: "#3498DB"
 ---
 

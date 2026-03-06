@@ -1,7 +1,8 @@
 ---
-name: "Debugger Skeptic / Adversarial Reviewer"
+name: "RenderDoc/RDC Verifier"
 description: "Challenge weak claims and sign off only when proven"
 agent_id: "skeptic_agent"
+model: "inherit"
 tools: ["bash","read"]
 color: "#C0392B"
 ---

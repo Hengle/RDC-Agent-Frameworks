@@ -1,17 +1,29 @@
-# RDC-Agent Frameworks
+﻿# RDC-Agent Frameworks
 
-本仓库包含多个面向 RenderDoc/RDC 工作流的 Agent 框架实现与骨架，用于将复杂工程任务拆解为可复用、可审计、可演进的多 Agent 协作流程。
+本仓库提供构建在 RenderDoc/RDC 平台能力之上的上层 Agent framework。
 
-## 目录
+仓库当前状态并不追求“所有方向都已完成”，而是区分成熟度：
 
-- `debugger/`：Debugger Framework，面向 GPU 渲染 Bug 的多 Agent 调试框架（主驱动：正确性不变量）。
-  - 入口：`debugger/README.md`
-- `analyzer/`：Analyzer（骨架），面向“把未知系统结构化为可解释模型”的分析/还原类任务框架占位。
-  - 入口：`analyzer/README.md`
-- `optimizer/`：Optimizer（骨架），面向“可量化瓶颈归因 + 实验闭环”的性能优化类任务框架占位。
-  - 入口：`optimizer/README.md`
+- `debugger/`
+  - 当前最完整的 framework。
+  - 聚焦 GPU 渲染 Bug 调试，强调不变量、证据链、反事实验证和知识沉淀。
+- `analyzer/`
+  - 仍处于骨架阶段。
+  - 目标是把未知渲染系统重建为可解释模型，但尚未形成完整 framework 契约。
+- `optimizer/`
+  - 仍处于骨架阶段。
+  - 目标是形成可验证的优化闭环，但尚未形成完整 framework 契约。
 
-## 约定（对齐 debugger 的关键原则）
+## 设计原则
 
-- 将平台/工具的适配层与平台无关的核心 Prompt 分离；优先建立单一真相来源（SSOT）。
-- 保持目录结构清晰可扩展：核心定义、平台适配、知识库/产物、质量门槛/校验等分层组织。
+- 上层 framework 只依赖平台第一性能力，不把某个历史实现名当成框架概念本身。
+- 平台工具接入和路径发现属于 adapter/config 层，不属于 framework 真相。
+- 平台无关的 Prompt、知识库、质量门槛应保持单一真相来源。
+- 平台适配物可以因宿主不同而变化，但角色职责和工作流约束不应漂移。
+
+## 当前建议阅读顺序
+
+1. `debugger/README.md`
+2. `debugger/common/AGENT_CORE.md`
+3. `debugger/docs/platform-capability-model.md`
+4. `debugger/docs/cli-mode-reference.md`

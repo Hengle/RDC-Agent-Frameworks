@@ -1,8 +1,8 @@
 ---
-name: "Debugger Capture & Repro"
-description: "Capture A/B evidence and anchor the failing event"
+name: "RenderDoc/RDC Capture"
+description: "Establish reproducible captures and anchors"
 agent_id: "capture_repro_agent"
-model: "claude-sonnet-4-5"
+model: "sonnet"
 tools: "bash,read"
 color: "#2ECC71"
 ---

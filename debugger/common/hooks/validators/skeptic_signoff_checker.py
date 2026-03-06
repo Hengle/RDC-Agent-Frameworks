@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-Skeptic 签署状态检查器 — Debugger Framework M4 Quality Hooks
+Skeptic 签署状态检查器 — RenderDoc/RDC GPU Debug M4 Quality Hooks
 
 检查 Skeptic Agent 是否已对当前假设或 BugCard 完成签署，
 且所有质疑项均已被回应（status: addressed）。
@@ -361,3 +361,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

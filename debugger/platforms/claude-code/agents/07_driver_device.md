@@ -1,8 +1,8 @@
 ---
-name: "Debugger Driver & Device"
-description: "Perform cross-device attribution and API/ISA checks"
+name: "RenderDoc/RDC Driver"
+description: "Perform cross-device attribution and platform checks"
 agent_id: "driver_device_agent"
-model: "claude-sonnet-4-5"
+model: "sonnet"
 tools: "bash,read"
 color: "#F39C12"
 ---

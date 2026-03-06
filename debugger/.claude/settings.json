@@ -1,5 +1,5 @@
-{
-  "description": "Debugger Framework - Claude Code Quality Hooks",
+﻿{
+  "description": "RenderDoc/RDC GPU Debug - Claude Code Quality Hooks",
   "hooks": {
     "PostToolUse": [
       {
@@ -51,8 +51,9 @@
     ]
   },
   "hook_notes": {
-    "tool_contract_ssot": "extensions/rdx-mcp/rdx/spec/tool_catalog_196.json",
+    "tool_contract_ssot": "common/config/platform_adapter.json -> paths.catalog_path",
     "session_artifacts_root": "common/knowledge/library/sessions/<session_id>/",
     "session_marker": "common/knowledge/library/sessions/.current_session"
   }
 }
+

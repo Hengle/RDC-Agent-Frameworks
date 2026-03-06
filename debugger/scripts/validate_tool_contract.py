@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
-"""Validate debugger tool contract against rdx-mcp tool catalog.
+﻿#!/usr/bin/env python3
+"""Validate debugger tool references against the configured platform catalog.
 
 Checks:
-1) Unknown rd.* references in common/** and platforms/** (excluding design/**)
+1) Unknown rd.* references in common/** and platforms/**
 2) Action-chain tool calls:
    - unknown tool names
    - parameter key drift vs catalog param_names
@@ -15,16 +15,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Set
 
-
 TEXT_EXTS = {".md", ".yaml", ".yml", ".json", ".jsonl", ".py"}
 TOOL_RE = re.compile(r"rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+")
 CALL_RE = re.compile(r"(rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+)\s*\(([^)]*)\)")
+ENV_CATALOG = "DEBUGGER_PLATFORM_CATALOG"
 
 
 @dataclass
@@ -45,17 +46,52 @@ class Findings:
         )
 
 
-def _repo_root() -> Path:
-    # .../extensions/debugger/scripts/validate_tool_contract.py
+def _debugger_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def _default_catalog(debug_agent_root: Path) -> Path:
-    return debug_agent_root.parent / "rdx-mcp" / "rdx" / "spec" / "tool_catalog_196.json"
+def _framework_root(debugger_root: Path) -> Path:
+    return debugger_root.parent
+
+
+def _adapter_config_path(debugger_root: Path) -> Path:
+    return debugger_root / "common" / "config" / "platform_adapter.json"
+
+
+def _read_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def _resolve_from_framework_root(framework_root: Path, raw_path: str) -> Path:
+    candidate = Path(str(raw_path).strip())
+    if candidate.is_absolute():
+        return candidate
+    return (framework_root / candidate).resolve()
+
+
+def _default_catalog(debugger_root: Path) -> Path:
+    framework_root = _framework_root(debugger_root)
+    env_override = os.environ.get(ENV_CATALOG, "").strip()
+    if env_override:
+        return Path(env_override).resolve()
+
+    config_path = _adapter_config_path(debugger_root)
+    if not config_path.is_file():
+        raise FileNotFoundError(
+            f"missing adapter config: {config_path} (create common/config/platform_adapter.json or pass --catalog)",
+        )
+
+    payload = _read_json(config_path)
+    raw_catalog = str(payload.get("paths", {}).get("catalog_path", "")).strip()
+    if not raw_catalog:
+        raise ValueError(
+            f"adapter config missing paths.catalog_path: {config_path} (or set {ENV_CATALOG})",
+        )
+    return _resolve_from_framework_root(framework_root, raw_catalog)
 
 
 def _load_catalog(catalog_path: Path) -> tuple[Set[str], Dict[str, Set[str]], Set[str]]:
-    payload = json.loads(catalog_path.read_text(encoding="utf-8"))
+    payload = _read_json(catalog_path)
     tools = payload.get("tools", [])
     names: Set[str] = set()
     param_names: Dict[str, Set[str]] = {}
@@ -72,9 +108,9 @@ def _load_catalog(catalog_path: Path) -> tuple[Set[str], Dict[str, Set[str]], Se
     return names, param_names, requires_session
 
 
-def _iter_scan_files(debug_agent_root: Path) -> Iterable[Path]:
+def _iter_scan_files(debugger_root: Path) -> Iterable[Path]:
     for rel in ("common", "platforms"):
-        base = debug_agent_root / rel
+        base = debugger_root / rel
         if not base.is_dir():
             continue
         for path in base.rglob("*"):
@@ -82,23 +118,16 @@ def _iter_scan_files(debug_agent_root: Path) -> Iterable[Path]:
                 continue
             if path.suffix.lower() not in TEXT_EXTS:
                 continue
-            # Keep design excluded even if it appears under scanned roots in future.
             if "design" in path.parts:
                 continue
             yield path
 
 
 def _read_text(path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        return path.read_text(encoding="utf-8", errors="ignore")
+    return path.read_text(encoding="utf-8-sig", errors="ignore")
 
 
-def _check_unknown_tools(
-    files: Iterable[Path],
-    known_tools: Set[str],
-) -> Dict[str, Set[str]]:
+def _check_unknown_tools(files: Iterable[Path], known_tools: Set[str]) -> Dict[str, Set[str]]:
     out: Dict[str, Set[str]] = {}
     for path in files:
         refs = set(TOOL_RE.findall(_read_text(path)))
@@ -109,14 +138,14 @@ def _check_unknown_tools(
 
 
 def _check_action_chains(
-    debug_agent_root: Path,
+    debugger_root: Path,
     known_tools: Set[str],
     tool_params: Dict[str, Set[str]],
     requires_session: Set[str],
 ) -> tuple[Dict[str, Set[str]], List[str]]:
     action_unknown: Dict[str, Set[str]] = {}
     drift: List[str] = []
-    traces_dir = debug_agent_root / "common" / "knowledge" / "traces" / "action_chains"
+    traces_dir = debugger_root / "common" / "knowledge" / "traces" / "action_chains"
     if not traces_dir.is_dir():
         return action_unknown, drift
 
@@ -161,10 +190,7 @@ def _check_action_chains(
     return action_unknown, drift
 
 
-def _check_session_examples(
-    files: Iterable[Path],
-    requires_session: Set[str],
-) -> List[str]:
+def _check_session_examples(files: Iterable[Path], requires_session: Set[str]) -> List[str]:
     missing: List[str] = []
     for path in files:
         text = _read_text(path)
@@ -202,7 +228,7 @@ def main() -> int:
         "--catalog",
         type=Path,
         default=None,
-        help="Path to tool_catalog_196.json (default: ../rdx-mcp/rdx/spec/tool_catalog_196.json)",
+        help=f"Path to platform tool catalog (default: adapter config or {ENV_CATALOG})",
     )
     parser.add_argument(
         "--strict",
@@ -211,19 +237,26 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    debug_agent_root = _repo_root()
-    catalog = args.catalog or _default_catalog(debug_agent_root)
+    debugger_root = _debugger_root()
+    try:
+        catalog = args.catalog.resolve() if args.catalog else _default_catalog(debugger_root)
+    except Exception as exc:  # noqa: BLE001
+        print(str(exc))
+        return 2
+
     if not catalog.is_file():
-        print(f"catalog not found: {catalog}")
+        print(
+            f"catalog not found: {catalog} (update common/config/platform_adapter.json, set {ENV_CATALOG}, or pass --catalog)",
+        )
         return 2
 
     known_tools, tool_params, requires_session = _load_catalog(catalog)
 
-    files = list(_iter_scan_files(debug_agent_root))
+    files = list(_iter_scan_files(debugger_root))
     findings = Findings()
     findings.unknown_tools = _check_unknown_tools(files, known_tools)
     findings.action_unknown_tools, findings.action_param_drift = _check_action_chains(
-        debug_agent_root,
+        debugger_root,
         known_tools,
         tool_params,
         requires_session,
@@ -234,7 +267,7 @@ def main() -> int:
         _print_findings(findings)
         return 1 if args.strict else 0
 
-    print("tool contract validation passed")
+    print(f"tool contract validation passed ({catalog})")
     return 0
 
 

@@ -1,4 +1,4 @@
-# Debugger Framework · Knowledge Library（knowledge/library/）
+﻿# RenderDoc/RDC GPU Debug · Knowledge Library（knowledge/library/）
 
 本目录用于存放调试过程中沉淀的知识与会话产物（可选但推荐）：
 
@@ -8,3 +8,4 @@
 - `cross_device_fingerprint_graph.yaml`：跨设备指纹图（可选，用于关联同类问题）
 
 > 注意：本仓库仅提供空结构与规范示例。真实项目的知识沉淀请按团队流程生成与维护。
+

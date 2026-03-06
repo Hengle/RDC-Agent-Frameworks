@@ -1,10 +1,10 @@
 ---
-name: "Debugger Shader & IR"
-description: "Analyze shader source/disassembly/debug state"
+name: "RenderDoc/RDC Shader"
+description: "Analyze shader source, IR, and suspicious fingerprints"
 agent_id: "shader_ir_agent"
-model: inherit
+model: "sonnet-4.6"
 tools: Bash,Read,Write
-skills: debugger
+skills: renderdoc-rdc-gpu-debug
 color: "#9B59B6"
 ---
 

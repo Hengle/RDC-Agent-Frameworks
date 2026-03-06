@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Resolve session-scoped artifact paths for debugger hooks."""
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ _SAFE_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 def _debug_agent_root() -> Path:
-    # .../extensions/debugger/common/hooks/utils/resolve_session_artifact.py
+    # .../debugger/common/hooks/utils/resolve_session_artifact.py
     return Path(__file__).resolve().parents[3]
 
 
@@ -96,3 +96,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

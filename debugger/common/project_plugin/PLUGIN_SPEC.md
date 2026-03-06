@@ -1,4 +1,4 @@
-# Debugger Framework · Project Plugin 接口规范
+﻿# RenderDoc/RDC GPU Debug · Project Plugin 接口规范
 
 Project Plugin 是 Debugger 框架的项目级知识注入接口。它让 Agent 在执行通用调试流程的同时，具备对特定项目的深度感知能力（材质结构、引擎资源路径、项目特有不变量）。
 
@@ -138,3 +138,4 @@ read common/project_plugin/<project_name>.yaml
 | `Shader & IR Agent` | 用 engine_asset_path 直接定位 Shader 源文件 |
 | `Pixel Forensics` | 用 resource_mapping 将 resource_id 翻译为人类可读的资源名称 |
 | `Curator Agent` | 在 BugCard 中引用 block_id，使知识卡片具备项目上下文 |
+

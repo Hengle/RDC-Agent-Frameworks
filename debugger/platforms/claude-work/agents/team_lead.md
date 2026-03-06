@@ -1,7 +1,8 @@
 ---
-name: "Debugger Team Lead / Orchestrator"
-description: "Coordinate delegates and enforce quality gates"
+name: "RenderDoc/RDC Orchestrator"
+description: "Coordinate the GPU debug workflow and enforce verdict gates"
 agent_id: "team_lead"
+model: "inherit"
 tools: ["bash","read"]
 color: "#E74C3C"
 ---

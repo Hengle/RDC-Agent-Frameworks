@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-BugCard 完整性验证器 — Debugger Framework M4 Quality Hooks
+BugCard 完整性验证器 — RenderDoc/RDC GPU Debug M4 Quality Hooks
 
 用法：
   python3 bugcard_validator.py <bugcard.yaml>
@@ -308,3 +308,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

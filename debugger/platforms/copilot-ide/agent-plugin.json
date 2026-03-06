@@ -1,0 +1,9 @@
+﻿{
+  "name": "renderdoc-rdc-gpu-debug-ide",
+  "description": "VS Code / IDE custom-agent package for RenderDoc/RDC GPU debugging.",
+  "agentsRoot": ".github/agents",
+  "notes": [
+    "Use preferred per-agent models where the IDE host supports them.",
+    "Preserve role routing even when the model preference is ignored or unavailable."
+  ]
+}

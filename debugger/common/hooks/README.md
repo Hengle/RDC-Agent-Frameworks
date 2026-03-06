@@ -1,4 +1,4 @@
-# Debugger Framework · Quality Hooks 系统
+﻿# RenderDoc/RDC GPU Debug · Quality Hooks 系统
 
 Quality Hooks 系统将 Debugger 框架的质量门槛从「被建议的」提升为「被强制执行的」。
 
@@ -112,3 +112,4 @@ python3 -m pip install pyyaml
 ```
 
 验证脚本仅依赖 Python 标准库 + PyYAML，无其他依赖。
+

@@ -1,7 +1,8 @@
 ---
-name: "Debugger Pass Graph / Pipeline"
-description: "Trace event divergence through render passes"
+name: "RenderDoc/RDC Pipeline"
+description: "Trace pass divergence and dependency chains"
 agent_id: "pass_graph_pipeline_agent"
+model: "inherit"
 tools: ["bash","read"]
 color: "#3498DB"
 ---

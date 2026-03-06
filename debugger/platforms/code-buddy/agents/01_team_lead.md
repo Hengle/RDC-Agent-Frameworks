@@ -1,10 +1,10 @@
 ---
-name: "Debugger Team Lead / Orchestrator"
-description: "Coordinate delegates and enforce quality gates"
+name: "RenderDoc/RDC Orchestrator"
+description: "Coordinate the GPU debug workflow and enforce verdict gates"
 agent_id: "team_lead"
-model: inherit
+model: "opus-4.6"
 tools: Bash,Read,Write
-skills: debugger
+skills: renderdoc-rdc-gpu-debug
 color: "#E74C3C"
 ---
 

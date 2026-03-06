@@ -1,10 +1,10 @@
 ---
-name: "Debugger Pixel Value Forensics"
+name: "RenderDoc/RDC Forensics"
 description: "Locate first bad event using pixel evidence"
 agent_id: "pixel_forensics_agent"
-model: inherit
+model: "grok-4.1"
 tools: Bash,Read,Write
-skills: debugger
+skills: renderdoc-rdc-gpu-debug
 color: "#1ABC9C"
 ---
 

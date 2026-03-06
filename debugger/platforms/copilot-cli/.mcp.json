@@ -1,0 +1,15 @@
+﻿{
+  "mcpServers": {
+    "renderdoc-platform-mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "${DEBUGGER_PLATFORM_TOOLS_ROOT}",
+        "python",
+        "mcp/run_mcp.py"
+      ],
+      "description": "RenderDoc/RDC platform MCP entrypoint for Copilot CLI plugins."
+    }
+  }
+}

@@ -1,7 +1,8 @@
 ---
-name: "Debugger Pixel Value Forensics"
+name: "RenderDoc/RDC Forensics"
 description: "Locate first bad event using pixel evidence"
 agent_id: "pixel_forensics_agent"
+model: "inherit"
 tools: ["bash","read"]
 color: "#1ABC9C"
 ---

@@ -1,4 +1,4 @@
-# Debugger Framework · SOP Library
+﻿# RenderDoc/RDC GPU Debug · SOP Library
 # 标准操作流程库 — 机器可读版本
 # 格式版本: 1.0 | 最后更新: 2026-02-27
 #
@@ -16,7 +16,7 @@
 #     stage_id          : 阶段编号
 #     stage_name        : 阶段名称
 #     objective         : 本阶段目标
-#     tools             : 工具调用列表（精确匹配 rdx-mcp 暴露的工具名，如 rd.debug.pixel_history）
+#     tools             : 工具调用列表（精确匹配平台 catalog 暴露的工具名，如 rd.debug.pixel_history）
 #     termination       : 终止条件（何时可以进入下一阶段）
 #     output_artifacts  : 本阶段必须产出的证据类型
 #   output_requirements : SOP 完成时必须产出的内容
@@ -764,3 +764,5 @@ symptom_to_sop:
   stall:              [SOP-PERF-01]
   fps_drop:           [SOP-PERF-01]
   pipeline_error:     [SOP-PERF-01]
+
+

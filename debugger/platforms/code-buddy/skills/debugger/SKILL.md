@@ -1,71 +1,88 @@
-# Debugger Knowledge Skill
+﻿# RenderDoc/RDC GPU Debug Skill
 
 ## 描述
 
-Debugger Framework 调试知识技能包。当执行任何渲染 Bug 调试任务时自动加载。提供以下知识资源的动态索引：
+`RenderDoc/RDC GPU Debug` 调试技能包。
 
-- **不变量库**：23 个形式化渲染不变量（NaN 传播、精度约束、深度写入规则等）
-- **症状分类学**：37 个标准化症状标签及其与不变量的映射
-- **触发条件分类学**：GPU 型号 / 驱动版本 / API 的已知问题索引
-- **SOP 库**：7 个标准调试流程（含工具链和不变量覆盖声明）
+该 skill 提供三类输入：
 
-## 加载指令
+- 框架级知识
+  - 不变量库、taxonomy、SOP、session artifact 约束
+- 平台能力层使用约束
+  - `MCP` 与 `CLI` 的边界
+  - session lifecycle
+  - `ok` / `error_message` 的读取优先级
+- 调试知识沉淀规则
+  - BugCard / BugFull / Action Chain
 
-当执行渲染调试任务时，按以下路径加载知识文件（路径相对于 `debugger/` 根目录）：
+## 必读入口
 
-```
-common/knowledge/spec/invariants/invariant_library.yaml    ← 不变量库（必须加载）
-common/knowledge/spec/taxonomy/symptom_taxonomy.yaml       ← 症状分类学（分类阶段加载）
-common/knowledge/spec/taxonomy/trigger_taxonomy.yaml       ← 触发条件分类学（设备分析阶段加载）
-common/knowledge/spec/skills/sop_library.yaml              ← SOP 库（选定调试流程后加载）
-```
+执行调试任务时，优先阅读：
 
-## 关键知识结构
+- `../../../../common/AGENT_CORE.md`
+- `../../../../docs/platform-capability-model.md`
 
-### 不变量（invariant_library.yaml）
+## 动态加载文件
 
-每条不变量包含：
-- `id`：唯一标识（如 `I-NAN-01`）
-- `symptom_tags`：关联症状标签
-- `typical_root_causes`：常见根因
-- `fix_patterns`：修复模式
-- `linked_sop`：对应 SOP ID
-- `detection_tools`：推荐使用的 RenderDoc 工具
+按任务需要读取以下文件：
 
-### 症状标签（symptom_taxonomy.yaml）
-
-映射关系：`symptom_tag → likely_invariants → priority_order`
-
-查询示例（Python 一行）：
-```python
-next(s for s in yaml.safe_load(open('common/knowledge/spec/taxonomy/symptom_taxonomy.yaml'))['symptoms'] if s['tag'] == 'white_spot')
+```text
+common/knowledge/spec/invariants/invariant_library.yaml
+common/knowledge/spec/taxonomy/symptom_taxonomy.yaml
+common/knowledge/spec/taxonomy/trigger_taxonomy.yaml
+common/knowledge/spec/skills/sop_library.yaml
 ```
 
-### SOP（sop_library.yaml）
+若存在项目插件，再读取：
 
-每条 SOP 包含：
-- `trigger_conditions`：何时激活该 SOP
-- `target_invariants`：覆盖哪些不变量
-- `tool_chain`：具体工具调用序列
-- `termination`：完成标准（阶段/流程的退出条件）
-
-## 项目知识扩展
-
-若项目存在 Plugin 文件，额外加载：
-```
-common/project_plugin/<project_name>.yaml   ← 项目特定不变量和材质模块信息
+```text
+common/project_plugin/<project_name>.yaml
 ```
 
-## 历史案例
+## 模式选择规则
 
-已记录的调试案例位于：
-```
-common/knowledge/templates/bugcards/    ← BugCard 知识卡（快速索引）
-common/knowledge/templates/bugfulls/    ← BugFull 完整报告（详细参考）
-common/knowledge/traces/action_chains/  ← Action Chain 调试过程记录
-```
+### `MCP` 模式
 
-实际调试过程中沉淀的知识库（可选但推荐）位于：
-```
-common/knowledge/library/               ← BugCard 入库与 BugFull 输出目录
-```
+- 可以先做 tool discovery，再决定后续编排。
+- 适合动态选择 `rd.*` 工具。
+
+### `CLI` 模式
+
+用户明确要求 `CLI` 模式时，先阅读：
+
+- `references/cli-mode-reference.md`
+- `../../../../docs/cli-mode-reference.md`
+
+硬约束：
+
+- 不得通过 `--help`
+- 不得通过枚举命令
+- 不得通过随机试跑
+- 不得通过观察式试错
+
+来猜测平台能力面。
+
+`CLI` 模式下只能依赖已文档化的：
+
+- 会话最小链路
+- 关键状态名
+- 常见命令族
+- 输出读取原则
+
+## 外部参考的使用边界
+
+可以借鉴“主 skill + 附属参考文档”的组织方式。
+
+不得把外部参考中的以下内容直接带入本框架：
+
+- 其他 CLI 语义体系
+- 其他 session 模型
+- 其他工作流定义
+- 以命令清单驱动框架定义的写法
+
+本框架的 SSOT 仍然是本仓库当前的：
+
+- `common/AGENT_CORE.md`
+- `common/agents/*.md`
+- `common/knowledge/spec/*`
+

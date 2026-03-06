@@ -1,0 +1,12 @@
+﻿{
+  "name": "renderdoc-rdc-gpu-debug",
+  "description": "Use RenderDoc/RDC platform tools to debug GPU rendering captures through agents, hooks, skills, and MCP.",
+  "author": {
+    "name": "RenderDoc/RDC GPU Debug"
+  },
+  "keywords": ["renderdoc", "rdc", "gpu", "debug", "mcp", "capture"],
+  "agents": "./agents/",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json"
+}

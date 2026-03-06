@@ -1,10 +1,10 @@
 ---
-name: "Debugger Driver & Device"
-description: "Perform cross-device attribution and API/ISA checks"
+name: "RenderDoc/RDC Driver"
+description: "Perform cross-device attribution and platform checks"
 agent_id: "driver_device_agent"
-model: inherit
+model: "sonnet-4.6"
 tools: Bash,Read,Write
-skills: debugger
+skills: renderdoc-rdc-gpu-debug
 color: "#F39C12"
 ---
 

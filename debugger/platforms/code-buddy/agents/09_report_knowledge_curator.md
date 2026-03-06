@@ -1,10 +1,10 @@
 ---
-name: "Debugger Report & Knowledge Curator"
-description: "Produce BugFull/BugCard and curate reusable knowledge"
+name: "RenderDoc/RDC Curator"
+description: "Produce reports and merge reusable GPU debug knowledge"
 agent_id: "curator_agent"
-model: inherit
+model: "gemini-3.1-pro"
 tools: Bash,Read,Write
-skills: debugger
+skills: renderdoc-rdc-gpu-debug
 color: "#16A085"
 ---
 

@@ -1,8 +1,8 @@
 ---
-name: "Debugger Triage & Taxonomy"
-description: "Classify symptoms and propose initial SOP"
+name: "RenderDoc/RDC Triage"
+description: "Normalize symptoms, triggers, and SOP entrypoints"
 agent_id: "triage_agent"
-model: "claude-sonnet-4-5"
+model: "sonnet"
 tools: "bash,read"
 color: "#8E44AD"
 ---

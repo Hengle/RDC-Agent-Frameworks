@@ -1,10 +1,10 @@
 ---
-name: "Debugger Capture & Repro"
-description: "Capture A/B evidence and anchor the failing event"
+name: "RenderDoc/RDC Capture"
+description: "Establish reproducible captures and anchors"
 agent_id: "capture_repro_agent"
-model: inherit
+model: "grok-4.1"
 tools: Bash,Read,Write
-skills: debugger
+skills: renderdoc-rdc-gpu-debug
 color: "#2ECC71"
 ---
 

@@ -1,7 +1,8 @@
 ---
-name: "Debugger Report & Knowledge Curator"
-description: "Produce BugFull/BugCard and curate reusable knowledge"
+name: "RenderDoc/RDC Curator"
+description: "Produce reports and merge reusable GPU debug knowledge"
 agent_id: "curator_agent"
+model: "inherit"
 tools: ["bash","read"]
 color: "#16A085"
 ---
