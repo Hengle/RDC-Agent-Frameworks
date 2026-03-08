@@ -1,38 +1,38 @@
-{
-  "PostToolUse": [
-    {
-      "matcher": "Write",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/../../common/hooks/utils/codebuddy_hook_dispatch.py\" write-bugcard",
-          "description": "BugCard contract and schema validation",
-          "timeout": 30000
-        }
-      ]
-    },
-    {
-      "matcher": "Write",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/../../common/hooks/utils/codebuddy_hook_dispatch.py\" write-skeptic",
-          "description": "Skeptic signoff artifact validation",
-          "timeout": 30000
-        }
-      ]
-    }
-  ],
-  "Stop": [
-    {
-      "hooks": [
-        {
-          "type": "command",
-          "command": "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/../../common/hooks/utils/codebuddy_hook_dispatch.py\" stop-gate",
-          "description": "Finalization gate: causal anchor + counterfactual + skeptic + session artifacts",
-          "timeout": 30000
-        }
-      ]
-    }
-  ]
+﻿{
+    "PostToolUse":  [
+                        {
+                            "hooks":  [
+                                          {
+                                              "command":  "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/common/hooks/utils/codebuddy_hook_dispatch.py\" write-bugcard",
+                                              "description":  "BugCard contract and schema validation",
+                                              "type":  "command",
+                                              "timeout":  30000
+                                          }
+                                      ],
+                            "matcher":  "Write"
+                        },
+                        {
+                            "hooks":  [
+                                          {
+                                              "command":  "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/common/hooks/utils/codebuddy_hook_dispatch.py\" write-skeptic",
+                                              "description":  "Skeptic signoff artifact validation",
+                                              "type":  "command",
+                                              "timeout":  30000
+                                          }
+                                      ],
+                            "matcher":  "Write"
+                        }
+                    ],
+    "Stop":  [
+                 {
+                     "hooks":  [
+                                   {
+                                       "command":  "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/common/hooks/utils/codebuddy_hook_dispatch.py\" stop-gate",
+                                       "description":  "Finalization gate: causal anchor + counterfactual + skeptic + session artifacts",
+                                       "type":  "command",
+                                       "timeout":  30000
+                                   }
+                               ]
+                 }
+             ]
 }

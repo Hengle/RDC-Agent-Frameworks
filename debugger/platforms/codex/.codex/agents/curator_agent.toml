@@ -1,4 +1,4 @@
-# Shared role prompt: ../../../../common/agents/09_report_knowledge_curator.md
+﻿# Shared role prompt: ../../common/agents/09_report_knowledge_curator.md
 model = "gpt-5.4"
 model_reasoning_effort = "medium"
 model_verbosity = "high"

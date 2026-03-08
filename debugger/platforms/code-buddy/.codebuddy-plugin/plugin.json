@@ -1,19 +1,19 @@
-{
-  "name": "renderdoc-rdc-gpu-debug-agent",
-  "description": "RenderDoc/RDC GPU Debug 的 Code Buddy 参考实现，直接引用共享 common 并生成 hooks、skills、agents 与 MCP。",
-  "author": {
-    "name": "RenderDoc/RDC GPU Debug"
-  },
-  "keywords": [
-    "renderdoc",
-    "rdc",
-    "gpu",
-    "debug",
-    "mcp",
-    "agent"
-  ],
-  "agents": "./agents/",
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
-  "mcpServers": "./.mcp.json"
+﻿{
+    "agents":  "./agents/",
+    "keywords":  [
+                     "renderdoc",
+                     "rdc",
+                     "gpu",
+                     "debug",
+                     "mcp",
+                     "agent"
+                 ],
+    "hooks":  "./hooks/hooks.json",
+    "name":  "renderdoc-rdc-gpu-debug-agent",
+    "description":  "RenderDoc/RDC GPU Debug 的 Code Buddy 参考实现，使用 platform-local common 占位骨架生成 hooks、skills、agents 与 MCP。",
+    "author":  {
+                   "name":  "RenderDoc/RDC GPU Debug"
+               },
+    "skills":  "./skills/",
+    "mcpServers":  "./.mcp.json"
 }

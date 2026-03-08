@@ -1,10 +1,10 @@
-{
-  "servers": {
-    "renderdoc-platform-mcp": {
-      "command": "python",
-      "args": [
-        "${DEBUGGER_PLATFORM_TOOLS_ROOT}/mcp/run_mcp.py"
-      ]
-    }
-  }
+﻿{
+    "servers":  {
+                    "renderdoc-platform-mcp":  {
+                                                   "args":  [
+                                                                "${DEBUGGER_PLATFORM_TOOLS_ROOT}/mcp/run_mcp.py"
+                                                            ],
+                                                   "command":  "python"
+                                               }
+                }
 }

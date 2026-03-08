@@ -1,0 +1,5 @@
+﻿{
+    "required_action":  "overwrite_this_directory_with_debugger_common",
+    "message":  "Copy debugger/common/ into this platform root common/ before using platform-local config.",
+    "_placeholder":  true
+}
