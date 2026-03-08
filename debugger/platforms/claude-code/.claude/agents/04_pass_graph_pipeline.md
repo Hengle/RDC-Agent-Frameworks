@@ -3,7 +3,6 @@ description: "Trace pass divergence and resource dependency chains."
 model: "sonnet"
 ---
 
-@"
 # RenderDoc/RDC Agent Wrapper
 
 当前文件是 Claude Code 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
@@ -17,3 +16,5 @@ model: "sonnet"
 3. ../../common/skills/renderdoc-rdc-gpu-debug/SKILL.md
 
 若这些路径仍是占位内容，先将顶层 debugger/common/ 拷入当前平台根目录的 common/ 后再继续。
+
+运行时工作区固定为：../workspace

@@ -84,6 +84,17 @@ rd.shader.debug_start(session_id=<session_id>, mode="pixel", event_id=<first_bad
 
 若已加载 `project_plugin/<project>.yaml`，尝试将可疑代码指纹与 Block 计算指纹对照，反推属于哪个引擎材质模块（如 `LIGHTING_BLOCK`），为 Team Lead 提供引擎侧修复定位。
 
+### Step 7: 写入 `workspace` 运行区
+
+收到 `workspace_run_root` 后，你必须把本阶段证据分层写入：
+
+- `../workspace/cases/<case_id>/runs/<run_id>/artifacts/`
+  - suspicious expression fingerprint、SPIR-V/IR 结构化扫描结果、debug 值快照
+- `../workspace/cases/<case_id>/runs/<run_id>/notes/`
+  - HLSL/IR 差分解释、为什么该表达式已绑定到 `first_bad_event`
+- `../workspace/cases/<case_id>/runs/<run_id>/screenshots/`
+  - 必要的 shader 调试截图、关键变量对比图
+
 ---
 
 ## 质量门槛（内嵌检查清单）

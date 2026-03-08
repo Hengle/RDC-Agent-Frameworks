@@ -96,6 +96,17 @@ rd.replay.get_driver_info(session_id=<session_id_a>)
   查询 suspicious_expression_fingerprint（来自 Shader & IR Agent 输出）
   → 确认该指纹在哪些 GPU 型号上已有历史案例
   → 为 Team Lead 提供"同指纹跨设备复现记录"
+
+### Step 7: 写入 `workspace` 运行区
+
+收到 `workspace_run_root` 后，你必须把本阶段证据分层写入：
+
+- `../workspace/cases/<case_id>/runs/<run_id>/artifacts/`
+  - API Trace 差异、ISA 差异、driver info、platform attribution
+- `../workspace/cases/<case_id>/runs/<run_id>/notes/`
+  - 归因解释、为何能排除应用层或为何仍需保留竞争假设
+- `../workspace/cases/<case_id>/runs/<run_id>/screenshots/`
+  - 必要的 ISA 片段图、跨设备对比图
 ```
 
 ---

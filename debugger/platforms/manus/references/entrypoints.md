@@ -9,3 +9,5 @@
 3. ../common/skills/renderdoc-rdc-gpu-debug/SKILL.md
 
 若这些路径仍是占位内容，先将顶层 debugger/common/ 拷入当前平台根目录的 common/ 后再继续。
+
+运行时工作区固定为：../workspace

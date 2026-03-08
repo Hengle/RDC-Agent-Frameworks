@@ -86,6 +86,21 @@ rd.export.screenshot(session_id=<session_id>, event_id=<anchor_event_id>, output
 
 `runtime_baton` 中的 `capture_file_id`、`session_id` 只能作为短生命周期提示；真正的恢复真相源应指向 `causal_anchor`、`session_evidence.yaml`、`action_chain.jsonl` 与必要 artifact。
 
+### Step 6: 写入 `workspace` 运行区
+
+在收到 `workspace_run_root` 后，你还必须把本阶段可复用的运行现场写入：
+
+- `../workspace/cases/<case_id>/runs/<run_id>/captures/`
+  - `.rdc` 路径引用、capture 清单、A/B 说明
+- `../workspace/cases/<case_id>/runs/<run_id>/notes/`
+  - 复现步骤、环境可比性说明、anchor 选点说明
+
+硬规则：
+
+- `captures/` 放输入与 capture 引用，不放最终结论
+- 第一层 gate artifacts 仍由 Curator 写入 `common/knowledge/library/sessions/**`
+- 不得把 `capture_file_id`、`session_id` 当成 `workspace` 中唯一有效的恢复依据
+
 ---
 
 ## 质量门槛（内嵌检查清单）

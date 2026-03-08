@@ -21,12 +21,14 @@
 收到 Bug 报告后，按以下顺序初始化调试会话：
 
 ```
+Step 0: 初始化 `case_id`、`run_id`、`workspace_run_root=../workspace/cases/<case_id>/runs/<run_id>`
 Step 1: 调用 Triage Agent → 获得 {symptom_tags, trigger_tags, candidate_invariants, recommended_sop, causal_axis, disallowed_shortcuts}
 Step 2: 查阅 invariant_library.yaml，结合 Triage 结果构建初始假设板
 Step 3: 先由 Capture & Repro Agent 建立 capture/session anchor
 Step 4: 再由 Forensics / Pipeline / Shader 相关 Agent 建立 causal_anchor
 Step 5: 只有在 causal_anchor 建立后，才允许推进根因级专家分析与验证
 Step 6: 设置每个子任务的质量门槛（每个专家 Agent 的输出必须满足其角色的 output_requirements）
+Step 7: 维护 `case.yaml.current_run` 与 `run.yaml.debug_version/session_id/status`
 ```
 
 在进入任何 live 调试动作前，你必须先根据平台 `coordination_mode` 选择编排方式：
@@ -123,6 +125,20 @@ remote 规则：
 - owner 身份在整个 remote case 内保持稳定
 - 若当前 owner 需要继续下一轮调查，必须先按 `runtime_baton` 完整 rehydrate，而不是凭记忆续跑
 
+### 3.1 Workspace 初始化与写入边界
+
+你负责初始化并维护本次 case 的运行区：
+
+- `../workspace/cases/<case_id>/case.yaml`
+- `../workspace/cases/<case_id>/runs/<run_id>/run.yaml`
+
+硬规则：
+
+- `case_id` 对应需求线程/问题实例；`run_id` 对应一次具体调试轮次
+- 同一 case 只允许一个 `current_run`
+- `workspace_run_root` 必须在所有 TASK_DISPATCH 中显式下发
+- `workspace/` 只承载运行现场和第二层交付物；第一层 gate artifacts 仍写入 `common/knowledge/library/**`
+
 ### 4. 证据门槛与裁决规则
 
 **裁决前必须满足以下所有条件（缺一不可）：**
@@ -160,6 +176,10 @@ input:
   capture_file: "<capture 路径>"
   anchor: "<来自 Triage 的锚点，若有>"
   focus: "<本次任务的具体目标>"
+workspace_context:
+  case_id: "<case_id>"
+  run_id: "<run_id>"
+  workspace_run_root: "../workspace/cases/<case_id>/runs/<run_id>"
 runtime_baton:
   coordination_mode: staged_handoff
   runtime_owner: capture_repro_agent
@@ -245,6 +265,8 @@ deadline: none
 
 ```yaml
 session_status:
+  case_id: "<case_id>"
+  run_id: "<run_id>"
   session_id: "<ID>"
   current_phase: "<intake|triage|investigation|validation|reporting>"
   hypothesis_board_summary:

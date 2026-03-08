@@ -97,6 +97,22 @@ rd.resource.get_history(session_id=<session_id>, resource_id=<resource_id>, incl
 
 **输出质量要求：必须将问题缩小到至少 Pass 级别，尽力缩小到具体 Event ID。**
 
+### Step 6: 写入 `workspace` 运行区
+
+收到 `workspace_run_root` 后，你必须把运行现场按以下边界落盘：
+
+- `../workspace/cases/<case_id>/runs/<run_id>/artifacts/`
+  - Event 树摘要、pipeline/system state 差分、资源链结构化结果
+- `../workspace/cases/<case_id>/runs/<run_id>/notes/`
+  - 对 Pass 划分、分叉点判断和上游/下游链路的人工解释
+- `../workspace/cases/<case_id>/runs/<run_id>/screenshots/`
+  - 必要的 RT 导出图、pass before/after 对比图
+
+硬规则：
+
+- 结构化结果进 `artifacts/`，不要把长篇分析塞进 `artifacts/`
+- 图片进 `screenshots/`，不要在 `reports/` 中复制第二份
+
 ---
 
 ## 质量门槛（内嵌检查清单）

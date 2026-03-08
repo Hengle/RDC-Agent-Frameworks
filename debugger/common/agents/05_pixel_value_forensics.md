@@ -74,6 +74,17 @@ rd.texture.get_region_values(session_id=<session_id>, texture_id=<RT_ID>, rect={
 - 数值分布（最大/最小/均值）
 - 异常像素的空间分布模式（随机 or 规律性区域）
 
+### Step 5: 写入 `workspace` 运行区
+
+收到 `workspace_run_root` 后，你必须把本阶段证据分层写入：
+
+- `../workspace/cases/<case_id>/runs/<run_id>/artifacts/`
+  - `first_bad_event`、像素历史、区域数值统计、causal_anchor_candidate
+- `../workspace/cases/<case_id>/runs/<run_id>/screenshots/`
+  - 选点截图、局部放大图、before/after 可视化
+- `../workspace/cases/<case_id>/runs/<run_id>/notes/`
+  - 为什么选这个像素、fallback 仅用于选点/回锚的说明
+
 ---
 
 ## 质量门槛（内嵌检查清单）

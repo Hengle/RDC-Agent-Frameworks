@@ -26,6 +26,7 @@
 - `common/config/platform_targets.json`
 - `common/config/model_routing.json`
 - `common/docs/runtime-coordination-model.md`
+- `common/docs/workspace-layout.md`
 
 ## 2. 接入模式规则
 
@@ -134,7 +135,45 @@
 
 `runtime_baton` 的恢复顺序与语义以 `common/docs/runtime-coordination-model.md` 为准。
 
-## 7. Artifact Contract
+## 7. Workspace Contract
+
+运行时工作区与共享真相必须分层：
+
+- `common/` 是唯一共享真相
+- `../workspace/` 是 case/run 运行区
+
+共享 prompt / skill / docs 中引用运行区时，统一使用相对于 `common/` 的路径：
+
+- `../workspace`
+
+`workspace/` 固定模型：
+
+```text
+../workspace/cases/<case_id>/runs/<run_id>/
+  artifacts/
+  logs/
+  notes/
+  captures/
+  screenshots/
+  reports/
+```
+
+语义：
+
+- `captures/`：原始或可重放输入
+- `screenshots/`：视觉证据
+- `artifacts/`：结构化机器产物
+- `logs/`：过程日志
+- `notes/`：人工笔记与分析草稿
+- `reports/`：面向需求方/协作者的交付层
+
+硬规则：
+
+- 第一层真相产物继续写入 `common/knowledge/library/**`
+- 第二层报告写入 `../workspace/cases/<case_id>/runs/<run_id>/reports/`
+- 第二层报告只能派生自第一层证据，不得反写第一层真相
+
+## 8. Artifact Contract
 
 结案前必须具备：
 
@@ -148,7 +187,7 @@
 
 缺失任一项，不得视为有效结案。
 
-## 8. Tool Contract Rules
+## 9. Tool Contract Rules
 
 - 所有 prompt / traces 中的 `rd.*` 工具引用必须以平台 catalog / contract 为准。
 - 禁止自造工具名。
@@ -157,7 +196,7 @@
   - `ok`
   - `error_message`
 
-## 9. Platform Mirrors
+## 10. Platform Mirrors
 
 当前平台镜像来源：
 

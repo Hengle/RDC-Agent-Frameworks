@@ -11,6 +11,7 @@
 3. `../../docs/platform-capability-matrix.md`
 4. `../../docs/model-routing.md`
 5. 若用户要求 `CLI` 模式：`../../docs/cli-mode-reference.md`
+6. `../../docs/workspace-layout.md`
 
 ## 平台模式
 
@@ -50,6 +51,14 @@
 - `capture_file_id`、`session_id`、`remote_id` 都只能作为短生命周期提示，不得成为唯一真相源。
 - baton 恢复顺序以共享运行时文档 `common/docs/runtime-coordination-model.md` 为准；从当前文件的相对路径是 `../../docs/runtime-coordination-model.md`。
 
+## Workspace 约束
+
+- 运行区统一位于 `../workspace`（相对于平台本地 `common/`）。
+- Agent 运行时产生的 case/run 现场内容应写入 `../workspace/cases/<case_id>/runs/<run_id>/`。
+- 第一层知识沉淀继续写入 `common/knowledge/library/**`。
+- 第二层面向需求方/协作者的报告写入 `../workspace/cases/<case_id>/runs/<run_id>/reports/`。
+- 第二层报告默认复用同一 run 下的 `screenshots/` 素材，不复制第二套图片。
+
 ## 方向约束
 
 - 出现 `hair_shading`、`precision`、`washout`、`blackout`、`Adreno_GPU` 这类组合时，禁止直接依据 screen-like 观测做根因裁决。
@@ -59,3 +68,4 @@
 
 - 结案前必须满足 `session_evidence.yaml`、`skeptic_signoff.yaml`、`action_chain.jsonl` 与 `.current_session` 的 artifact 合同。
 - `skeptic_agent` 未完成 signoff 时，不得把结论当成最终结论。
+- 不得把 `workspace/` 中的 notes、截图或 HTML 页面当成 gate 真相；第一层 session artifacts 才是正式结案依据。
