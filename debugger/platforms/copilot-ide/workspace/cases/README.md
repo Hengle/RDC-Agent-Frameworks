@@ -1,8 +1,8 @@
-﻿# Workspace Cases
+﻿# Workspace Cases Placeholder
 
-本目录用于存放运行时 case。
+当前目录用于承载运行时 case。
 
-本仓库只保留占位说明，不提交真实 case 数据。Agent 或用户在实际平台模板中运行时，应按以下结构创建内容：
+目录约定：
 
 ```text
 cases/
@@ -19,31 +19,8 @@ cases/
         reports/
 ```
 
-最小 metadata contract：
+规则：
 
-```yaml
-# case.yaml
-case_id: "<case_id>"
-title: "<问题标题>"
-thread_ref: "<issue/task/thread>"
-status: active
-current_run: "<run_id>"
-```
-
-```yaml
-# run.yaml
-run_id: "<run_id>"
-case_id: "<case_id>"
-debug_version: 1
-session_id: "<session_id>"
-parent_run: null
-status: active
-paths:
-  artifacts: "./artifacts"
-  logs: "./logs"
-  notes: "./notes"
-  captures: "./captures"
-  screenshots: "./screenshots"
-  reports: "./reports"
-  session_evidence_ref: "../../../common/knowledge/library/sessions/<session_id>/session_evidence.yaml"
-```
+- `case_id` 是问题实例/需求线程的稳定标识。
+- `run_id` 承担 debug version。
+- 第一层 session artifacts 仍写入同级 `common/knowledge/library/sessions/`；`workspace/` 不复制 gate 真相。

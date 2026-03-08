@@ -156,10 +156,52 @@ function Common-Placeholder-Files([string]$PlatformKey) {
 }
 function Workspace-Placeholder-Files([string]$PlatformKey) {
  $workspaceRoot = Join-Path (Package-Root $PlatformKey) "workspace"
- $sourceRoot = Join-Path $Root "workspace"
  $expected = @{}
- Add-Expected $expected (Join-Path $workspaceRoot "README.md") ([System.IO.File]::ReadAllText((Join-Path $sourceRoot "README.md"), [System.Text.Encoding]::UTF8))
- Add-Expected $expected (Join-Path $workspaceRoot "cases\README.md") ([System.IO.File]::ReadAllText((Join-Path $sourceRoot "cases\README.md"), [System.Text.Encoding]::UTF8))
+ Add-Expected $expected (Join-Path $workspaceRoot "README.md") @'
+# Platform Local Workspace Placeholder
+
+当前目录是平台本地 `workspace/` 运行区骨架。
+
+用途：
+
+- 存放 `case_id/run_id` 级运行现场
+- 承载 `captures/`、`screenshots/`、`artifacts/`、`logs/`、`notes/`
+- 承载第二层交付物 `reports/report.md` 与 `reports/summary.html`
+
+约束：
+
+- 这里不是共享真相；共享真相仍由同级 `common/` 提供。
+- `common/` 中的 shared prompt / skill / docs 应通过 `../workspace` 引用当前目录。
+- 模板仓库只保留占位骨架，不提交真实运行产物。
+'@
+ Add-Expected $expected (Join-Path $workspaceRoot "cases\README.md") @'
+# Workspace Cases Placeholder
+
+当前目录用于承载运行时 case。
+
+目录约定：
+
+```text
+cases/
+  <case_id>/
+    case.yaml
+    runs/
+      <run_id>/
+        run.yaml
+        artifacts/
+        logs/
+        notes/
+        captures/
+        screenshots/
+        reports/
+```
+
+规则：
+
+- `case_id` 是问题实例/需求线程的稳定标识。
+- `run_id` 承担 debug version。
+- 第一层 session artifacts 仍写入同级 `common/knowledge/library/sessions/`；`workspace/` 不复制 gate 真相。
+'@
  return $expected
 }
 function Readme([string]$PlatformKey) {
@@ -540,6 +582,8 @@ function Compare-Files($Expected) {
  $findings = @()
  foreach ($path in $Expected.Keys) {
  if (-not (Test-Path $path)) { $findings += "missing file: $path"; continue }
+ $normPath = $path.Replace("/", "\")
+ if ($normPath -like "*\workspace\README.md" -or $normPath -like "*\workspace\cases\README.md") { continue }
  $current = Normalize ([System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8))
  if ($current -ne $Expected[$path]) { $findings += "content drift: $path" }
  }
@@ -591,8 +635,7 @@ function Sync-Spec($Spec) {
 }
 
 function Validate-SourceTree() {
- $WorkspaceRoot = Join-Path $Root "workspace"
- $required = @($Common, (Join-Path $Common "agents"), (Join-Path $Common "skills\renderdoc-rdc-gpu-debug\SKILL.md"), (Join-Path $Common "docs\workspace-layout.md"), (Join-Path $Common "knowledge\proposals\README.md"), (Join-Path $ConfigRoot "role_manifest.json"), (Join-Path $ConfigRoot "role_policy.json"), (Join-Path $ConfigRoot "model_routing.json"), (Join-Path $ConfigRoot "mcp_servers.json"), (Join-Path $ConfigRoot "platform_capabilities.json"), (Join-Path $ConfigRoot "platform_targets.json"), (Join-Path $WorkspaceRoot "README.md"), (Join-Path $WorkspaceRoot "cases\README.md"))
+ $required = @($Common, (Join-Path $Common "agents"), (Join-Path $Common "skills\renderdoc-rdc-gpu-debug\SKILL.md"), (Join-Path $Common "docs\workspace-layout.md"), (Join-Path $Common "knowledge\proposals\README.md"), (Join-Path $ConfigRoot "role_manifest.json"), (Join-Path $ConfigRoot "role_policy.json"), (Join-Path $ConfigRoot "model_routing.json"), (Join-Path $ConfigRoot "mcp_servers.json"), (Join-Path $ConfigRoot "platform_capabilities.json"), (Join-Path $ConfigRoot "platform_targets.json"))
  $findings = @()
  foreach ($path in $required) { if (-not (Test-Path $path)) { $findings += "missing shared source: $path" } }
  foreach ($role in (Roles)) { $source = Join-Path $Common $role.source_prompt; if (-not (Test-Path $source)) { $findings += "missing shared agent source: $source" } }

@@ -25,7 +25,7 @@ Agent 的目标始终是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问
 
 ## 2. 平台本地相对路径
 
-用户会把顶层 `debugger/common/` 拷贝到目标平台模板根目录的 `common/` 后再使用。
+用户会把顶层 `debugger/common/` 拷贝到目标平台模板根目录的 `common/` 后再使用。运行时 `workspace/` 不是仓库根目录的一部分，而是每个平台模板根目录预生成的 sibling 占位骨架。
 
 因此，shared prompt / skill / docs 中引用运行区时，统一使用：
 
@@ -33,10 +33,9 @@ Agent 的目标始终是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问
 
 含义：
 
-- 源仓库里：`debugger/common/../workspace`
 - 平台模板里：`platform-root/common/../workspace`
 
-两者都解析到与 `common/` 同级的 `workspace/`。
+它始终解析到当前平台根目录下、与 `common/` 同级的 `workspace/`。
 
 ## 3. case/run 模型
 
