@@ -1,6 +1,10 @@
 # Analyzer
 ## Multi-Agent Analysis / Reconstruction Framework
 
+> 当前状态：`incubating`
+>
+> 本目录仍处于方法论与骨架阶段，不纳入当前首发 GA / 商用品质门槛。
+
 Analyzer 的目标不是修 bug，而是**把未知系统结构化为可解释模型**。
 
 它的使命是：从一份或多份 capture 中，重建渲染管线与资源依赖，反推出 engine/material 的抽象模块，并生成可检索的知识库条目（供 Debug/Optimization 复用）。

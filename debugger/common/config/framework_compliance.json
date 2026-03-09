@@ -109,6 +109,19 @@
       "workflow_required": false,
       "enforcement_mode": "audit_only_gate",
       "requires_run_compliance_artifact": true
+    },
+    "cursor": {
+      "formal_entry_role": "team_lead",
+      "coordination_mode": "concurrent_team",
+      "required_surfaces": [
+        "agents",
+        "skills",
+        "hooks",
+        "mcp"
+      ],
+      "workflow_required": false,
+      "enforcement_mode": "native_hook_gate",
+      "requires_run_compliance_artifact": true
     }
   }
 }

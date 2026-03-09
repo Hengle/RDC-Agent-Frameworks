@@ -1,6 +1,10 @@
 # Optimizer
 ## Multi-Agent Optimization Framework
 
+> 当前状态：`incubating`
+>
+> 本目录仍处于方法论与骨架阶段，不纳入当前首发 GA / 商用品质门槛。
+
 Optimizer 的目标不是“给建议”，而是形成可复用、可验证的**优化闭环**：
 
 - **可量化瓶颈归因**：给出 Top bottleneck，并解释其机制（不是“可能”）。

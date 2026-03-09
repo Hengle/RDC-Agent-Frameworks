@@ -14,9 +14,9 @@
 
 ## 当前目录
 
-- `debugger/`：当前最完整的 framework 实现。
-- `analyzer/`：骨架阶段。
-- `optimizer/`：骨架阶段。
+- `debugger/`：当前唯一进入首发 GA 规划的 framework。
+- `analyzer/`：`incubating`，当前仍是方法论骨架，不纳入首发 GA 承诺。
+- `optimizer/`：`incubating`，当前仍是方法论骨架，不纳入首发 GA 承诺。
 
 ## 阅读方式
 

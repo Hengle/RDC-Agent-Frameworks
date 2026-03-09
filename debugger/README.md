@@ -11,7 +11,8 @@
 1. 配置 `common/config/platform_adapter.json`
 2. 将 `paths.tools_root` 指向有效的 `RDC-Agent-Tools` 根目录
 3. 确认 `validation.required_paths` 中的文件在 `<resolved tools_root>/` 下存在
-4. 在当前对话提交至少一份 `.rdc`
+4. 运行 `python common/config/validate_binding.py --strict`
+5. 在当前对话提交至少一份 `.rdc`
 
 未完成以上步骤前：
 
@@ -48,9 +49,10 @@
 2. 将根目录 `debugger/common/` 拷贝到该平台根的 `common/`。
 3. 在平台根目录的 `common/config/platform_adapter.json` 中配置 `paths.tools_root`。
 4. 确认 `validation.required_paths` 校验通过。
-5. 完成覆盖后，在对应宿主中打开该平台根目录。
-6. 正常用户请求从 `team_lead` 发起；其他 specialist 角色默认是 internal/debug-only。
-7. 发起 debug 任务时，用户必须在当前对话提交一份或多份 `.rdc`。
+5. 运行 `python common/config/validate_binding.py --strict`，确认 `tools_root`、snapshot 与宿主文档入口都已对齐。
+6. 完成覆盖后，在对应宿主中打开该平台根目录。
+7. 正常用户请求从 `team_lead` 发起；其他 specialist 角色默认是 internal/debug-only。
+8. 发起 debug 任务时，用户必须在当前对话提交一份或多份 `.rdc`。
 
 说明：
 
@@ -59,3 +61,4 @@
 - 平台入口选择必须遵循 shared docs 中的统一规则：可直达本地环境的宿主默认 local-first / `CLI`，不能直达本地环境的宿主默认 `MCP`。
 - 任务开始时，Agent 必须向用户说明当前采用的入口模式；若所选入口的前置条件未满足，必须先阻断。
 - 缺少 `.rdc` 时，Agent 必须像 `tools_root` 未配置一样直接阻断，不得继续做 triage、investigation 或 planning。
+- 当前 snapshot 需要与 `RDC-Agent-Tools` 的 `202` 个 tools 对齐；其中新增的 `rd.vfs.*` 只读探索面也属于必须同步校验的 platform truth。

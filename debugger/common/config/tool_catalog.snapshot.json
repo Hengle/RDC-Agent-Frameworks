@@ -1,6 +1,6 @@
 {
   "source_path": "spec/doc_extracted.txt",
-  "tool_count": 198,
+  "tool_count": 202,
   "generated_at": "2026-03-07T16:52:34.752055Z",
   "groups": {
     "3.1，核心与环境管理 (Core & Environment)": 9,
@@ -18,7 +18,7 @@
     "3.13，应用内接口抽象 (In-Application Instrumentation, Optional)": 9,
     "3.14，诊断工具 (Diagnostics, Heuristic Checks)": 11,
     "3.15，专家级宏工作流 (Expert Macro Workflows)": 14,
-    "3.16，通用辅助工具 (Utilities, Optional)": 6,
+    "3.16，通用辅助工具 (Utilities, Optional)": 10,
     "3.17，上下文快照工具 (Context Snapshot Tools)": 2
   },
   "tools": [
@@ -2378,6 +2378,51 @@
         "older_than_ms",
         "prefix",
         "max_total_bytes"
+      ]
+    },
+    {
+      "name": "rd.vfs.ls",
+      "group": "3.16，通用辅助工具 (Utilities, Optional)",
+      "description": "以只读 VFS 方式列出指定路径下的子节点，适合人类探索 draw/pass/resource/shader/context 结构。",
+      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径，例如 `/draws`、`/pipeline`、`/context`<br>session_id (str, 可选): 显式指定 session；未提供时优先使用当前 context 中的 session",
+      "returns_raw": "success (bool)<br>path (str): 归一化后的 VFS 路径<br>entries (list[dict]): 每项包含 {name, path, kind, title, requires_session, canonical_tools}<br>error_message (str, 可选)",
+      "param_names": [
+        "path",
+        "session_id"
+      ]
+    },
+    {
+      "name": "rd.vfs.cat",
+      "group": "3.16，通用辅助工具 (Utilities, Optional)",
+      "description": "读取指定 VFS 节点的结构化内容，返回节点元数据、推荐 canonical tools 与当前节点数据。",
+      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径<br>session_id (str, 可选): 显式指定 session；未提供时优先使用当前 context 中的 session",
+      "returns_raw": "success (bool)<br>path (str)<br>node (dict): 包含 {path, name, kind, title, requires_session, canonical_tools, data?, entries?}<br>error_message (str, 可选)",
+      "param_names": [
+        "path",
+        "session_id"
+      ]
+    },
+    {
+      "name": "rd.vfs.tree",
+      "group": "3.16，通用辅助工具 (Utilities, Optional)",
+      "description": "以树形方式递归展开指定 VFS 路径，适合快速浏览当前 frame 的 draws/passes/resources 结构。",
+      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径<br>session_id (str, 可选): 显式指定 session；未提供时优先使用当前 context 中的 session<br>depth (int, 可选, 默认 2): 最大递归深度",
+      "returns_raw": "success (bool)<br>path (str)<br>tree (dict): 结构与 `rd.vfs.cat` 的 node 类似，但额外包含递归 children<br>error_message (str, 可选)",
+      "param_names": [
+        "path",
+        "session_id",
+        "depth"
+      ]
+    },
+    {
+      "name": "rd.vfs.resolve",
+      "group": "3.16，通用辅助工具 (Utilities, Optional)",
+      "description": "解析指定 VFS 路径到规范节点，返回该路径对应的 canonical tools、节点类型与读取结果。",
+      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径<br>session_id (str, 可选): 显式指定 session；未提供时优先使用当前 context 中的 session",
+      "returns_raw": "success (bool)<br>path (str)<br>resolved (dict): 归一化节点定义，包含 canonical_tools 与 data/entries<br>error_message (str, 可选)",
+      "param_names": [
+        "path",
+        "session_id"
       ]
     },
     {
