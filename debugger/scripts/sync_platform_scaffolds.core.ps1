@@ -9,7 +9,7 @@ $ModelRouting = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "model_rout
 $McpServers = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "mcp_servers.json") -Raw)
 $PlatformTargets = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "platform_targets.json") -Raw)
 $PlatformCaps = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "platform_capabilities.json") -Raw)
-$CopyNotice = "若这些路径仍是占位内容，先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 后再继续。"
+$CopyNotice = "未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。"
 $Specs = @(
  @{ Key = "claude-code"; ManagedDirs = @(".claude", "common", "workspace"); ManagedFiles = @("README.md") },
  @{ Key = "code-buddy"; ManagedDirs = @(".codebuddy-plugin", "agents", "skills", "hooks", "common", "workspace"); ManagedFiles = @("README.md", ".mcp.json") },
@@ -89,69 +89,27 @@ function Yaml-Block($Pairs) {
  return ($rows -join "`n")
 }
 
-function Placeholder-Md([string]$Title, [string]$SourceRel, [string]$Extra) {
-@"
-# $Title
-
-当前文件是平台本地 `common/$SourceRel` 的占位文件。
-
-正式内容来源：`debugger/common/$SourceRel`。
-请先将仓库根目录 `debugger/common/` 整体拷贝到当前平台根目录的 `common/`，覆盖占位内容后再继续。
-
-$Extra
-"@
-}
-
-function Placeholder-Config() {
- $payload = @{ _placeholder = $true; message = "Copy debugger/common/ into this platform root common/ before using platform-local config."; required_action = "overwrite_this_directory_with_debugger_common" }
- return (ConvertTo-Json $payload -Depth 5)
-}
-
-function Placeholder-Hook() {
-@"
-#!/usr/bin/env python3
-import sys
-
-MESSAGE = (
- "当前平台根目录的 common/ 仍然是占位内容。"
- "请先将仓库根目录 debugger/common/ 整体拷贝到当前平台根目录 common/，"
- "覆盖占位文件后再执行 hooks。"
-)
-
-print(MESSAGE, file=sys.stderr)
-raise SystemExit(2)
-"@
-}
-
 function Common-Placeholder-Files([string]$PlatformKey) {
  $root = Common-Root $PlatformKey
  $expected = @{}
  Add-Expected $expected (Join-Path $root "README.md") @'
 # Platform Local Common Placeholder
 
-当前目录是平台本地 `common/` 的占位骨架，不是正式运行时内容。
+当前目录是平台本地 `common/` 的最小占位目录，不是正式运行时内容。
 
 使用方式：
 
 1. 选择一个 `debugger/platforms/<platform>/` 模板。
-2. 将仓库根目录 `debugger/common/` 整体拷贝到该平台根目录的 `common/`，覆盖当前占位内容。
-3. 再在对应宿主中打开该平台根目录使用。
+2. 将仓库根目录 `debugger/common/` 整体拷贝到该平台根目录的 `common/`，覆盖当前目录。
+3. 完成覆盖后，再在对应宿主中打开该平台根目录使用。
 
 约束：
 
 - 平台内所有 skill、hooks、agents、config 只允许引用当前平台根目录的 `common/`。
 - 平台内运行时工作区固定为当前平台根目录同级的 `workspace/`。
-- 占位文件只用于稳定路径，不代表最终角色定义、skill 正文、hook 逻辑或配置真相。
+- 未完成覆盖前，当前平台模板不可用。
+- 不为未覆盖状态提供伪完整 placeholder 文件；正式共享正文只来自顶层 `debugger/common/`。
 '@
- Add-Expected $expected (Join-Path $root "AGENT_CORE.md") (Placeholder-Md "AGENT_CORE Placeholder" "AGENT_CORE.md" "在覆盖前，不要把当前文件当成运行时约束真相。")
- Add-Expected $expected (Join-Path $root "skills\renderdoc-rdc-gpu-debug\SKILL.md") (Placeholder-Md "RenderDoc/RDC GPU Debug Skill Placeholder" "skills/renderdoc-rdc-gpu-debug/SKILL.md" "在覆盖前，遇到此占位 skill 时应先停止并提示用户完成拷贝。")
- Add-Expected $expected (Join-Path $root "config\platform_capabilities.json") (Placeholder-Config)
- Add-Expected $expected (Join-Path $root "docs\platform-capability-model.md") (Placeholder-Md "Platform Capability Model Placeholder" "docs/platform-capability-model.md" "在覆盖前，不要把当前文件当成正式平台能力说明。")
- Add-Expected $expected (Join-Path $root "docs\model-routing.md") (Placeholder-Md "Model Routing Placeholder" "docs/model-routing.md" "在覆盖前，不要把当前文件当成正式模型路由说明。")
- Add-Expected $expected (Join-Path $root "docs\workspace-layout.md") (Placeholder-Md "Workspace Layout Placeholder" "docs/workspace-layout.md" "在覆盖前，不要把当前文件当成正式 workspace 合同。")
- Add-Expected $expected (Join-Path $root "hooks\utils\codebuddy_hook_dispatch.py") (Placeholder-Hook)
- Add-Expected $expected (Join-Path $root "knowledge\proposals\README.md") (Placeholder-Md "Knowledge Proposals Placeholder" "knowledge/proposals/README.md" "在覆盖前，不要把当前文件当成正式 proposal 目录说明。")
- foreach ($role in (Roles)) { Add-Expected $expected (Join-Path $root $role.source_prompt) (Placeholder-Md ("$($role.display_name) Prompt Placeholder") $role.source_prompt "在覆盖前，不要把当前文件当成角色职责真相。") }
  return $expected
 }
 function Workspace-Placeholder-Files([string]$PlatformKey) {
@@ -207,27 +165,27 @@ cases/
 function Readme([string]$PlatformKey) {
  $caps = $PlatformCaps.platforms.$PlatformKey
  $target = $PlatformTargets.platforms.$PlatformKey
- $surfaces = [string]::Join(", ", $target.native_surfaces)
-@"
-# $($caps.display_name) Template
-
-当前目录是 $($caps.display_name) 的 platform-local 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
-
-使用方式：
-
-1. 将仓库根目录 `debugger/common/` 整体拷贝到当前平台根目录的 `common/`，覆盖占位内容。
-2. 使用当前平台根目录同级的 `workspace/` 作为运行区。
-3. 在对应宿主中打开当前平台根目录。
-4. 平台内的 skill、hooks、agents、config 只允许引用本地 `common/`。
-
-约束：
-
-- `common/` 默认只保留占位骨架；正式共享正文仍由顶层 `debugger/common/` 提供，并由用户显式拷入。
-- `workspace/` 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。
-- 当前平台状态：`$($caps.status_label)`。
-- 当前平台生成面：`$surfaces`。
-- 维护者若重跑 scaffold，必须继续产出 platform-local `common/` 占位结构，不得回退到跨级引用。
-"@
+ $surfaces = [string]::Join(", ", @($target.native_surfaces))
+ $lines = @(
+ "# $($caps.display_name) Template",
+ "",
+ "当前目录是 $($caps.display_name) 的 platform-local 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。",
+ "",
+ "使用方式：",
+ "",
+ "1. 将仓库根目录 `debugger/common/` 整体拷贝到当前平台根目录的 `common/`，覆盖占位内容。",
+ "2. 使用当前平台根目录同级的 `workspace/` 作为运行区。",
+ "3. 完成覆盖后，再在对应宿主中打开当前平台根目录。",
+ "4. 平台内的 skill、hooks、agents、config 只允许引用本地 `common/`。",
+ "",
+ "约束：",
+ "",
+ "- `common/` 默认只保留一个占位文件；正式共享正文仍由顶层 `debugger/common/` 提供，并由用户显式拷入。",
+ "- 未完成 `debugger/common/` 覆盖前，当前平台模板不可用。",
+ "- `workspace/` 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。",
+ "- 维护者若重跑 scaffold，必须继续产出 platform-local `common/` 最小占位目录，不得回退到跨级引用。"
+ )
+ return ($lines -join "`n")
 }
 
 function AgentBody([string]$PlatformKey, $Role, [string]$TargetFile) { $rolePath = Join-Path (Common-Root $PlatformKey) $Role.source_prompt; $p1 = Common-Ref $PlatformKey $TargetFile @("AGENT_CORE.md"); $p2 = Rel-Path $TargetFile $rolePath; $p3 = Common-Ref $PlatformKey $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md")
@@ -380,7 +338,7 @@ function Mcp-Payload() {
 }
 
 function CodeBuddyPlugin() {
- return @{ name = "renderdoc-rdc-gpu-debug-agent"; description = "RenderDoc/RDC GPU Debug 的 Code Buddy 参考实现，使用 platform-local common 占位骨架生成 hooks、skills、agents 与 MCP。"; author = @{ name = "RenderDoc/RDC GPU Debug" }; keywords = @("renderdoc", "rdc", "gpu", "debug", "mcp", "agent"); agents = "./agents/"; skills = "./skills/"; hooks = "./hooks/hooks.json"; mcpServers = "./.mcp.json" }
+ return @{ name = "renderdoc-rdc-gpu-debug-agent"; description = "RenderDoc/RDC GPU Debug 的 Code Buddy 参考实现，要求先将顶层 debugger/common 覆盖到平台根目录 common 后再使用 hooks、skills、agents 与 MCP。"; author = @{ name = "RenderDoc/RDC GPU Debug" }; keywords = @("renderdoc", "rdc", "gpu", "debug", "mcp", "agent"); agents = "./agents/"; skills = "./skills/"; hooks = "./hooks/hooks.json"; mcpServers = "./.mcp.json" }
 }
 
 function CopilotCliPlugin() {
@@ -445,12 +403,13 @@ function CodexReadme() {
 
 1. 将仓库根目录 `debugger/common/` 整体拷贝到当前平台根目录的 `common/`，覆盖占位内容。
 2. 使用当前平台根目录同级的 `workspace/` 作为运行区。
-3. 打开当前目录作为 Codex workspace root。
+3. 完成覆盖后，打开当前目录作为 Codex workspace root。
 4. AGENTS.md、.agents/skills/、.codex/config.toml 与 .codex/agents/*.toml 只允许引用当前平台根目录的 common/。
 
 约束：
 
-- common/ 默认只保留占位骨架；正式共享正文仍由顶层 debugger/common/ 提供，并由用户显式拷入。
+- common/ 默认只保留一个占位文件；正式共享正文仍由顶层 debugger/common/ 提供，并由用户显式拷入。
+- 未完成 debugger/common/ 覆盖前，当前平台模板不可用。
 - workspace/ 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。
 - multi_agent 当前按 experimental / CLI-first 理解，但共享规则与 role config 已完整生成。
 "@

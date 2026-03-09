@@ -10,7 +10,7 @@
                  ],
     "hooks":  "./hooks/hooks.json",
     "name":  "renderdoc-rdc-gpu-debug-agent",
-    "description":  "RenderDoc/RDC GPU Debug 的 Code Buddy 参考实现，使用 platform-local common 占位骨架生成 hooks、skills、agents 与 MCP。",
+    "description":  "RenderDoc/RDC GPU Debug 的 Code Buddy 参考实现，要求先将顶层 debugger/common 覆盖到平台根目录 common 后再使用 hooks、skills、agents 与 MCP。",
     "author":  {
                    "name":  "RenderDoc/RDC GPU Debug"
                },
