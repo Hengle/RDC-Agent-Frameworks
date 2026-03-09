@@ -2,44 +2,41 @@
 
 ## Scope
 
-本仓库是 `RDC-Agent Frameworks` 的上层框架仓库，重点是用清晰、可审计、可演进的方式组织 Agent 使用 RenderDoc/RDC 平台 tools。
+本文件只定义 `RDC-Agent-Frameworks` 仓库级修改公约，用来约束 agent 在本仓库内进行增删改时的设计边界、分层方式与文档治理。
+
+它不定义任何具体 framework 的运行规则、平台前置条件、输入要求、模型路由或宿主适配细节。领域规则必须留在对应 framework 目录内。
 
 ## Hard Rules
 
-- 不要把历史实现名、过时目录名、旧平台路径提升为框架概念。
-- 平台工具接入、catalog 路径、启动命令属于 adapter/config 层，不属于 framework 真相。
-- 任何用户面向文案都必须明确：Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
-- 不要把 skill 写成狭窄的“知识载入提示”；主 skill 必须覆盖任务目标、模式选择、工具边界和关键约束。
-- 写给用户和 Agent 的文档内容应以中文为主，但 RenderDoc、RDC、MCP、CLI、hook、skill、agent、session、artifact、tool contract、tool catalog、prompt、plugin、workspace 等专业名词保留英文。
+- 根目录只放仓库级地图、治理规则与跨 framework 设计公约；不要把子框架专属规则提升到仓库根。
+- 每一类规则只能有一个权威位置；禁止跨层重复定义同一件事。
+- `README.md` 负责入口、定位与结构说明；`AGENTS.md` 负责修改公约；framework 的硬约束应放在该 framework 自己的 core 文档中。
+- 子框架目录负责领域规则、运行前提、workflow 与交付约束；不要把它们回写到仓库根。
+- 平台模板只保留宿主必须识别的入口、壳层文件和最小适配说明；不要复制共享正文。
+- 写给用户和 agent 的文档以中文为主；必要的专业术语保留英文。
 
 ## No Legacy Rule
 
-这是本仓库的铁律：**不要在工程里留下 legacy、deprecated、transitional、兼容层双轨残留。**
+这是本仓库的铁律：**不要留下 legacy、deprecated、transitional、兼容层、镜像路径或双轨结构。**
 
-具体要求：
+- 当新结构替代旧结构时，旧目录、旧文件、旧入口、旧命名必须在同一轮改动中删除。
+- 不允许为了减少引用修改而保留旧路径镜像。
+- 不允许同时维护新旧两套规则位置、两套文档入口或两套目录语义。
+- 不允许保留“for compatibility”“temporary transition”“deprecated but kept”这类兼容性文案。
+- 如果某条规则只对某个 framework 成立，它必须只留在该 framework 内，不能因为当前实现更成熟就上升为全仓规则。
 
-- 当新结构替代旧结构后，旧目录、旧文件、旧 skill、旧平台适配必须在同一轮改动中删除。
-- 不允许保留“deprecated but kept for transition”这类目录作为长期存在物。
-- 不允许为了避免修改引用而保留旧路径镜像。
-- 不允许同时维护新旧两套路径、两套 skill 名、两套平台目录。
-- 若确实因外部宿主限制无法立即删除，必须在交付说明中明确列出残留项、阻塞原因和删除条件；默认情况下一律删除。
+## Design Expectations
 
-## Platform Expectations
-
-- `code-buddy/` 是当前最高完成度参考实现，应保持 `plugin + agents + hooks + skills + MCP` 的完整形态，并把角色模型与协作元数据落实到宿主入口。
-- `claude-code/`、`copilot-cli/`、`copilot-ide/` 应按各自宿主的最佳能力实现，不要退化成纯 prompt 镜像。
-- `claude-desktop/` 与 `manus/` 若能力不足，应明确标注为次优适配，而不是伪装成满配实现。
-
-## Model Routing
-
-- 角色到模型偏好以 `debugger/common/config/model_routing.json` 为 SSOT。
-- 平台支持 per-agent model 时按映射落地。
-- 平台不支持时，只允许降级模型绑定方式，不允许改写角色分工。
+- 根文档必须能仅凭位置表达抽象层级，读者不应通过上下文猜测规则属于仓库还是属于某个 framework。
+- 新增 framework 时，应优先复用仓库级分层原则，而不是复制现有 framework 的领域规则。
+- 修改目录职责时，必须同步收敛引用关系，避免出现两个层级同时定义同一规则。
+- 平台适配说明、脚手架说明、宿主壳约束属于具体 framework 的维护文档，不属于仓库级治理规则。
 
 ## Validation
 
-完成平台或文档改动后，至少检查：
+完成文档或结构改动后，至少检查：
 
-- `python debugger/scripts/sync_platform_scaffolds.py --check`
-- `python debugger/scripts/validate_tool_contract.py --strict`
-- 搜索是否仍残留旧目录名、旧 skill 名、deprecated 文案或双轨路径
+- 是否仍存在跨层重复定义。
+- 是否仍残留旧术语、旧路径、双轨描述或兼容性声明。
+- 仓库根文档是否误写了某个子框架的专属规则。
+- 子框架文档是否把领域规则错误回写到仓库根。
