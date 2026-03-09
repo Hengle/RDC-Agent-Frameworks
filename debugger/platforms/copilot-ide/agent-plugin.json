@@ -3,7 +3,7 @@
     "name":  "renderdoc-rdc-gpu-debug-ide",
     "agentsRoot":  ".github/agents",
     "notes":  [
-                  "Use preferred per-agent models where the IDE host supports them.",
+                  "Start normal user requests from team_lead / orchestrator.",
                   "Preserve role routing and evidence gates even when the host ignores model preference.",
                   "Read references/entrypoints.md before attempting a CLI-style flow inside the IDE host."
               ]

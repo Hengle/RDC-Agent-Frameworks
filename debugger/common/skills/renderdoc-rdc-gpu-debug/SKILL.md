@@ -1,71 +1,74 @@
-# RenderDoc/RDC GPU Debug Skill
+# RenderDoc/RDC GPU Debug Base Skill
 
 ## 任务目标
 
-这个 skill 的目标是让 Agent 明确：当前任务是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题，而不是讨论一个抽象 framework。
+本 skill 是 domain/base skill。
+
+作用：
+
+- 明确当前任务是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题
+- 在任何 role-specific skill 之前施加统一护栏
+- 强制先回到 Tools 平台真相，再进入具体角色行为
 
 ## 必读顺序
 
 1. `../../AGENT_CORE.md`
-2. `../../docs/platform-capability-model.md`（当前文件位于 `common/skills/...`，该相对路径指向共享入口 `common/docs/...`）
-3. `../../docs/platform-capability-matrix.md`
-4. `../../docs/model-routing.md`
-5. 若用户要求 `CLI` 模式：`../../docs/cli-mode-reference.md`
-6. `../../docs/workspace-layout.md`
+2. `../../config/platform_adapter.json`
+3. `<resolved tools_root>/README.md`
+4. `<resolved tools_root>/docs/tools.md`
+5. `<resolved tools_root>/docs/session-model.md`
+6. `<resolved tools_root>/docs/agent-model.md`
+7. `<resolved tools_root>/spec/tool_catalog.json`
+8. `../../docs/platform-capability-model.md`
+9. `../../docs/platform-capability-matrix.md`
+10. `../../docs/model-routing.md`
+11. 若用户明确要求 `CLI` 模式：`../../docs/cli-mode-reference.md`
+12. `../../docs/workspace-layout.md`
 
-## 平台模式
+## Mandatory Preflight
 
-### `MCP` 模式
+开始任何平台真相相关工作前，必须先校验 `../../config/platform_adapter.json`：
 
-- 允许 tool discovery。
-- 允许先发现工具能力，再进行多步编排。
+- `paths.tools_root` 已由用户显式配置
+- `validation.required_paths` 中的所有路径在 `<resolved tools_root>/` 下存在
 
-### `CLI` 模式
+如果未通过校验，必须直接输出：
 
-- 禁止 discovery-by-trial-and-error。
-- 禁止靠 `--help`、命令枚举、随机试跑、观察式试错来摸索能力面。
-- 用户明确要求 `CLI` 模式时，必须先阅读 `cli-mode-reference.md`，再执行任务。
+```text
+Tools 平台真相未配置：请先在 `common/config/platform_adapter.json` 中设置 `paths.tools_root` 指向有效的 `RDC-Agent-Tools` 根目录，并确认必需文档与 `spec/tool_catalog.json` 存在后，再重新发起任务。
+```
 
-## 工具边界
+然后停止，不得继续：
 
-- 目标是驱动 `rd.*` / platform tools 处理 capture、session、event、resource、shader、driver 证据。
-- 禁止自造工具名。
-- 调用时优先检查共享响应契约中的 `ok` 与 `error_message`。
+- debug / investigation
+- tool planning
+- session / runtime 推理
+- remote / event / context 生命周期裁决
 
-## 协作拓扑
+## 全局护栏
 
-- 当前平台的 `coordination_mode` 以 `common/config/platform_capabilities.json` 与平台生成物为准。
-- `concurrent_team`
-  - 允许并行分派，但每条 live 调试链路都必须独占一个 `context/daemon`
-- `staged_handoff`
-  - 子 Agent 先提交 brief 与 evidence request，再由 runtime owner 执行工具链
-- `workflow_stage`
-  - 只允许阶段化串行推进，不模拟实时 team handoff
+- 只使用 `rd.*` / platform tools 收集 capture、session、event、resource、shader、driver 证据
+- 禁止自造工具名、参数名或错误语义
+- `CLI` wrapper 不是规范源；tool catalog 与共享契约才是规范源
+- 正常用户入口只有 `team_lead`
+- specialist role 默认是 internal/debug-only，由 `team_lead` 决定是否分派
+- 遇到 host 能力不足时，保持 orchestrator 语义，不把路由责任推回给用户
 
-## Baton / Rehydrate
+## 协作与工作区约束
 
-- 跨轮次移交时必须附带 `runtime_baton`。
-- baton 必须优先恢复 `causal_anchor`、`action_chain.jsonl`、`session_evidence.yaml` 与 `rd.session.get_context` 可观察快照。
-- remote case 一律采用 `single_runtime_owner`；其他角色通过 brief / evidence request / artifact 协作。
-- `rd.session.update_context` 只允许恢复 focus 与 notes，不得伪造 runtime-owned handle。
-- `capture_file_id`、`session_id`、`remote_id` 都只能作为短生命周期提示，不得成为唯一真相源。
-- baton 恢复顺序以共享运行时文档 `common/docs/runtime-coordination-model.md` 为准；从当前文件的相对路径是 `../../docs/runtime-coordination-model.md`。
-
-## Workspace 约束
-
-- 运行区统一位于 `../workspace`（相对于平台本地 `common/`）。
-- Agent 运行时产生的 case/run 现场内容应写入 `../workspace/cases/<case_id>/runs/<run_id>/`。
-- 第一层知识沉淀继续写入 `common/knowledge/library/**`。
-- 第二层面向需求方/协作者的报告写入 `../workspace/cases/<case_id>/runs/<run_id>/reports/`。
-- 第二层报告默认复用同一 run 下的 `screenshots/` 素材，不复制第二套图片。
+- `coordination_mode` 以 `../../config/platform_capabilities.json` 与当前平台生成物为准
+- remote case 一律采用 `single_runtime_owner`
+- 跨轮次移交时必须附带可重建的 `runtime_baton`
+- 第一层真相继续写入 `common/knowledge/library/**`
+- case/run 现场与第二层交付物写入 `../workspace/cases/<case_id>/runs/<run_id>/`
 
 ## 方向约束
 
-- 出现 `hair_shading`、`precision`、`washout`、`blackout`、`Adreno_GPU` 这类组合时，禁止直接依据 screen-like 观测做根因裁决。
-- 必须先建立 `causal_anchor`，再把 `RelaxedPrecision`、后处理阶段或 screen-space shader 线索提升为根因分析对象。
+- 出现 `hair_shading`、`precision`、`washout`、`blackout`、`Adreno_GPU` 这类组合时，不得直接把 screen-like 观察提升为根因裁决
+- 必须先建立 `causal_anchor`，再把 `RelaxedPrecision`、后处理阶段或 screen-space shader 线索提升为根因分析对象
 
 ## 结案约束
 
-- 结案前必须满足 `session_evidence.yaml`、`skeptic_signoff.yaml`、`action_chain.jsonl` 与 `.current_session` 的 artifact 合同。
-- `skeptic_agent` 未完成 signoff 时，不得把结论当成最终结论。
-- 不得把 `workspace/` 中的 notes、截图或 HTML 页面当成 gate 真相；第一层 session artifacts 才是正式结案依据。
+- `skeptic_agent` 未 signoff，不得当成最终结论
+- `workspace/` 中的 notes、截图或 HTML 页面不是 gate 真相
+- 只有 session artifacts 与结构化证据满足 gate contract 时，才允许结案

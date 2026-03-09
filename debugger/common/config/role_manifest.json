@@ -1,12 +1,15 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "roles": [
     {
       "agent_id": "team_lead",
       "category": "orchestrator",
       "display_name": "Team Lead",
-      "description": "Coordinate delegates, track hypotheses, and enforce verdict gates.",
+      "description": "Coordinate delegates, own task intake, and enforce verdict gates.",
       "source_prompt": "agents/01_team_lead.md",
+      "role_skill_path": "skills/team-lead-orchestration/SKILL.md",
+      "formal_user_entry": true,
+      "entry_semantics": "primary_entry",
       "platform_files": {
         "claude-code": "01_team_lead.md",
         "code-buddy": "01_team_lead.md",
@@ -21,6 +24,9 @@
       "display_name": "Triage & Taxonomy",
       "description": "Map symptoms and triggers to normalized tags and SOP candidates.",
       "source_prompt": "agents/02_triage_taxonomy.md",
+      "role_skill_path": "skills/triage-taxonomy/SKILL.md",
+      "formal_user_entry": false,
+      "entry_semantics": "internal_debug_only",
       "platform_files": {
         "claude-code": "02_triage_taxonomy.md",
         "code-buddy": "02_triage_taxonomy.md",
@@ -35,6 +41,9 @@
       "display_name": "Capture & Repro",
       "description": "Establish reproducible capture baselines and anchors.",
       "source_prompt": "agents/03_capture_repro.md",
+      "role_skill_path": "skills/capture-repro/SKILL.md",
+      "formal_user_entry": false,
+      "entry_semantics": "internal_debug_only",
       "platform_files": {
         "claude-code": "03_capture_repro.md",
         "code-buddy": "03_capture_repro.md",
@@ -49,6 +58,9 @@
       "display_name": "Pass Graph / Pipeline",
       "description": "Trace pass divergence and resource dependency chains.",
       "source_prompt": "agents/04_pass_graph_pipeline.md",
+      "role_skill_path": "skills/pass-graph-pipeline/SKILL.md",
+      "formal_user_entry": false,
+      "entry_semantics": "internal_debug_only",
       "platform_files": {
         "claude-code": "04_pass_graph_pipeline.md",
         "code-buddy": "04_pass_graph_pipeline.md",
@@ -63,6 +75,9 @@
       "display_name": "Pixel Forensics",
       "description": "Locate first bad event and pixel-level evidence.",
       "source_prompt": "agents/05_pixel_value_forensics.md",
+      "role_skill_path": "skills/pixel-value-forensics/SKILL.md",
+      "formal_user_entry": false,
+      "entry_semantics": "internal_debug_only",
       "platform_files": {
         "claude-code": "05_pixel_value_forensics.md",
         "code-buddy": "05_pixel_value_forensics.md",
@@ -77,6 +92,9 @@
       "display_name": "Shader & IR",
       "description": "Analyze shader source, IR evidence, and suspicious fingerprints.",
       "source_prompt": "agents/06_shader_ir.md",
+      "role_skill_path": "skills/shader-ir/SKILL.md",
+      "formal_user_entry": false,
+      "entry_semantics": "internal_debug_only",
       "platform_files": {
         "claude-code": "06_shader_ir.md",
         "code-buddy": "06_shader_ir.md",
@@ -91,6 +109,9 @@
       "display_name": "Driver & Device",
       "description": "Perform cross-device attribution and platform-specific checks.",
       "source_prompt": "agents/07_driver_device.md",
+      "role_skill_path": "skills/driver-device/SKILL.md",
+      "formal_user_entry": false,
+      "entry_semantics": "internal_debug_only",
       "platform_files": {
         "claude-code": "07_driver_device.md",
         "code-buddy": "07_driver_device.md",
@@ -105,6 +126,9 @@
       "display_name": "Skeptic",
       "description": "Challenge weak claims and sign off only when proven.",
       "source_prompt": "agents/08_skeptic.md",
+      "role_skill_path": "skills/skeptic/SKILL.md",
+      "formal_user_entry": false,
+      "entry_semantics": "internal_debug_only",
       "platform_files": {
         "claude-code": "08_skeptic.md",
         "code-buddy": "08_skeptic.md",
@@ -119,6 +143,9 @@
       "display_name": "Report & Knowledge Curator",
       "description": "Produce BugFull and BugCard outputs and maintain reusable knowledge.",
       "source_prompt": "agents/09_report_knowledge_curator.md",
+      "role_skill_path": "skills/report-knowledge-curator/SKILL.md",
+      "formal_user_entry": false,
+      "entry_semantics": "internal_debug_only",
       "platform_files": {
         "claude-code": "09_report_knowledge_curator.md",
         "code-buddy": "09_report_knowledge_curator.md",

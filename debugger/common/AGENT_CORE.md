@@ -1,51 +1,66 @@
 # RenderDoc/RDC GPU Debug Agent Core
 
-本文件是 `RenderDoc/RDC GPU Debug` 的核心 SSOT。
+本文件是 `RenderDoc/RDC GPU Debug` framework 的全局约束入口。
 
-约束：
+职责边界：
 
-- Agent 角色职责以 `common/agents/*.md` 为准。
-- 平台适配物只允许修改 frontmatter、宿主所需引用和少量宿主专属接入说明。
-- 不得在平台镜像中改写角色职责、质量门槛、artifact 合同或工作流逻辑。
+- `RDC-Agent Tools` 负责平台真相：tool catalog、共享响应契约、runtime 生命周期、context/session/remote/event 语义与错误面。
+- 本文件只负责 framework 如何消费这些平台真相，不重新定义平台语义。
+- 角色职责正文以 `common/agents/*.md` 为准；平台适配物只允许改宿主入口、frontmatter 与少量宿主接入说明。
 
-## 1. Framework 与平台能力层的关系
+## 1. Framework 与 Tools 的边界
 
-`RenderDoc/RDC GPU Debug` 只依赖以下第一性平台能力：
+以下内容必须回到已解析的 `RDC-Agent Tools` 判定：
 
-- 规范化的 `rd.*` tool 能力面
+- `rd.*` tools 的能力面与参数语义
 - 共享响应契约
-- `.rdc -> capture handle -> session handle -> frame/event context` 的最小状态链路
-- `context`、daemon、artifact、failure surface
+- `.rdc -> capture_file_id -> session_id -> frame/event context` 的最小状态链路
+- `remote_id`、`capture_file_id`、`session_id`、`active_event_id` 等 handle 的生命周期
+- `context`、daemon、artifact、context snapshot 的平台语义
+- 错误分类与恢复面
 
-具体实现路径、catalog 文件位置、`MCP` / `CLI` 启动命令属于 adapter/config 层，不是 framework 真相。
+以下内容属于 framework：
 
-默认实现接入配置位于：
+- 角色拓扑与协作关系
+- 任务 intake、分派、阶段推进与结案门槛
+- `causal_anchor`、workspace、artifact/gate 的硬约束
+- 多平台能力差异下的降级编排原则
+
+## 2. Mandatory Tools Resolution
+
+所有需要平台真相的工作在开始前，必须先读取并校验：
 
 - `common/config/platform_adapter.json`
-- `common/config/platform_capabilities.json`
-- `common/config/platform_targets.json`
-- `common/config/model_routing.json`
-- `common/docs/runtime-coordination-model.md`
-- `common/docs/workspace-layout.md`
 
-## 2. 接入模式规则
+强制规则：
 
-### `MCP` 模式
+1. `paths.tools_root` 必须由用户显式配置，不允许保留占位值。
+2. Agent 必须验证 `tools_root` 下至少存在：
+   - `README.md`
+   - `docs/tools.md`
+   - `docs/session-model.md`
+   - `docs/agent-model.md`
+   - `spec/tool_catalog.json`
+3. 任一项缺失、路径不存在或 `tools_root` 未配置时，必须立即停止，不得继续做 debug / investigation / tool planning。
+4. 停止时统一输出：
 
-- 允许 tool discovery。
-- 允许 Agent 在任务编排前先发现能力面。
+```text
+Tools 平台真相未配置：请先在 `common/config/platform_adapter.json` 中设置 `paths.tools_root` 指向有效的 `RDC-Agent-Tools` 根目录，并确认必需文档与 `spec/tool_catalog.json` 存在后，再重新发起任务。
+```
 
-### `CLI` 模式
+5. 不允许把 `CLI` wrapper、skill 文本、平台模板说明或模型记忆当成 Tools 真相替代品。
 
-- 禁止 discovery-by-trial-and-error。
-- 禁止靠 `--help`、命令枚举、随机试跑或观察式探索来猜能力面。
-- 用户明确要求 `CLI` 模式时，先阅读：
-  - `common/docs/cli-mode-reference.md`
-  - `common/docs/platform-capability-model.md`
+推荐阅读顺序：
 
-## 3. Agent Identity SSOT
+1. `<resolved tools_root>/README.md`
+2. `<resolved tools_root>/docs/tools.md`
+3. `<resolved tools_root>/docs/session-model.md`
+4. `<resolved tools_root>/docs/agent-model.md`
+5. `<resolved tools_root>/spec/tool_catalog.json`
 
-内部协议统一使用 `agent_id`：
+## 3. Global Entry Contract
+
+内部 `agent_id` SSOT：
 
 - `team_lead`
 - `triage_agent`
@@ -57,96 +72,85 @@
 - `skeptic_agent`
 - `curator_agent`
 
-`plugin.json` 或宿主 UI 中的显示名只用于展示，不得参与路由和校验。
+入口规则：
 
-## 4. Core Workflow
+- `team_lead` 是当前 framework 唯一正式用户入口，承担 orchestrator 语义。
+- 其他角色默认是 internal/debug-only specialist，不是正常用户入口。
+- 若宿主无法隐藏 specialist 入口，仍必须明确：正常用户请求应先交给 `team_lead` 路由。
+- specialist 不得绕过 `team_lead` 重新定义任务 intake、裁决门槛或 delegation policy。
+
+## 4. Global Workflow
 
 统一工作流：
 
 1. `team_lead`
-   - 创建 hypothesis board
-   - 分派任务
-   - 维护裁决门槛
+   - intake 用户目标
+   - 建立 hypothesis board
+   - 决定阶段推进与 specialist 分派
 2. `triage_agent`
-   - 结构化症状与触发条件
-   - 推荐 SOP
-   - 输出 `causal_axis` 与 `disallowed_shortcuts`
+   - 结构化 symptoms / triggers
+   - 推荐 SOP 与 `causal_axis`
 3. `capture_repro_agent`
-   - 建立可复用 capture/session 基线
-   - 提供 capture/session anchor
-4. 因果锚点收敛阶段
-   - 将 capture/session anchor 收敛为可复查的 `causal_anchor`
+   - 建立 capture/session 基线
+   - 产出可重建的 capture anchor / runtime baton 起点
+4. 因果回锚阶段
+   - 将 capture/session anchor 收敛为 `causal_anchor`
    - 优先建立 `first_bad_event`、`first_divergence_event`、`root_drawcall` 或 `root_expression`
-5. 专家分析阶段
+5. 专家调查阶段
    - `pass_graph_pipeline_agent`
    - `pixel_forensics_agent`
    - `shader_ir_agent`
    - `driver_device_agent`
 6. `skeptic_agent`
-   - 对 `VALIDATE -> VALIDATED` 结论进行对抗审查
+   - 对 `VALIDATE -> VALIDATED` 结论做对抗审查
 7. `curator_agent`
-   - 生成 BugFull / BugCard
-   - 写入 session artifacts
-   - 推进知识沉淀
+   - 写入 BugFull / BugCard / session artifacts
 
-## 5. Causal Anchor Contract
+协作真相：
 
-上层框架在做任何根因级裁决前，必须先建立 `causal_anchor`。
+- `concurrent_team` 允许并行分派，但每条 live 调试链路必须独占一个 `context/daemon`。
+- `staged_handoff` 由 specialist 先提交 brief / evidence request，再由 runtime owner 执行 live tool 链。
+- `workflow_stage` 只允许阶段化串行推进，不模拟真实的 team-agent 并发 handoff。
+- remote case 一律服从 `single_runtime_owner`；不得因为 multi-agent 就共享 live remote runtime。
+
+## 5. Hard Contracts
+
+### 5.1 Causal Anchor
+
+在做任何根因级裁决前，必须先建立 `causal_anchor`。
 
 硬规则：
 
-- `第一可见错误 != 第一引入错误`。任何“某阶段首次明显可见”的观察，都不得直接提升为根因结论。
-- `无 causal_anchor 不得裁决`。没有 `causal_anchor` 时，禁止把 hypothesis 提升为 `VALIDATE` 或 `VALIDATED`。
-- `fallback 只能回锚，不得替代`。texture / screenshot / image similarity / screen-like 枚举只允许用于现象定位、像素选点和 sanity check，不得单独支撑根因判断。
-- `结构化证据优先级高于视觉证据`。event / pixel / shader / debug / IR 的直接 `rd.*` 输出优先于截图、图像差异和视觉叙事。
-- `证据冲突时进入 BLOCKED_REANCHOR`。若 event/pipeline/shader 与视觉 fallback 结论冲突，必须回到 re-anchor，而不是继续讲一个“更像”的故事。
+- `第一可见错误 != 第一引入错误`
+- 无 `causal_anchor` 不得把 hypothesis 提升为 `VALIDATE` 或 `VALIDATED`
+- screenshot / texture / similarity / screen-like fallback 只能用于选点、选对象、sanity check，不得替代因果裁决
+- 结构化 `rd.*` 证据优先级高于视觉叙事
+- 证据冲突时必须进入 `BLOCKED_REANCHOR`
 
 `causal_anchor` 最小字段：
 
-- `type`: `first_bad_event | first_divergence_event | root_drawcall | root_expression`
-- `ref`: 具体 event / drawcall / expression 引用
-- `established_by`: 建立该锚点的 agent
-- `justification`: 一句话说明为什么该锚点足以承载后续根因分析
+- `type`
+- `ref`
+- `established_by`
+- `justification`
 
-如果当前只有截图、texture 或 similarity 证据，允许继续调查，但 hypothesis 只能保持 `ACTIVE` 或进入 `BLOCKED_REANCHOR`。
+### 5.2 Session / Runtime Coordination
 
-## 6. Session Contract
+- `session_id` 必须来自 replay session 打开链路
+- 进入根因分析前必须先建立 `causal_anchor`
+- `capture_file_id`、`session_id`、`active_event_id`、`remote_id` 都是短生命周期 handle
+- `CLI` 与 `MCP` 共用同一套 daemon / context 机制
+- 同一 `context` 不得并行维护多条 live 调试链路
+- remote `open_replay` 成功后会消费 live `remote_id`
+- 跨 agent 或跨轮次移交 live 调试上下文时，必须提供可重建的 `runtime_baton`
+- `runtime_baton` 的恢复顺序与语义以 `common/docs/runtime-coordination-model.md` 为准
 
-上层框架必须遵守这些平台级最小约束：
-
-- `session_id` 必须来自 replay session 打开链路。
-- 在调用 event/pipeline/resource/shader/debug/export 等依赖上下文的能力前，必须先确保 event 上下文正确。
-- 在进入根因分析前，必须先建立 `causal_anchor`；capture/session anchor 本身不足以直接承载根因裁决。
-- `capture_file_id`、`session_id`、`active_event_id` 都是短生命周期运行时句柄，不得假设长期稳定。
-
-## 6.1 Runtime Coordination Rules
-
-上层 framework 在设计多 Agent 协作时，必须把宿主能力与 runtime 约束分开理解。
-
-硬规则：
-
-- `CLI` 与 `MCP` 共用同一套 daemon / context 机制。
-- `context` 只有单套当前 runtime 状态槽，不是多个 live session 的共享黑板。
-- `full-capability` 平台的并行分工，不等于“共享同一个 live session 并发操作”。
-- local 并行调查只能通过多 `context/daemon` 实现；同一 `context` 不得并行维护多条 live 调试链路。
-- remote `open_replay` 成功后会消费对应的 live `remote_id`；framework 不设计 remote 多 live session 并发流程。
-- remote 协作一律采用 `single_runtime_owner`：只有 owner 调用 `rd.*`，其他角色通过 brief / baton / artifact 协作。
-- 跨 agent 或跨轮次移交 live 调试上下文时，必须提供可重建的 `runtime_baton`。
-
-`runtime_baton` 的恢复顺序与语义以 `common/docs/runtime-coordination-model.md` 为准。
-
-## 7. Workspace Contract
-
-运行时工作区与共享真相必须分层：
+### 5.3 Workspace Contract
 
 - `common/` 是唯一共享真相
 - `../workspace/` 是 case/run 运行区
 
-共享 prompt / skill / docs 中引用运行区时，统一使用相对于 `common/` 的路径：
-
-- `../workspace`
-
-`workspace/` 固定模型：
+固定模型：
 
 ```text
 ../workspace/cases/<case_id>/runs/<run_id>/
@@ -158,22 +162,13 @@
   reports/
 ```
 
-语义：
-
-- `captures/`：原始或可重放输入
-- `screenshots/`：视觉证据
-- `artifacts/`：结构化机器产物
-- `logs/`：过程日志
-- `notes/`：人工笔记与分析草稿
-- `reports/`：面向需求方/协作者的交付层
-
 硬规则：
 
 - 第一层真相产物继续写入 `common/knowledge/library/**`
-- 第二层报告写入 `../workspace/cases/<case_id>/runs/<run_id>/reports/`
-- 第二层报告只能派生自第一层证据，不得反写第一层真相
+- 第二层交付层写入 `../workspace/cases/<case_id>/runs/<run_id>/reports/`
+- 第二层交付物只能派生自第一层证据，不得反写第一层真相
 
-## 8. Artifact Contract
+### 5.4 Artifact / Gate Contract
 
 结案前必须具备：
 
@@ -182,48 +177,32 @@
 - `common/knowledge/library/sessions/<session_id>/skeptic_signoff.yaml`
 - `common/knowledge/library/sessions/<session_id>/action_chain.jsonl`
 
-其中，`session_evidence.yaml` 根对象必须包含 `causal_anchor`，且至少包含一条 `type: causal_anchor_evidence` 的直接工具证据。
-如果 evidence 中存在 `type: visual_fallback_observation`，但没有 `causal_anchor` 或 `causal_anchor_evidence`，则不得视为有效结案。
+额外规则：
 
-缺失任一项，不得视为有效结案。
+- `session_evidence.yaml` 根对象必须包含完整 `causal_anchor`
+- 若存在 `type: visual_fallback_observation`，则必须同时存在 `type: causal_anchor_evidence`
+- 缺失任一项，不得视为有效结案
 
-## 9. Tool Contract Rules
+## 6. Canonical References
 
-- 所有 prompt / traces 中的 `rd.*` 工具引用必须以平台 catalog / contract 为准。
-- 禁止自造工具名。
-- 禁止沿用过期参数名。
-- 调用方必须优先检查共享响应契约中的：
-  - `ok`
-  - `error_message`
+共享 framework 入口：
 
-## 10. Platform Mirrors
+- `common/config/platform_adapter.json`
+- `common/config/platform_capabilities.json`
+- `common/config/platform_targets.json`
+- `common/config/model_routing.json`
 
-当前平台镜像来源：
+共享 framework 文档：
 
-- `platforms/claude-code/.claude/agents/`
-- `platforms/code-buddy/agents/`
-- `platforms/copilot-cli/agents/`
-- `platforms/copilot-ide/.github/agents/`
-- `platforms/claude-desktop/claude_desktop_config.json`
-- `platforms/codex/AGENTS.md`
-- `platforms/codex/.codex/agents/`
+- `common/docs/platform-capability-model.md`
+- `common/docs/platform-capability-matrix.md`
+- `common/docs/model-routing.md`
+- `common/docs/runtime-coordination-model.md`
+- `common/docs/workspace-layout.md`
+- `common/docs/cli-mode-reference.md`（仅在用户明确要求 `CLI` 模式时强制阅读）
 
-镜像同步命令：
+角色与技能入口：
 
-```bash
-python scripts/sync_platform_scaffolds.py
-```
-
-tool contract 校验命令：
-
-```bash
-python scripts/validate_tool_contract.py --strict
-```
-
-平台布局校验命令：
-
-```bash
-python scripts/validate_platform_layout.py --strict
-```
-
-
+- `common/agents/*.md`
+- `common/skills/renderdoc-rdc-gpu-debug/SKILL.md`
+- `common/skills/*/SKILL.md`

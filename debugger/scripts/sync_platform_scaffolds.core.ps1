@@ -11,12 +11,12 @@ $PlatformTargets = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "platfor
 $PlatformCaps = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "platform_capabilities.json") -Raw)
 $CopyNotice = "未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。"
 $Specs = @(
- @{ Key = "claude-code"; ManagedDirs = @(".claude", "common", "workspace"); ManagedFiles = @("README.md") },
- @{ Key = "code-buddy"; ManagedDirs = @(".codebuddy-plugin", "agents", "skills", "hooks", "common", "workspace"); ManagedFiles = @("README.md", ".mcp.json") },
- @{ Key = "copilot-cli"; ManagedDirs = @("agents", "skills", "hooks", "common", "workspace"); ManagedFiles = @("README.md", ".mcp.json", ".copilot-plugin.json") },
- @{ Key = "copilot-ide"; ManagedDirs = @(".github", "references", "common", "workspace"); ManagedFiles = @("README.md", "agent-plugin.json") },
- @{ Key = "claude-desktop"; ManagedDirs = @("references", "common", "workspace"); ManagedFiles = @("README.md", "claude_desktop_config.json") },
- @{ Key = "manus"; ManagedDirs = @("references", "workflows", "common", "workspace"); ManagedFiles = @("README.md") },
+ @{ Key = "claude-code"; ManagedDirs = @(".claude", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md") },
+ @{ Key = "code-buddy"; ManagedDirs = @(".codebuddy-plugin", "agents", "skills", "hooks", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md", ".mcp.json") },
+ @{ Key = "copilot-cli"; ManagedDirs = @("agents", "skills", "hooks", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md", ".mcp.json", ".copilot-plugin.json") },
+ @{ Key = "copilot-ide"; ManagedDirs = @(".github", "references", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md", "agent-plugin.json") },
+ @{ Key = "claude-desktop"; ManagedDirs = @("references", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md", "claude_desktop_config.json") },
+ @{ Key = "manus"; ManagedDirs = @("references", "workflows", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md") },
  @{ Key = "codex"; ManagedDirs = @(".agents", ".codex", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md") }
 )
 $ForbiddenDirs = @("docs", "scripts")
@@ -38,11 +38,41 @@ function Join-Parts([string[]]$Parts) {
  return $path
 }
 
-function Package-Root([string]$Key) { return (Join-Path (Join-Path $Root "platforms") $Key) }
-function Common-Root([string]$Key) { return (Join-Path (Package-Root $Key) "common") }
-function Rel-Path([string]$FromFile, [string]$ToPath) { $fromParts = [IO.Path]::GetFullPath((Split-Path $FromFile -Parent)).TrimEnd("\\").Split("\\"); $toParts = [IO.Path]::GetFullPath($ToPath).TrimEnd("\\").Split("\\"); if ($fromParts[0] -ne $toParts[0]) { return ($ToPath.Replace("\\", "/")) }; $i = 0; while ($i -lt $fromParts.Count -and $i -lt $toParts.Count -and $fromParts[$i] -eq $toParts[$i]) { $i++ }; $parts = @(); for ($j = $i; $j -lt $fromParts.Count; $j++) { $parts += ".." }; for ($j = $i; $j -lt $toParts.Count; $j++) { $parts += $toParts[$j] }; if ($parts.Count -eq 0) { return "." }; return ([string]::Join("/", $parts)) }
-function Common-Ref([string]$Key, [string]$FromFile, [string[]]$Parts) { return (Rel-Path $FromFile (Join-Path (Common-Root $Key) (Join-Parts $Parts))) }
-function Add-Expected($Table, [string]$Path, [string]$Text) { $Table[$Path] = Normalize $Text }
+function Package-Root([string]$Key) {
+ $platformRoot = $(Join-Path $Root "platforms")
+ return (Join-Path $platformRoot $Key)
+}
+function Common-Root([string]$Key) {
+ $packageRoot = $(Package-Root $Key)
+ return (Join-Path $packageRoot "common")
+}
+function Rel-Path([string]$FromFile, [string]$ToPath) {
+ if ([string]::IsNullOrWhiteSpace($FromFile)) { throw "Rel-Path missing FromFile" }
+ if ([string]::IsNullOrWhiteSpace($ToPath)) { throw "Rel-Path missing ToPath for FromFile=$FromFile" }
+ try {
+  $fromParts = [IO.Path]::GetFullPath((Split-Path $FromFile -Parent)).TrimEnd("\\").Split("\\")
+  $toParts = [IO.Path]::GetFullPath($ToPath).TrimEnd("\\").Split("\\")
+ } catch {
+  throw "Rel-Path invalid path. from=`"$FromFile`" to=`"$ToPath`""
+ }
+ if ($fromParts[0] -ne $toParts[0]) { return ($ToPath.Replace("\\", "/")) }
+ $i = 0
+ while ($i -lt $fromParts.Count -and $i -lt $toParts.Count -and $fromParts[$i] -eq $toParts[$i]) { $i++ }
+ $parts = @()
+ for ($j = $i; $j -lt $fromParts.Count; $j++) { $parts += ".." }
+ for ($j = $i; $j -lt $toParts.Count; $j++) { $parts += $toParts[$j] }
+ if ($parts.Count -eq 0) { return "." }
+ return ([string]::Join("/", $parts))
+}
+function Common-Ref([string]$Key, [string]$FromFile, [string[]]$Parts) {
+ $commonRoot = $(Common-Root $Key)
+ $joined = $(Join-Parts $Parts)
+ if ([string]::IsNullOrWhiteSpace($commonRoot)) { throw "Common-Ref missing commonRoot for key=$Key" }
+ if ([string]::IsNullOrWhiteSpace($joined)) { throw "Common-Ref missing joined path for key=$Key" }
+ $target = $(Join-Path $commonRoot $joined)
+ return $(Rel-Path $FromFile $target)
+}
+function Add-Expected($Table, [string]$Path, [string]$Text) { $Table[$Path] = $(Normalize $Text) }
 function Roles() { return @($RoleManifest.roles) }
 
 function Get-Role([string]$AgentId) {
@@ -63,11 +93,26 @@ function Role-Style([string]$AgentId) {
 function Role-Targets([string]$PlatformKey, [string]$AgentId) {
  $targets = @()
  foreach ($targetId in $RolePolicy.roles.$AgentId.delegates_to) {
- $targetRole = Get-Role $targetId
+ $targetRole = $(Get-Role $targetId)
  $fileName = $targetRole.platform_files.$PlatformKey
  if ($fileName) { $targets += [IO.Path]::GetFileNameWithoutExtension($fileName) }
  }
  return $targets
+}
+
+function Role-Skill-Ref([string]$PlatformKey, [string]$FromFile, $Role) {
+ return Common-Ref $PlatformKey $FromFile @($Role.role_skill_path.Split("/"))
+}
+
+function Role-Skill-DirName($Role) {
+ return Split-Path (Split-Path $Role.role_skill_path -Parent) -Leaf
+}
+
+function Role-Entry-Notice($Role) {
+ if ($Role.formal_user_entry) {
+ return '该角色是当前 framework 的唯一正式用户入口。正常用户请求必须从 `team_lead` 发起。'
+ }
+ return '该角色默认是 internal/debug-only specialist。正常用户请求应先交给 `team_lead` 路由，只有调试 framework 本身时才直接使用该角色。'
 }
 
 function Yaml-Block($Pairs) {
@@ -90,7 +135,7 @@ function Yaml-Block($Pairs) {
 }
 
 function Common-Placeholder-Files([string]$PlatformKey) {
- $root = Common-Root $PlatformKey
+ $root = $(Common-Root $PlatformKey)
  $expected = @{}
  Add-Expected $expected (Join-Path $root "README.md") @'
 # Platform Local Common Placeholder
@@ -174,130 +219,217 @@ function Readme([string]$PlatformKey) {
  "使用方式：",
  "",
  "1. 将仓库根目录 `debugger/common/` 整体拷贝到当前平台根目录的 `common/`，覆盖占位内容。",
- "2. 使用当前平台根目录同级的 `workspace/` 作为运行区。",
- "3. 完成覆盖后，再在对应宿主中打开当前平台根目录。",
- "4. 平台内的 skill、hooks、agents、config 只允许引用本地 `common/`。",
+ "2. 在当前平台根目录的 `common/config/platform_adapter.json` 中配置 `paths.tools_root`。",
+ "3. 确认 `validation.required_paths` 在 `<resolved tools_root>/` 下全部存在。",
+ "4. 使用当前平台根目录同级的 `workspace/` 作为运行区。",
+ "5. 完成覆盖后，再在对应宿主中打开当前平台根目录。",
+ "6. 正常用户请求从 `team_lead` 发起；其他 specialist 默认是 internal/debug-only。",
  "",
  "约束：",
  "",
  "- `common/` 默认只保留一个占位文件；正式共享正文仍由顶层 `debugger/common/` 提供，并由用户显式拷入。",
  "- 未完成 `debugger/common/` 覆盖前，当前平台模板不可用。",
+ "- 未完成 `platform_adapter.json` 配置或 `tools_root` 校验前，Agent 必须拒绝执行依赖平台真相的工作。",
  "- `workspace/` 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。",
  "- 维护者若重跑 scaffold，必须继续产出 platform-local `common/` 最小占位目录，不得回退到跨级引用。"
  )
  return ($lines -join "`n")
 }
 
-function AgentBody([string]$PlatformKey, $Role, [string]$TargetFile) { $rolePath = Join-Path (Common-Root $PlatformKey) $Role.source_prompt; $p1 = Common-Ref $PlatformKey $TargetFile @("AGENT_CORE.md"); $p2 = Rel-Path $TargetFile $rolePath; $p3 = Common-Ref $PlatformKey $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md")
-@"
-# RenderDoc/RDC Agent Wrapper
+function PlatformAgentsMd([string]$PlatformKey, [string]$TargetFile) {
+ $p1 = "common/AGENT_CORE.md"
+ $p2 = "common/config/platform_adapter.json"
+ $p3 = "common/skills/renderdoc-rdc-gpu-debug/SKILL.md"
+ $p4 = "common/docs/platform-capability-model.md"
+ $p5 = "common/docs/model-routing.md"
+ $lines = @(
+ "# $($PlatformCaps.platforms.$PlatformKey.display_name) Workspace Instructions",
+ "",
+ "当前目录是 $($PlatformCaps.platforms.$PlatformKey.display_name) 的 platform-local 模板。所有角色在进入 role-specific 行为前，都必须先服从本文件与共享 `common/` 约束。",
+ "",
+ "先阅读：",
+ "",
+ "1. $p1",
+ "2. $p2",
+ "3. $p3",
+ "4. $p4",
+ "5. $p5",
+ "",
+ '强制规则：',
+ '',
+ '- 正常用户入口只有 `team_lead`',
+ '- 其他 specialist 默认是 internal/debug-only，由 `team_lead` 决定是否分派',
+ '- `platform_adapter.json` 未配置或 `tools_root` 校验失败时，必须立即停止，不得继续做依赖平台真相的工作',
+ '',
+ "$CopyNotice",
+ '',
+ '运行时工作区固定为：`../workspace`'
+ )
+ return ($lines -join "`n")
+}
 
-当前文件是 $($PlatformCaps.platforms.$PlatformKey.display_name) 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
-
-本文件只负责宿主入口与角色元数据；共享正文统一从当前平台根目录的 `common/` 读取。
-
-按顺序阅读：
-
-1. $p1
-2. $p2
-3. $p3
-
-$CopyNotice
-
-运行时工作区固定为：`../workspace`
-"@
+function AgentBody([string]$PlatformKey, $Role, [string]$TargetFile) {
+ $rolePath = $(Join-Path $(Common-Root $PlatformKey) $Role.source_prompt)
+ $agentsRef = $(Join-Path $(Package-Root $PlatformKey) "AGENTS.md")
+ $p0 = $(Rel-Path $TargetFile $agentsRef)
+ $p1 = $(Common-Ref $PlatformKey $TargetFile @("AGENT_CORE.md"))
+ $p2 = $(Rel-Path $TargetFile $rolePath)
+ $p3 = $(Common-Ref $PlatformKey $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md"))
+ $p4 = $(Role-Skill-Ref $PlatformKey $TargetFile $Role)
+ $entryNotice = $(Role-Entry-Notice $Role)
+ $lines = @(
+ "# RenderDoc/RDC Agent Wrapper",
+ "",
+ "当前文件是 $($PlatformCaps.platforms.$PlatformKey.display_name) 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。",
+ "",
+ "本文件只负责宿主入口与角色元数据；共享正文统一从当前平台根目录的 `common/` 读取。",
+ "",
+ "$entryNotice",
+ "",
+ "按顺序阅读：",
+ "",
+ "1. $p0",
+ "2. $p1",
+ "3. $p2",
+ "4. $p3",
+ "5. $p4",
+ "",
+ "$CopyNotice",
+ "",
+ '运行时工作区固定为：`../workspace`'
+ )
+ return ($lines -join "`n")
 }
 
 function CodeBuddyAgent($Role, [string]$TargetFile) {
- $front = Yaml-Block ([ordered]@{ agent_id = $Role.agent_id; category = $Role.category; model = (Platform-Model "code-buddy" $Role.agent_id); delegates_to = @($RolePolicy.roles.($Role.agent_id).delegates_to) })
- return ($front + "`n`n" + (AgentBody "code-buddy" $Role $TargetFile))
+ $front = Yaml-Block ([ordered]@{ agent_id = $Role.agent_id; category = $Role.category; model = $(Platform-Model "code-buddy" $Role.agent_id); delegates_to = @($RolePolicy.roles.($Role.agent_id).delegates_to) })
+ return ($front + "`n`n" + $(AgentBody "code-buddy" $Role $TargetFile))
 }
 
 function ClaudeCodeAgent($Role, [string]$TargetFile) {
- $front = Yaml-Block ([ordered]@{ description = $Role.description; model = (Platform-Model "claude-code" $Role.agent_id) })
- return ($front + "`n`n" + (AgentBody "claude-code" $Role $TargetFile))
+ $front = Yaml-Block ([ordered]@{ description = $Role.description; model = $(Platform-Model "claude-code" $Role.agent_id) })
+ return ($front + "`n`n" + $(AgentBody "claude-code" $Role $TargetFile))
 }
 
 function CopilotIdeAgent($Role, [string]$TargetFile) {
- $front = Yaml-Block ([ordered]@{ description = $Role.description; model = (Platform-Model "copilot-ide" $Role.agent_id); handoffs = @(Role-Targets "copilot-ide" $Role.agent_id) })
- return ($front + "`n`n" + (AgentBody "copilot-ide" $Role $TargetFile))
+ $front = Yaml-Block ([ordered]@{ description = $Role.description; model = $(Platform-Model "copilot-ide" $Role.agent_id); handoffs = @($(Role-Targets "copilot-ide" $Role.agent_id)) })
+ return ($front + "`n`n" + $(AgentBody "copilot-ide" $Role $TargetFile))
 }
 
 function CopilotCliAgent($Role, [string]$TargetFile) {
  $front = Yaml-Block ([ordered]@{ description = $Role.description })
- return ($front + "`n`n" + (AgentBody "copilot-cli" $Role $TargetFile))
+ return ($front + "`n`n" + $(AgentBody "copilot-cli" $Role $TargetFile))
 }
 
-function SkillWrapper([string]$PlatformKey, [string]$TargetFile) { $skillRef = Common-Ref $PlatformKey $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md"); $capRef = Common-Ref $PlatformKey $TargetFile @("config", "platform_capabilities.json")
-@"
-# RenderDoc/RDC GPU Debug Skill Wrapper
-
-当前文件是 $($PlatformCaps.platforms.$PlatformKey.display_name) 的 skill 入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
-
-本 skill 只引用当前平台根目录的 `common/`：
-
-- $skillRef
-- coordination_mode 与降级边界以 $capRef 的当前平台定义为准。
-
-$CopyNotice
-
-运行时 case/run 现场与第二层报告统一写入：`../workspace`
-"@
+function BaseSkillWrapper([string]$PlatformKey, [string]$TargetFile) {
+ $skillRef = $(Common-Ref $PlatformKey $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md"))
+ $capRef = $(Common-Ref $PlatformKey $TargetFile @("config", "platform_capabilities.json"))
+ $adapterRef = $(Common-Ref $PlatformKey $TargetFile @("config", "platform_adapter.json"))
+ $lines = @(
+ "# RenderDoc/RDC GPU Debug Base Skill Wrapper",
+ "",
+ "当前文件是 $($PlatformCaps.platforms.$PlatformKey.display_name) 的 base skill 入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。",
+ "",
+ "本 skill 只引用当前平台根目录的 `common/`：",
+ "",
+ "- $skillRef",
+ "- 进入任何平台真相相关工作前，必须先校验 $adapterRef",
+ "- coordination_mode 与降级边界以 $capRef 的当前平台定义为准。",
+ "",
+ "$CopyNotice",
+ "",
+ '运行时 case/run 现场与第二层报告统一写入：`../workspace`'
+ )
+ return ($lines -join "`n")
 }
 
-function ClaudeCodeEntry([string]$TargetFile) { $p1 = Common-Ref "claude-code" $TargetFile @("AGENT_CORE.md"); $p2 = Common-Ref "claude-code" $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md"); $p3 = Common-Ref "claude-code" $TargetFile @("docs", "platform-capability-model.md")
-@"
-# Claude Code Entry
-
-当前目录是 Claude Code 的 platform-local 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
-
-先阅读：
-
-1. $p1
-2. $p2
-3. $p3
-
-$CopyNotice
-
-运行时工作区固定为：`../workspace`
-"@
+function RoleSkillWrapper([string]$PlatformKey, $Role, [string]$TargetFile) {
+ $baseRef = $(Common-Ref $PlatformKey $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md"))
+ $roleSkillRef = $(Role-Skill-Ref $PlatformKey $TargetFile $Role)
+ $capRef = $(Common-Ref $PlatformKey $TargetFile @("config", "platform_capabilities.json"))
+ $entryNotice = $(Role-Entry-Notice $Role)
+ $lines = @(
+ "# $($Role.display_name) Skill Wrapper",
+ "",
+ "当前文件是 $($PlatformCaps.platforms.$PlatformKey.display_name) 的 role skill 入口。",
+ "",
+ "$entryNotice",
+ "",
+ "先阅读：",
+ "",
+ "1. $baseRef",
+ "2. $roleSkillRef",
+ "3. $capRef",
+ "",
+ "$CopyNotice",
+ "",
+ '运行时 case/run 现场与第二层报告统一写入：`../workspace`'
+ )
+ return ($lines -join "`n")
 }
 
-function CopilotInstructions([string]$TargetFile) { $p1 = Common-Ref "copilot-ide" $TargetFile @("AGENT_CORE.md"); $p2 = Common-Ref "copilot-ide" $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md"); $p3 = Common-Ref "copilot-ide" $TargetFile @("docs", "platform-capability-model.md")
-@"
-# Copilot IDE Instructions
-
-当前目录是 Copilot IDE / VS Code 的 platform-local 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
-
-先阅读：
-
-1. $p1
-2. $p2
-3. $p3
-4. ../references/entrypoints.md
-
-$CopyNotice
-
-运行时工作区固定为：`../workspace`
-"@
+function ClaudeCodeEntry([string]$TargetFile) {
+ $agentsRef = $(Join-Path $(Package-Root "claude-code") "AGENTS.md")
+ $p1 = $(Rel-Path $TargetFile $agentsRef)
+ $p2 = $(Common-Ref "claude-code" $TargetFile @("docs", "platform-capability-model.md"))
+ $lines = @(
+ "# Claude Code Entry",
+ "",
+ "当前目录是 Claude Code 的 platform-local 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。",
+ "",
+ "先阅读：",
+ "",
+ "1. $p1",
+ "2. $p2",
+ "",
+ "$CopyNotice",
+ "",
+ '运行时工作区固定为：`../workspace`'
+ )
+ return ($lines -join "`n")
 }
 
-function ReferencesEntry([string]$PlatformKey, [string]$TargetFile) { $p1 = Common-Ref $PlatformKey $TargetFile @("AGENT_CORE.md"); $p2 = Common-Ref $PlatformKey $TargetFile @("docs", "platform-capability-model.md"); $p3 = Common-Ref $PlatformKey $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md")
-@"
-# $($PlatformCaps.platforms.$PlatformKey.display_name) Entrypoints
+function CopilotInstructions([string]$TargetFile) {
+ $agentsRef = $(Join-Path $(Package-Root "copilot-ide") "AGENTS.md")
+ $p1 = $(Rel-Path $TargetFile $agentsRef)
+ $p2 = $(Common-Ref "copilot-ide" $TargetFile @("docs", "platform-capability-model.md"))
+ $lines = @(
+ "# Copilot IDE Instructions",
+ "",
+ "当前目录是 Copilot IDE / VS Code 的 platform-local 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。",
+ "",
+ "先阅读：",
+ "",
+ "1. $p1",
+ "2. $p2",
+ "3. ../references/entrypoints.md",
+ "",
+ "$CopyNotice",
+ "",
+ '运行时工作区固定为：`../workspace`'
+ )
+ return ($lines -join "`n")
+}
 
-当前目录只提供宿主入口提示；运行时共享文档统一从当前平台根目录的 `common/` 读取。
-
-先阅读：
-
-1. $p1
-2. $p2
-3. $p3
-
-$CopyNotice
-
-运行时工作区固定为：`../workspace`
-"@
+function ReferencesEntry([string]$PlatformKey, [string]$TargetFile) {
+ $agentsRef = $(Join-Path $(Package-Root $PlatformKey) "AGENTS.md")
+ $p1 = $(Rel-Path $TargetFile $agentsRef)
+ $p2 = $(Common-Ref $PlatformKey $TargetFile @("docs", "platform-capability-model.md"))
+ $lines = @(
+ "# $($PlatformCaps.platforms.$PlatformKey.display_name) Entrypoints",
+ "",
+ "当前目录只提供宿主入口提示；运行时共享文档统一从当前平台根目录的 `common/` 读取。",
+ "",
+ "先阅读：",
+ "",
+ "1. $p1",
+ "2. $p2",
+ "",
+ "$CopyNotice",
+ "",
+ '运行时工作区固定为：`../workspace`'
+ )
+ return ($lines -join "`n")
 }
 
 function ManusWorkflow() {
@@ -306,24 +438,29 @@ function ManusWorkflow() {
 
 ## 目标
 
-在低能力宿主中，用 workflow 方式完成 RenderDoc/RDC GPU Debug 的最小闭环。
+在低能力宿主中，用 workflow 方式完成 RenderDoc/RDC GPU Debug 的最小闭环。正常任务 intake 仍由 `team_lead` / orchestrator 语义承担。
 
 ## 阶段
 
-1. `triage`
+1. `tools preflight`
+ - 校验 `platform_adapter.json` 与 `tools_root`
+2. `team_lead intake`
+ - 接收用户请求，决定 triage / capture / specialist 的推进顺序
+3. `triage`
  - 结构化现象、触发条件、可能的 SOP 入口
-2. `capture/session`
+4. `capture/session`
  - 确认 `.rdc`、session、frame、event anchor
-3. `specialist analysis`
+5. `specialist analysis`
  - 从 pipeline、forensics、shader、driver 四个方向收集证据
-4. `skeptic`
+6. `skeptic`
  - 复核证据链是否足以支持结论
-5. `curation`
+7. `curation`
  - 生成 BugFull / BugCard，写入 session artifacts
 
 ## workflow 约束
 
 - Manus 不承担 custom agents / per-agent model 的宿主能力。
+- `tools_root` 未配置或校验失败时必须立即停止。
 - workflow 的每一阶段都必须引用共享 artifact contract。
 - `workflow_stage` 是该平台的协作上限，不模拟 team-agent 实时协作。
 - remote 阶段由单一 runtime owner 顺序完成 `rd.remote.connect -> rd.remote.ping -> rd.capture.open_file -> rd.capture.open_replay -> re-anchor -> collect evidence`。
@@ -385,7 +522,7 @@ function ClaudeCodeSettings() {
 }
 
 function CopilotIdePlugin() {
- return @{ name = "renderdoc-rdc-gpu-debug-ide"; description = "RenderDoc/RDC GPU Debug 的 Copilot IDE platform-local common 适配包。"; agentsRoot = ".github/agents"; notes = @("Use preferred per-agent models where the IDE host supports them.", "Preserve role routing and evidence gates even when the host ignores model preference.", "Read references/entrypoints.md before attempting a CLI-style flow inside the IDE host.") }
+ return @{ name = "renderdoc-rdc-gpu-debug-ide"; description = "RenderDoc/RDC GPU Debug 的 Copilot IDE platform-local common 适配包。"; agentsRoot = ".github/agents"; notes = @("Start normal user requests from team_lead / orchestrator.", "Preserve role routing and evidence gates even when the host ignores model preference.", "Read references/entrypoints.md before attempting a CLI-style flow inside the IDE host.") }
 }
 
 function ClaudeDesktopConfig() {
@@ -402,41 +539,20 @@ function CodexReadme() {
 使用方式：
 
 1. 将仓库根目录 `debugger/common/` 整体拷贝到当前平台根目录的 `common/`，覆盖占位内容。
-2. 使用当前平台根目录同级的 `workspace/` 作为运行区。
-3. 完成覆盖后，打开当前目录作为 Codex workspace root。
-4. AGENTS.md、.agents/skills/、.codex/config.toml 与 .codex/agents/*.toml 只允许引用当前平台根目录的 common/。
+2. 在 `common/config/platform_adapter.json` 中配置 `paths.tools_root`。
+3. 确认 `validation.required_paths` 在 `<resolved tools_root>/` 下全部存在。
+4. 使用当前平台根目录同级的 `workspace/` 作为运行区。
+5. 完成覆盖后，打开当前目录作为 Codex workspace root。
+6. 正常用户请求从 `team_lead` 发起；其他 specialist 默认是 internal/debug-only。
+7. AGENTS.md、.agents/skills/、.codex/config.toml 与 .codex/agents/*.toml 只允许引用当前平台根目录的 common/。
 
 约束：
 
 - common/ 默认只保留一个占位文件；正式共享正文仍由顶层 debugger/common/ 提供，并由用户显式拷入。
 - 未完成 debugger/common/ 覆盖前，当前平台模板不可用。
+- 未完成 `platform_adapter.json` 配置或 `tools_root` 校验前，Agent 必须拒绝执行依赖平台真相的工作。
 - workspace/ 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。
 - multi_agent 当前按 experimental / CLI-first 理解，但共享规则与 role config 已完整生成。
-"@
-}
-
-function CodexAgentsMd([string]$TargetFile) { $p1 = Common-Ref "codex" $TargetFile @("AGENT_CORE.md"); $p2 = Common-Ref "codex" $TargetFile @("skills", "renderdoc-rdc-gpu-debug", "SKILL.md"); $p3 = Common-Ref "codex" $TargetFile @("docs", "platform-capability-model.md"); $p4 = Common-Ref "codex" $TargetFile @("docs", "model-routing.md")
-@"
-# Codex Workspace Instructions
-
-当前目录是 Codex workspace-native 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
-
-先阅读：
-
-1. $p1
-2. $p2
-3. $p3
-4. $p4
-
-$CopyNotice
-
-运行时工作区固定为：`../workspace`
-
-角色约束：
-
-- team_lead 负责分派和结案门槛，不直接执行 live 调试。
-- 专家角色的共享 prompt 真相保存在 common/agents/*.md；.codex/agents/*.toml 只负责模型、reasoning、verbosity 与 sandbox。
-- remote case 继续服从 single_runtime_owner，不得因为 multi_agent 就共享 live runtime。
 "@
 }
 
@@ -462,8 +578,8 @@ function CodexConfig() {
 }
 
 function CodexRoleConfig($Role, [string]$TargetFile) {
- $style = Role-Style $Role.agent_id
- $promptRef = Common-Ref "codex" $TargetFile @($Role.source_prompt.Split("/"))
+ $style = $(Role-Style $Role.agent_id)
+ $promptRef = $(Common-Ref "codex" $TargetFile @($Role.source_prompt.Split("/")))
 @"
 # Shared role prompt: $promptRef
 model = "$(Platform-Model "codex" $Role.agent_id)"
@@ -479,61 +595,93 @@ function Expected-Files($Spec) {
  $expected = @{}
  foreach ($entry in ((& ${function:Common-Placeholder-Files} $Spec.Key).GetEnumerator())) { $expected[$entry.Key] = $entry.Value }
  foreach ($entry in ((& ${function:Workspace-Placeholder-Files} $Spec.Key).GetEnumerator())) { $expected[$entry.Key] = $entry.Value }
- if ($Spec.Key -eq "codex") { Add-Expected $expected (Join-Path $package "README.md") (CodexReadme) } else { Add-Expected $expected (Join-Path $package "README.md") (Readme $Spec.Key) }
- if (@("claude-code", "code-buddy", "copilot-cli", "copilot-ide") -contains $Spec.Key) {
- foreach ($role in (Roles)) {
- $fileName = $role.platform_files.($Spec.Key)
- if (-not $fileName) { continue }
- if ($Spec.Key -eq "claude-code") { $target = Join-Path $package (Join-Path ".claude\agents" $fileName); Add-Expected $expected $target (ClaudeCodeAgent $role $target) }
- elseif ($Spec.Key -eq "code-buddy") { $target = Join-Path $package (Join-Path "agents" $fileName); Add-Expected $expected $target (CodeBuddyAgent $role $target) }
- elseif ($Spec.Key -eq "copilot-cli") { $target = Join-Path $package (Join-Path "agents" $fileName); Add-Expected $expected $target (CopilotCliAgent $role $target) }
- elseif ($Spec.Key -eq "copilot-ide") { $target = Join-Path $package (Join-Path ".github\agents" $fileName); Add-Expected $expected $target (CopilotIdeAgent $role $target) }
+ if ($Spec.Key -eq "codex") {
+  $readme = $(CodexReadme)
+ } else {
+  $readme = $(Readme $Spec.Key)
  }
+ Add-Expected $expected (Join-Path $package "README.md") $readme
+ $agentsMdPath = Join-Path $package "AGENTS.md"
+ $agentsMd = $(PlatformAgentsMd $Spec.Key $agentsMdPath)
+ Add-Expected $expected $agentsMdPath $agentsMd
+ if (@("claude-code", "code-buddy", "copilot-cli", "copilot-ide") -contains $Spec.Key) {
+  foreach ($role in (Roles)) {
+   $fileName = $role.platform_files.($Spec.Key)
+   if (-not $fileName) { continue }
+   if ($Spec.Key -eq "claude-code") {
+    $target = Join-Path $package (Join-Path ".claude\agents" $fileName)
+    $content = $(ClaudeCodeAgent $role $target)
+   } elseif ($Spec.Key -eq "code-buddy") {
+    $target = Join-Path $package (Join-Path "agents" $fileName)
+    $content = $(CodeBuddyAgent $role $target)
+   } elseif ($Spec.Key -eq "copilot-cli") {
+    $target = Join-Path $package (Join-Path "agents" $fileName)
+    $content = $(CopilotCliAgent $role $target)
+   } else {
+    $target = Join-Path $package (Join-Path ".github\agents" $fileName)
+    $content = $(CopilotIdeAgent $role $target)
+   }
+   Add-Expected $expected $target $content
+  }
  }
  if ($Spec.Key -eq "code-buddy") {
- $skill = Join-Path $package "skills\renderdoc-rdc-gpu-debug\SKILL.md"
- Add-Expected $expected $skill (SkillWrapper $Spec.Key $skill)
- Add-Expected $expected (Join-Path $package ".codebuddy-plugin\plugin.json") (ConvertTo-Json (CodeBuddyPlugin) -Depth 20)
- Add-Expected $expected (Join-Path $package ".mcp.json") (ConvertTo-Json (Mcp-Payload) -Depth 20)
- Add-Expected $expected (Join-Path $package "hooks\hooks.json") (ConvertTo-Json (CodeBuddyHooks) -Depth 20)
+  $skill = Join-Path $package "skills\renderdoc-rdc-gpu-debug\SKILL.md"
+  Add-Expected $expected $skill $(BaseSkillWrapper $Spec.Key $skill)
+  foreach ($role in (Roles)) {
+   $roleSkillTarget = Join-Path $package (Join-Path "skills" (Join-Path (Role-Skill-DirName $role) "SKILL.md"))
+   Add-Expected $expected $roleSkillTarget $(RoleSkillWrapper $Spec.Key $role $roleSkillTarget)
+  }
+  Add-Expected $expected (Join-Path $package ".codebuddy-plugin\plugin.json") (ConvertTo-Json (CodeBuddyPlugin) -Depth 20)
+  Add-Expected $expected (Join-Path $package ".mcp.json") (ConvertTo-Json (Mcp-Payload) -Depth 20)
+  Add-Expected $expected (Join-Path $package "hooks\hooks.json") (ConvertTo-Json (CodeBuddyHooks) -Depth 20)
  } elseif ($Spec.Key -eq "copilot-cli") {
- $skill = Join-Path $package "skills\renderdoc-rdc-gpu-debug\SKILL.md"
- Add-Expected $expected $skill (SkillWrapper $Spec.Key $skill)
- Add-Expected $expected (Join-Path $package ".copilot-plugin.json") (ConvertTo-Json (CopilotCliPlugin) -Depth 20)
- Add-Expected $expected (Join-Path $package ".mcp.json") (ConvertTo-Json (Mcp-Payload) -Depth 20)
- Add-Expected $expected (Join-Path $package "hooks\hooks.json") (ConvertTo-Json (CopilotCliHooks) -Depth 20)
+  $skill = Join-Path $package "skills\renderdoc-rdc-gpu-debug\SKILL.md"
+  Add-Expected $expected $skill $(BaseSkillWrapper $Spec.Key $skill)
+  foreach ($role in (Roles)) {
+   $roleSkillTarget = Join-Path $package (Join-Path "skills" (Join-Path (Role-Skill-DirName $role) "SKILL.md"))
+   Add-Expected $expected $roleSkillTarget $(RoleSkillWrapper $Spec.Key $role $roleSkillTarget)
+  }
+  Add-Expected $expected (Join-Path $package ".copilot-plugin.json") (ConvertTo-Json (CopilotCliPlugin) -Depth 20)
+  Add-Expected $expected (Join-Path $package ".mcp.json") (ConvertTo-Json (Mcp-Payload) -Depth 20)
+  Add-Expected $expected (Join-Path $package "hooks\hooks.json") (ConvertTo-Json (CopilotCliHooks) -Depth 20)
  } elseif ($Spec.Key -eq "claude-code") {
- $entry = Join-Path $package ".claude\CLAUDE.md"
- Add-Expected $expected $entry (ClaudeCodeEntry $entry)
- Add-Expected $expected (Join-Path $package ".claude\settings.json") (ConvertTo-Json (ClaudeCodeSettings) -Depth 20)
+  $entry = Join-Path $package ".claude\CLAUDE.md"
+  Add-Expected $expected $entry $(ClaudeCodeEntry $entry)
+  Add-Expected $expected (Join-Path $package ".claude\settings.json") (ConvertTo-Json (ClaudeCodeSettings) -Depth 20)
  } elseif ($Spec.Key -eq "copilot-ide") {
- $skill = Join-Path $package ".github\skills\renderdoc-rdc-gpu-debug\SKILL.md"
- $entry = Join-Path $package ".github\copilot-instructions.md"
- $ref = Join-Path $package "references\entrypoints.md"
- Add-Expected $expected $skill (SkillWrapper $Spec.Key $skill)
- Add-Expected $expected $entry (CopilotInstructions $entry)
- Add-Expected $expected $ref (ReferencesEntry $Spec.Key $ref)
- Add-Expected $expected (Join-Path $package "agent-plugin.json") (ConvertTo-Json (CopilotIdePlugin) -Depth 20)
- Add-Expected $expected (Join-Path $package ".github\mcp.json") (ConvertTo-Json (Mcp-Payload) -Depth 20)
+  $skill = Join-Path $package ".github\skills\renderdoc-rdc-gpu-debug\SKILL.md"
+  $entry = Join-Path $package ".github\copilot-instructions.md"
+  $ref = Join-Path $package "references\entrypoints.md"
+  Add-Expected $expected $skill $(BaseSkillWrapper $Spec.Key $skill)
+  foreach ($role in (Roles)) {
+   $roleSkillTarget = Join-Path $package (Join-Path ".github\skills" (Join-Path (Role-Skill-DirName $role) "SKILL.md"))
+   Add-Expected $expected $roleSkillTarget $(RoleSkillWrapper $Spec.Key $role $roleSkillTarget)
+  }
+  Add-Expected $expected $entry $(CopilotInstructions $entry)
+  Add-Expected $expected $ref $(ReferencesEntry $Spec.Key $ref)
+  Add-Expected $expected (Join-Path $package "agent-plugin.json") (ConvertTo-Json (CopilotIdePlugin) -Depth 20)
+  Add-Expected $expected (Join-Path $package ".github\mcp.json") (ConvertTo-Json (Mcp-Payload) -Depth 20)
  } elseif ($Spec.Key -eq "claude-desktop") {
- $ref = Join-Path $package "references\entrypoints.md"
- Add-Expected $expected $ref (ReferencesEntry $Spec.Key $ref)
- Add-Expected $expected (Join-Path $package "claude_desktop_config.json") (ConvertTo-Json (ClaudeDesktopConfig) -Depth 20)
+  $ref = Join-Path $package "references\entrypoints.md"
+  Add-Expected $expected $ref $(ReferencesEntry $Spec.Key $ref)
+  Add-Expected $expected (Join-Path $package "claude_desktop_config.json") (ConvertTo-Json (ClaudeDesktopConfig) -Depth 20)
  } elseif ($Spec.Key -eq "manus") {
- $ref = Join-Path $package "references\entrypoints.md"
- Add-Expected $expected $ref (ReferencesEntry $Spec.Key $ref)
- Add-Expected $expected (Join-Path $package "workflows\00_debug_workflow.md") (ManusWorkflow)
+  $ref = Join-Path $package "references\entrypoints.md"
+  Add-Expected $expected $ref $(ReferencesEntry $Spec.Key $ref)
+  Add-Expected $expected (Join-Path $package "workflows\00_debug_workflow.md") $(ManusWorkflow)
  } elseif ($Spec.Key -eq "codex") {
- $entry = Join-Path $package "AGENTS.md"
- $skill = Join-Path $package ".agents\skills\renderdoc-rdc-gpu-debug\SKILL.md"
- Add-Expected $expected $entry (CodexAgentsMd $entry)
- Add-Expected $expected $skill (SkillWrapper $Spec.Key $skill)
- Add-Expected $expected (Join-Path $package ".codex\config.toml") (CodexConfig)
- foreach ($role in (Roles)) {
- $key = $role.platform_files.codex
- $target = Join-Path $package (Join-Path ".codex\agents" "$key.toml")
- Add-Expected $expected $target (CodexRoleConfig $role $target)
- }
+  $skill = Join-Path $package ".agents\skills\renderdoc-rdc-gpu-debug\SKILL.md"
+  Add-Expected $expected $skill $(BaseSkillWrapper $Spec.Key $skill)
+  foreach ($role in (Roles)) {
+   $roleSkillTarget = Join-Path $package (Join-Path ".agents\skills" (Join-Path (Role-Skill-DirName $role) "SKILL.md"))
+   Add-Expected $expected $roleSkillTarget $(RoleSkillWrapper $Spec.Key $role $roleSkillTarget)
+  }
+  Add-Expected $expected (Join-Path $package ".codex\config.toml") $(CodexConfig)
+  foreach ($role in (Roles)) {
+   $key = $role.platform_files.codex
+   $target = Join-Path $package (Join-Path ".codex\agents" "$key.toml")
+   Add-Expected $expected $target $(CodexRoleConfig $role $target)
+  }
  }
  return $expected
 }
@@ -575,11 +723,11 @@ function Stale-Findings($Spec) {
 }
 
 function Collect-Findings($Spec) {
- $expected = Expected-Files $Spec
+ $expected = $(Expected-Files $Spec)
  $rows = @()
- $rows += Compare-Files $expected
- $rows += Compare-ManagedDirs $Spec $expected
- $rows += Stale-Findings $Spec
+ $rows += $(Compare-Files $expected)
+ $rows += $(Compare-ManagedDirs $Spec $expected)
+ $rows += $(Stale-Findings $Spec)
  return $rows
 }
 
@@ -590,14 +738,15 @@ function Sync-Spec($Spec) {
  foreach ($rel in $ForbiddenDirs) { Remove-PathIfExists (Join-Path $package $rel) }
  foreach ($rel in $Spec.ManagedDirs) { Remove-PathIfExists (Join-Path $package $rel) }
  foreach ($rel in $Spec.ManagedFiles) { Remove-PathIfExists (Join-Path $package $rel) }
- foreach ($entry in (Expected-Files $Spec).GetEnumerator()) { Write-Text $entry.Key $entry.Value }
+ foreach ($entry in $(Expected-Files $Spec).GetEnumerator()) { Write-Text $entry.Key $entry.Value }
 }
 
 function Validate-SourceTree() {
- $required = @($Common, (Join-Path $Common "agents"), (Join-Path $Common "skills\renderdoc-rdc-gpu-debug\SKILL.md"), (Join-Path $Common "docs\workspace-layout.md"), (Join-Path $Common "knowledge\proposals\README.md"), (Join-Path $ConfigRoot "role_manifest.json"), (Join-Path $ConfigRoot "role_policy.json"), (Join-Path $ConfigRoot "model_routing.json"), (Join-Path $ConfigRoot "mcp_servers.json"), (Join-Path $ConfigRoot "platform_capabilities.json"), (Join-Path $ConfigRoot "platform_targets.json"))
+ $required = @($Common, (Join-Path $Common "agents"), (Join-Path $Common "skills\renderdoc-rdc-gpu-debug\SKILL.md"), (Join-Path $Common "docs\workspace-layout.md"), (Join-Path $Common "knowledge\proposals\README.md"), (Join-Path $ConfigRoot "role_manifest.json"), (Join-Path $ConfigRoot "role_policy.json"), (Join-Path $ConfigRoot "model_routing.json"), (Join-Path $ConfigRoot "mcp_servers.json"), (Join-Path $ConfigRoot "platform_adapter.json"), (Join-Path $ConfigRoot "platform_capabilities.json"), (Join-Path $ConfigRoot "platform_targets.json"))
  $findings = @()
  foreach ($path in $required) { if (-not (Test-Path $path)) { $findings += "missing shared source: $path" } }
  foreach ($role in (Roles)) { $source = Join-Path $Common $role.source_prompt; if (-not (Test-Path $source)) { $findings += "missing shared agent source: $source" } }
+ foreach ($role in (Roles)) { $skill = Join-Path $Common $role.role_skill_path; if (-not (Test-Path $skill)) { $findings += "missing shared role skill: $skill" } }
  return $findings
 }
 
@@ -609,7 +758,7 @@ if ($sourceFindings.Count -gt 0) {
 }
 
 $findings = @()
-foreach ($spec in $Specs) { $findings += Collect-Findings $spec }
+foreach ($spec in $Specs) { $findings += $(Collect-Findings $spec) }
 if ($Check) {
  if ($findings.Count -gt 0) {
  Write-Output "[platform scaffold findings]"

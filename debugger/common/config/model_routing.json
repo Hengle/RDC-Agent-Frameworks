@@ -19,9 +19,9 @@
       "platform_rendering": {
         "claude-code": "sonnet",
         "code-buddy": "sonnet-4.6",
-        "copilot-cli": "inherit",
-        "copilot-ide": "gpt-5",
-        "claude-desktop": "inherit",
+        "copilot-cli": "sonnet-4.6",
+        "copilot-ide": "sonnet-4.6",
+        "claude-desktop": "sonnet",
         "codex": "gpt-5.4"
       }
     },
@@ -31,9 +31,9 @@
       "platform_rendering": {
         "claude-code": "opus",
         "code-buddy": "gpt-5.4",
-        "copilot-cli": "inherit",
-        "copilot-ide": "gpt-5",
-        "claude-desktop": "inherit",
+        "copilot-cli": "gpt-5.4",
+        "copilot-ide": "gpt-5.4",
+        "claude-desktop": "opus",
         "codex": "gpt-5.4"
       }
     },
@@ -41,11 +41,11 @@
       "goal": "Structured reporting and knowledge curation",
       "fallback_order": ["balanced"],
       "platform_rendering": {
-        "claude-code": "opus",
+        "claude-code": "sonnet",
         "code-buddy": "gemini-3.1-pro",
-        "copilot-cli": "inherit",
-        "copilot-ide": "gpt-5",
-        "claude-desktop": "inherit",
+        "copilot-cli": "gemini-3.1-pro",
+        "copilot-ide": "gemini-3.1-pro",
+        "claude-desktop": "sonnet",
         "codex": "gpt-5.4"
       }
     }

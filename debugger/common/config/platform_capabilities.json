@@ -43,6 +43,7 @@
       "cli_discovery_policy": "mcp-discovery-ok,cli-reference-required",
       "required_paths": [
         "platforms/code-buddy/README.md",
+        "platforms/code-buddy/AGENTS.md",
         "platforms/code-buddy/.codebuddy-plugin/plugin.json",
         "platforms/code-buddy/.mcp.json",
         "platforms/code-buddy/hooks/hooks.json",
@@ -85,6 +86,7 @@
       "cli_discovery_policy": "mcp-discovery-ok,cli-reference-required",
       "required_paths": [
         "platforms/claude-code/README.md",
+        "platforms/claude-code/AGENTS.md",
         "platforms/claude-code/.claude/settings.json",
         "platforms/claude-code/.claude/CLAUDE.md",
         "platforms/claude-code/.claude/agents/01_team_lead.md"
@@ -125,6 +127,7 @@
       "cli_discovery_policy": "cli-reference-required",
       "required_paths": [
         "platforms/copilot-cli/README.md",
+        "platforms/copilot-cli/AGENTS.md",
         "platforms/copilot-cli/.copilot-plugin.json",
         "platforms/copilot-cli/.mcp.json",
         "platforms/copilot-cli/hooks/hooks.json",
@@ -167,6 +170,7 @@
       "cli_discovery_policy": "n/a",
       "required_paths": [
         "platforms/copilot-ide/README.md",
+        "platforms/copilot-ide/AGENTS.md",
         "platforms/copilot-ide/agent-plugin.json",
         "platforms/copilot-ide/.github/mcp.json",
         "platforms/copilot-ide/.github/agents/orchestrator.md",
@@ -208,6 +212,7 @@
       "cli_discovery_policy": "mcp-discovery-ok",
       "required_paths": [
         "platforms/claude-desktop/README.md",
+        "platforms/claude-desktop/AGENTS.md",
         "platforms/claude-desktop/claude_desktop_config.json",
         "platforms/claude-desktop/references/entrypoints.md"
       ]
@@ -247,6 +252,7 @@
       "cli_discovery_policy": "n/a",
       "required_paths": [
         "platforms/manus/README.md",
+        "platforms/manus/AGENTS.md",
         "platforms/manus/references/entrypoints.md",
         "platforms/manus/workflows/00_debug_workflow.md"
       ]

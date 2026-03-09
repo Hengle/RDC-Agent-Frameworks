@@ -1,9 +1,18 @@
-﻿{
-  "schema_version": 1,
-  "description": "Implementation defaults for the platform adapter layer. These values bind the framework to a concrete tools workspace without turning that workspace name into framework-level truth.",
+{
+  "schema_version": 2,
+  "description": "Mandatory framework-to-tools binding. Agents must resolve tools_root and validate the required platform-truth files before doing any platform-truth-dependent work.",
   "paths": {
-    "tools_root": "..\\RDC-Agent Tools",
-    "catalog_path": "..\\RDC-Agent Tools\\spec\\tool_catalog.json"
+    "tools_root": "__CONFIGURE_TOOLS_ROOT__"
+  },
+  "validation": {
+    "mode": "hard_fail",
+    "required_paths": [
+      "README.md",
+      "docs/tools.md",
+      "docs/session-model.md",
+      "docs/agent-model.md",
+      "spec/tool_catalog.json"
+    ]
   },
   "mcp": {
     "server_name": "renderdoc-platform-mcp",
@@ -17,4 +26,3 @@
     "reference_doc": "debugger\\docs\\cli-mode-reference.md"
   }
 }
-
