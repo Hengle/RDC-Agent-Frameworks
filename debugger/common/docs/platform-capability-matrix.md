@@ -1,27 +1,21 @@
 # Platform Capability Matrix
 
-本文按宿主平台能力定义各平台适配的“最佳实现上限”，并与 `common/config/platform_capabilities.json` 保持一致。
+This matrix mirrors `common/config/platform_capabilities.json`.
 
-| Platform | Custom Agents/Subagents | Skills | Hooks | MCP | Per-Agent Model | Nested Delegation / Handoffs | Coordination Mode | Packaging |
+| Platform | Custom Agents | Skills | Hooks | MCP | Per-Agent Model | Handoffs | Coordination Mode | Packaging |
 |---|---|---|---|---|---|---|---|---|
-| Code Buddy | Yes | Yes | Yes | Yes | Explicit | Yes | `concurrent_team` | Plugin bundle |
-| Claude Code | Yes | Shared-entry | Yes | Yes | Alias-level | Prompt-directed | `concurrent_team` | Project config + subagents |
-| Copilot CLI | Yes | Yes | Yes | Yes | Inherit-only | Limited | `staged_handoff` | CLI plugin |
-| Copilot IDE | Yes | Yes (wrapper) | Documented boundary | Yes | Preferred | Yes | `staged_handoff` | `.github/agents` + MCP |
-| Claude Desktop | No | No | No | Yes | Inherit | Workflow brief only | `workflow_stage` | Desktop MCP config |
-| Manus | Workflow-level only | No | No | No | Workflow-level | Workflow-level | `workflow_stage` | Workflow package |
-| Codex | Multi-agent config | Yes | No | Yes | Role config | Multi-agent | `concurrent_team` | Workspace-native |
+| Code Buddy | Yes | Yes | Yes | Yes | Explicit | Prompt-directed | `concurrent_team` | Plugin bundle |
+| Claude Code | Yes | Shared-entry | Yes | Yes | Alias-level | Prompt-directed | `concurrent_team` | Project config plus subagents |
+| Copilot CLI | Yes | Yes | Yes | Yes | Explicit | Limited | `staged_handoff` | CLI plugin |
+| Copilot IDE | Yes | Yes (wrapper) | Documented boundary | Yes | Preferred | Native | `staged_handoff` | `.github/agents` plus MCP |
+| Claude Desktop | No | No | No | Yes | Inherit-only | Workflow brief only | `workflow_stage` | Desktop MCP config |
+| Manus | Workflow-only | No | No | No | Inherit-only | Workflow-level | `workflow_stage` | Workflow package |
+| Codex | Yes | Yes | No | Yes | Config-file | Multi-agent | `concurrent_team` | Workspace-native |
 
-## 解释
+## Notes
 
-- `Code Buddy` 是当前最高完成度参考实现。
-- `Claude Code` 必须具备 `subagents + hooks + MCP + model alias` 的真实落地文件，skill 通过共享入口引用 `common`。
-- `Copilot CLI` 保持 plugin 形态，但 `CLI` 模式下禁止 discovery-by-trial-and-error；没有稳定 per-agent model 时只允许降级为 `inherit`。
-- `Copilot IDE` 应使用 `.github/agents`、MCP、preferred model、handoffs 与 skill wrapper，不伪造宿主没有的一等 hooks。
-- `Claude Desktop` 与 `Manus` 仅作为降级适配，不伪装成满配宿主。
-- `Codex` 是 workspace-native 适配：`AGENTS.md`、`.agents/skills`、`.codex/config.toml`、`.codex/agents/*.toml` 共同构成宿主入口；`multi_agent` 当前按 experimental / CLI-first 理解。
-- remote 不单独为某个平台发明新模式；所有平台统一服从 `single_runtime_owner`。
-
-权威配置文件：
-
-- `common/config/platform_capabilities.json`
+- `code-buddy`, `copilot-ide`, and `copilot-cli` are treated as explicit per-agent routing hosts in this repo.
+- `claude-code` supports per-agent routing, but the available family is constrained by the host model pool.
+- `claude-desktop` and `manus` are inherit-only downgrade hosts.
+- `codex` keeps per-agent config files, but the approved routed family is currently GPT across all roles.
+- Remote live-debug ownership still follows the shared runtime rule: one runtime owner per live chain.

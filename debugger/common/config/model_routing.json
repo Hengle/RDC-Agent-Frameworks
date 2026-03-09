@@ -1,51 +1,113 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
+  "global_requirements": {
+    "must_be_native_multimodal": true,
+    "visual_analysis_inputs": [
+      "texture",
+      "framebuffer",
+      "screenshot_artifacts"
+    ],
+    "must_support_long_context": true,
+    "preferred_context_window_tokens": 1000000
+  },
+  "platform_classes": {
+    "explicit_per_agent": [
+      "code-buddy",
+      "copilot-cli",
+      "copilot-ide"
+    ],
+    "host_limited_per_agent": [
+      "claude-code"
+    ],
+    "inherit_only": [
+      "claude-desktop",
+      "manus"
+    ],
+    "single_family_per_agent": [
+      "codex"
+    ]
+  },
   "profiles": {
     "orchestrator": {
       "goal": "Deep planning, branching control, and verdict gating",
-      "fallback_order": ["high_reasoning", "balanced"],
+      "priority_capabilities": [
+        "planning_depth",
+        "branch_control",
+        "imagination",
+        "verdict_gating"
+      ],
+      "fallback_order": [
+        "high_reasoning",
+        "balanced"
+      ],
       "platform_rendering": {
         "claude-code": "opus",
         "code-buddy": "opus-4.6",
         "copilot-cli": "opus-4.6",
         "copilot-ide": "opus-4.6",
-        "claude-desktop": "opus",
+        "claude-desktop": "inherit",
+        "manus": "inherit",
         "codex": "gpt-5.4"
       }
     },
     "investigator": {
       "goal": "Evidence-first investigation with medium latency",
-      "fallback_order": ["balanced", "high_reasoning"],
+      "priority_capabilities": [
+        "evidence_handling",
+        "long_context_navigation",
+        "visual_analysis_grounding"
+      ],
+      "fallback_order": [
+        "balanced",
+        "high_reasoning"
+      ],
       "platform_rendering": {
         "claude-code": "sonnet",
         "code-buddy": "sonnet-4.6",
         "copilot-cli": "sonnet-4.6",
         "copilot-ide": "sonnet-4.6",
-        "claude-desktop": "sonnet",
+        "claude-desktop": "inherit",
+        "manus": "inherit",
         "codex": "gpt-5.4"
       }
     },
     "verifier": {
       "goal": "Adversarial review and counterfactual pressure testing",
-      "fallback_order": ["high_reasoning"],
+      "priority_capabilities": [
+        "logic_rigor",
+        "counterfactual_review",
+        "evidence_scrutiny"
+      ],
+      "fallback_order": [
+        "high_reasoning"
+      ],
       "platform_rendering": {
         "claude-code": "opus",
         "code-buddy": "gpt-5.4",
         "copilot-cli": "gpt-5.4",
         "copilot-ide": "gpt-5.4",
-        "claude-desktop": "opus",
+        "claude-desktop": "inherit",
+        "manus": "inherit",
         "codex": "gpt-5.4"
       }
     },
     "reporter": {
       "goal": "Structured reporting and knowledge curation",
-      "fallback_order": ["balanced"],
+      "priority_capabilities": [
+        "writing_quality",
+        "knowledge_curation",
+        "web_report_composition"
+      ],
+      "fallback_order": [
+        "balanced"
+      ],
       "platform_rendering": {
         "claude-code": "sonnet",
         "code-buddy": "gemini-3.1-pro",
         "copilot-cli": "gemini-3.1-pro",
         "copilot-ide": "gemini-3.1-pro",
-        "claude-desktop": "sonnet",
+        "claude-desktop": "inherit",
+        "manus": "inherit",
         "codex": "gpt-5.4"
       }
     }

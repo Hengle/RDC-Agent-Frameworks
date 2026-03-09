@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -44,6 +45,157 @@ def _surface_supported(platform_caps: dict, surface: str) -> bool:
     caps = platform_caps.get("capabilities") or {}
     slot = caps.get(surface) or {}
     return bool(slot.get("supported"))
+
+
+def _frontmatter_string(path: Path, field: str) -> str | None:
+    text = path.read_text(encoding="utf-8-sig")
+    if not text.startswith("---"):
+        return None
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return None
+    match = re.search(rf"^{re.escape(field)}:\s*\"?([^\r\n\"]+)\"?\s*$", parts[1], re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
+def _toml_string(path: Path, key: str) -> str | None:
+    text = path.read_text(encoding="utf-8-sig")
+    match = re.search(rf"^{re.escape(key)}\s*=\s*\"([^\r\n\"]+)\"\s*$", text, re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
+def _platform_renders_per_agent_model(platform_caps: dict) -> bool:
+    slot = (platform_caps.get("capabilities") or {}).get("per_agent_model") or {}
+    rendered = str(slot.get("rendered", "")).strip()
+    return bool(slot.get("supported")) and rendered not in {"inherit", "workflow-level", "not-supported"}
+
+
+def _platform_is_inherit_only(platform_caps: dict) -> bool:
+    slot = (platform_caps.get("capabilities") or {}).get("per_agent_model") or {}
+    rendered = str(slot.get("rendered", "")).strip()
+    return (not bool(slot.get("supported"))) or rendered in {"inherit", "workflow-level", "not-supported"}
+
+
+def _expected_rendered_model(root: Path, platform_key: str, agent_id: str) -> tuple[Path, str] | None:
+    manifest = _read_json(root / "common" / "config" / "role_manifest.json")
+    routing = _read_json(root / "common" / "config" / "model_routing.json")
+    role_profiles = routing.get("role_profiles") or {}
+    profiles = routing.get("profiles") or {}
+    roles = {row["agent_id"]: row for row in manifest.get("roles") or []}
+    role = roles.get(agent_id)
+    if not role:
+        return None
+    platform_file = (role.get("platform_files") or {}).get(platform_key)
+    if not platform_file:
+        return None
+    profile_name = role_profiles.get(agent_id)
+    profile = profiles.get(profile_name) or {}
+    expected_model = ((profile.get("platform_rendering") or {}).get(platform_key) or "").strip()
+    if platform_key == "code-buddy":
+        path = root / "platforms" / platform_key / "agents" / platform_file
+    elif platform_key == "claude-code":
+        path = root / "platforms" / platform_key / ".claude" / "agents" / platform_file
+    elif platform_key == "copilot-cli":
+        path = root / "platforms" / platform_key / "agents" / platform_file
+    elif platform_key == "copilot-ide":
+        path = root / "platforms" / platform_key / ".github" / "agents" / platform_file
+    elif platform_key == "codex":
+        path = root / "platforms" / platform_key / ".codex" / "agents" / f"{platform_file}.toml"
+    else:
+        return None
+    return path, expected_model
+
+
+def _model_routing_findings(root: Path) -> list[str]:
+    findings: list[str] = []
+    routing = _read_json(root / "common" / "config" / "model_routing.json")
+    role_policy = _read_json(root / "common" / "config" / "role_policy.json")
+    caps = _read_json(root / "common" / "config" / "platform_capabilities.json")
+    manifest = _read_json(root / "common" / "config" / "role_manifest.json")
+
+    cap_platforms = caps.get("platforms") or {}
+    routing_profiles = routing.get("profiles") or {}
+    role_profiles = routing.get("role_profiles") or {}
+    policy_profiles = role_policy.get("model_profiles") or {}
+    policy_roles = role_policy.get("roles") or {}
+    manifest_roles = {row["agent_id"]: row for row in manifest.get("roles") or []}
+    declared_classes = routing.get("platform_classes") or {}
+
+    if "global_requirements" not in routing:
+        findings.append("model_routing.json missing global_requirements")
+
+    class_members: set[str] = set()
+    for class_name, platforms in declared_classes.items():
+        if not isinstance(platforms, list):
+            findings.append(f"model_routing.json platform_classes.{class_name} must be a list")
+            continue
+        class_members.update(str(item) for item in platforms)
+    if class_members and class_members != set(cap_platforms):
+        findings.append("model_routing.json platform_classes do not cover exactly the platform_capabilities platforms")
+
+    for profile_name, profile in sorted(policy_profiles.items()):
+        if "platform_models" in profile:
+            findings.append(f"role_policy.json model_profiles.{profile_name} still contains platform_models")
+
+    if set(role_profiles) != set(manifest_roles):
+        findings.append("model_routing.json role_profiles keys differ from role_manifest roles")
+    if set(policy_roles) != set(manifest_roles):
+        findings.append("role_policy.json role keys differ from role_manifest roles")
+
+    for agent_id, profile_name in sorted(role_profiles.items()):
+        if profile_name not in routing_profiles:
+            findings.append(f"model_routing.json missing profile '{profile_name}' for role {agent_id}")
+            continue
+        if agent_id not in policy_roles:
+            findings.append(f"role_policy.json missing role policy for {agent_id}")
+            continue
+        policy_profile = str(policy_roles[agent_id].get("model_profile", "")).strip()
+        if policy_profile != profile_name:
+            findings.append(f"{agent_id}: role_policy model_profile mismatch ({policy_profile} != {profile_name})")
+
+    for profile_name, profile in sorted(routing_profiles.items()):
+        routing_map = profile.get("platform_rendering") or {}
+        if set(routing_map) != set(cap_platforms):
+            findings.append(f"{profile_name}: platform_rendering keys differ from platform_capabilities platforms")
+            continue
+        for platform_key, platform_caps in sorted(cap_platforms.items()):
+            routed_model = str(routing_map.get(platform_key, "")).strip()
+            if _platform_is_inherit_only(platform_caps):
+                if routed_model != "inherit":
+                    findings.append(f"{profile_name}: inherit-only platform {platform_key} must route to inherit, got '{routed_model}'")
+            elif not routed_model or routed_model == "inherit":
+                findings.append(f"{profile_name}: platform {platform_key} must have an explicit rendered model")
+
+    rendered_platforms = ["code-buddy", "claude-code", "copilot-cli", "copilot-ide", "codex"]
+    for platform_key in rendered_platforms:
+        platform_caps = cap_platforms.get(platform_key) or {}
+        if not _platform_renders_per_agent_model(platform_caps):
+            findings.append(f"{platform_key}: expected rendered per-agent model support is missing from platform_capabilities")
+            continue
+        for agent_id in sorted(manifest_roles):
+            expected = _expected_rendered_model(root, platform_key, agent_id)
+            if expected is None:
+                continue
+            path, expected_model = expected
+            if not path.exists():
+                findings.append(f"{platform_key}: rendered agent file missing: {path}")
+                continue
+            if platform_key == "codex":
+                actual_model = _toml_string(path, "model")
+            else:
+                actual_model = _frontmatter_string(path, "model")
+            if actual_model != expected_model:
+                findings.append(f"{platform_key}: {agent_id} rendered model mismatch ({actual_model} != {expected_model})")
+
+    codex_root = root / "platforms" / "codex" / ".codex" / "config.toml"
+    codex_team_lead = _expected_rendered_model(root, "codex", "team_lead")
+    if codex_team_lead is not None and codex_root.exists():
+        _, expected_team_lead_model = codex_team_lead
+        actual_root_model = _toml_string(codex_root, "model")
+        if actual_root_model != expected_team_lead_model:
+            findings.append(f"codex root model mismatch ({actual_root_model} != {expected_team_lead_model})")
+
+    return findings
 
 
 def _compliance_findings(root: Path) -> list[str]:
@@ -113,6 +265,7 @@ def main() -> int:
             findings.append(f"command failed: {' '.join(command)}")
 
     findings.extend(_compliance_findings(root))
+    findings.extend(_model_routing_findings(root))
 
     if findings:
         print("[debugger repo findings]")

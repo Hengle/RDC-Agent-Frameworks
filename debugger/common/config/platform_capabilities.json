@@ -114,8 +114,8 @@
           "rendered": "native"
         },
         "per_agent_model": {
-          "supported": false,
-          "rendered": "inherit"
+          "supported": true,
+          "rendered": "explicit"
         },
         "handoffs": {
           "supported": true,
@@ -123,7 +123,7 @@
         }
       },
       "coordination_mode": "staged_handoff",
-      "degradation_mode": "native-no-per-agent-model",
+      "degradation_mode": "limited-handoffs",
       "cli_discovery_policy": "cli-reference-required",
       "required_paths": [
         "platforms/copilot-cli/README.md",
@@ -240,7 +240,7 @@
         },
         "per_agent_model": {
           "supported": false,
-          "rendered": "workflow-level"
+          "rendered": "inherit"
         },
         "handoffs": {
           "supported": false,

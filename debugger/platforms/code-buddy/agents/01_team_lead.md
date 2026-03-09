@@ -17,7 +17,7 @@ delegates_to:
 
 当前文件是 Code Buddy 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
 
-本文件只负责宿主入口与角色元数据；共享正文统一从当前平台根目录的 common/ 读取。
+本文件只负责宿主入口与角色元数据；共享正文统一从当前平台根目录的 `common/` 读取。
 
 该角色是当前 framework 的唯一正式用户入口。正常用户请求必须从 `team_lead` 发起。
 
@@ -29,7 +29,7 @@ delegates_to:
 4. ../common/skills/renderdoc-rdc-gpu-debug/SKILL.md
 5. ../common/skills/team-lead-orchestration/SKILL.md
 
-未先将顶层 debugger/common/ 拷入当前平台根目录的 common/ 之前，不允许在宿主中使用当前平台模板。
+未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。
 
 只有在 session artifacts 完整且 gate/audit 通过后，你才能输出最终裁决。
 运行时工作区固定为：`../workspace`

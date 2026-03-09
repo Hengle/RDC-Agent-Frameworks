@@ -20,6 +20,8 @@ if ($syncCode -ne 0) {
 
 $textExts = @(".md", ".json", ".toml", ".txt", ".yaml", ".yml", ".py")
 $forbidden = @("direct-reference", "deprecated", "transitional", "legacy", "本目录直接引用仓库中的共享", "运行时共享文档统一直接引用仓库中的", "禁止复制或镜像 `common/` 内容")
+$brokenPatterns = @("\u0007rtifacts", "\u0007ction_chain")
+$controlPattern = [regex]'[\x00-\x08\x0B\x0C\x0E-\x1F]'
 $platformRoot = Join-Path $Root "platforms"
 foreach ($file in (Get-ChildItem $platformRoot -Recurse -File -ErrorAction SilentlyContinue)) {
  if ($textExts -notcontains $file.Extension.ToLower()) { continue }
@@ -28,6 +30,10 @@ foreach ($file in (Get-ChildItem $platformRoot -Recurse -File -ErrorAction Silen
  foreach ($marker in $forbidden) {
  if ($text.Contains($marker)) { $Findings += "forbidden legacy text in $($file.FullName): $marker" }
  }
+ foreach ($marker in $brokenPatterns) {
+ if ($text.Contains($marker)) { $Findings += "broken generated text in $($file.FullName): $marker" }
+ }
+ if ($controlPattern.IsMatch($text)) { $Findings += "control character found in generated text file: $($file.FullName)" }
 }
 
 if ($Findings.Count -gt 0) {

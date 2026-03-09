@@ -1,57 +1,25 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "model_profiles": {
     "orchestrator": {
       "intent": "deep_orchestration",
       "reasoning_effort": "high",
-      "verbosity": "medium",
-      "platform_models": {
-        "claude-code": "opus",
-        "code-buddy": "opus-4.6",
-        "copilot-cli": "inherit",
-        "copilot-ide": "gpt-5",
-        "claude-desktop": "inherit",
-        "codex": "gpt-5.4"
-      }
+      "verbosity": "medium"
     },
     "investigator": {
       "intent": "evidence_collection",
       "reasoning_effort": "medium",
-      "verbosity": "medium",
-      "platform_models": {
-        "claude-code": "sonnet",
-        "code-buddy": "sonnet-4.6",
-        "copilot-cli": "inherit",
-        "copilot-ide": "gpt-5",
-        "claude-desktop": "inherit",
-        "codex": "gpt-5.4"
-      }
+      "verbosity": "medium"
     },
     "verifier": {
       "intent": "adversarial_validation",
       "reasoning_effort": "high",
-      "verbosity": "medium",
-      "platform_models": {
-        "claude-code": "opus",
-        "code-buddy": "gpt-5.4",
-        "copilot-cli": "inherit",
-        "copilot-ide": "gpt-5",
-        "claude-desktop": "inherit",
-        "codex": "gpt-5.4"
-      }
+      "verbosity": "medium"
     },
     "reporter": {
       "intent": "structured_reporting",
       "reasoning_effort": "medium",
-      "verbosity": "high",
-      "platform_models": {
-        "claude-code": "opus",
-        "code-buddy": "gemini-3.1-pro",
-        "copilot-cli": "inherit",
-        "copilot-ide": "gpt-5",
-        "claude-desktop": "inherit",
-        "codex": "gpt-5.4"
-      }
+      "verbosity": "high"
     }
   },
   "tool_policies": {

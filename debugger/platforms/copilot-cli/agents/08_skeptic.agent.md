@@ -1,12 +1,13 @@
 ﻿---
 description: "Challenge weak claims and sign off only when proven."
+model: "gpt-5.4"
 ---
 
 # RenderDoc/RDC Agent Wrapper
 
 当前文件是 Copilot CLI 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
 
-本文件只负责宿主入口与角色元数据；共享正文统一从当前平台根目录的 common/ 读取。
+本文件只负责宿主入口与角色元数据；共享正文统一从当前平台根目录的 `common/` 读取。
 
 该角色默认是 internal/debug-only specialist。正常用户请求应先交给 `team_lead` 路由，只有调试 framework 本身时才直接使用该角色。
 
@@ -18,6 +19,6 @@ description: "Challenge weak claims and sign off only when proven."
 4. ../common/skills/renderdoc-rdc-gpu-debug/SKILL.md
 5. ../common/skills/skeptic/SKILL.md
 
-未先将顶层 debugger/common/ 拷入当前平台根目录的 common/ 之前，不允许在宿主中使用当前平台模板。
+未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。
 
 运行时工作区固定为：`../workspace`

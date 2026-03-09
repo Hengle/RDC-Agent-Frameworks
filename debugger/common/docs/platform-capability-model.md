@@ -1,104 +1,64 @@
-# RenderDoc/RDC GPU Debug 平台能力模型
+# Platform Capability Model
 
-本文描述 `RenderDoc/RDC GPU Debug` 与底层平台能力层的关系，只使用第一性抽象，不把任何历史实现名当成框架概念。
+This document explains how the debugger framework separates host capability truth from routing policy.
 
-## 1. Framework 依赖什么
+## Capability Layers
 
-`RenderDoc/RDC GPU Debug` 只依赖以下平台能力：
+The framework depends on two distinct layers:
 
-- 规范化的 `rd.*` tool 能力面
-- 共享响应契约
-- `.rdc -> capture handle -> session handle -> frame/event context` 的最小状态链路
-- `context`、daemon、artifact、failure surface 这些平台级概念
-
-这些能力共同构成 framework 的平台前提，但不要求平台必须以某个特定仓库名或启动方式出现。
-
-为了避免把“宿主能不能 handoff”与“live runtime 能不能安全并行”混为一谈，框架还要求显式区分：
-
-- 宿主能力
-  - `custom_agents`、`skills`、`hooks`、`mcp`、`handoffs`、`per_agent_model`
-- runtime 合同
+- Host capabilities
+  - `custom_agents`
+  - `skills`
+  - `hooks`
+  - `mcp`
+  - `handoffs`
+  - `per_agent_model`
+- Runtime contract
   - `context_state_model`
   - `local_parallelism`
   - `remote_handle_lifecycle`
   - `remote_coordination_mode`
   - `rehydration_contract`
 
-其中：
+Host capabilities answer "what the host can express."
+Runtime contract answers "what is safe when driving live RenderDoc/RDC state."
 
-- 宿主能力回答“平台能表达什么协作壳子”
-- runtime 合同回答“RenderDoc/RDC live 调试链路怎样才是安全的”
+## Routing Policy vs Host Capability
 
-## 2. 什么不是框架真相
+- `model_routing.json` defines which model family each role wants on each platform.
+- `platform_capabilities.json` defines whether the host can render that routing natively, partially, or only through downgrade semantics.
+- Generated platform wrappers must preserve role boundaries even when the host downgrades model control.
 
-以下内容都属于 adapter/config 层：
+## Platform Classes Used By This Repo
 
-- 平台工具仓库实际目录
-- catalog 文件实际路径
-- `MCP` 启动命令
-- `CLI` 启动命令
-- 平台插件里的 server 名称
+- Explicit per-agent routing
+  - `code-buddy`, `copilot-ide`, `copilot-cli`
+- Host-limited per-agent routing
+  - `claude-code`
+- Inherit-only
+  - `claude-desktop`, `manus`
+- Single approved family
+  - `codex`
 
-它们可以有默认值，但这些默认值不是 framework 的概念定义。
+## Required Downgrade Behavior
 
-## 3. 平台约束优先级
+- Explicit per-agent platforms
+  - Must render the routed model for each role.
+- Host-limited per-agent platforms
+  - May map routed roles to the closest host-native model family or alias.
+- Inherit-only platforms
+  - Must not advertise per-agent model control.
+  - Must route all roles as `inherit`.
+- Single approved family platforms
+  - May keep per-agent config files, but the routed model family is intentionally unified.
 
-上层 Agent 在判断平台定义时，应按以下顺序理解：
+## What Is Not Framework Truth
 
-1. tool catalog / tool contract
-2. runtime-observed behavior
-3. `CLI` convenience wrapper
+The following remain adapter/config concerns, not framework concepts:
 
-这意味着：
+- actual tools repository path
+- actual MCP command line
+- actual CLI convenience wrapper
+- host plugin package naming
 
-- 工具能力面与参数语义以 catalog 和共享契约为准。
-- runtime 行为是平台真相的运行时体现。
-- `CLI` 只是受约束的人类与自动化入口，不是完整规范源。
-
-## 4. `MCP` 与 `CLI` 的边界
-
-### `MCP` 模式
-
-- 允许 tool discovery。
-- 允许 Agent 先发现工具，再决定调用编排。
-- 适合作为上层多步推理与动态决策的主接口。
-
-### `CLI` 模式
-
-- 不允许把 `CLI` 当成 discovery 载体。
-- 不允许靠 `--help`、枚举命令、随机试跑、观察式试错来反推能力面。
-- 只能依赖预先文档化的命令族、状态对象和最小链路。
-
-用户明确要求 `CLI` 模式时，Agent 应先阅读 `cli-mode-reference.md`，再开始任务。
-
-## 5. 上层框架的固定责任
-
-`RenderDoc/RDC GPU Debug` 负责：
-
-- 定义任务级角色与协作边界
-- 定义质量门槛与 artifact 合同
-- 定义知识库沉淀方式
-- 定义 `MCP` / `CLI` 两种接入模式下的使用约束
-
-平台能力层负责：
-
-- 暴露 `rd.*` 工具能力
-- 提供会话生命周期
-- 提供错误面与运行时状态语义
-
-## 6. 实现默认值的存放位置
-
-默认接入值集中记录在：
-
-- `common/config/platform_adapter.json`
-
-平台协作拓扑、降级边界与 runtime 协作硬规则集中记录在：
-
-- `common/config/platform_capabilities.json`
-- `common/config/platform_targets.json`
-- `docs/runtime-coordination-model.md`
-
-需要绑定到当前环境时，应修改该配置，而不是在主文档、Prompt、脚本和插件配置里重复硬编码。
-
-
-
+Those details belong in `platform_adapter.json`, `mcp_servers.json`, or generated host packaging, not in role prompts or routing policy prose.

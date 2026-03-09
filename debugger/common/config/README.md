@@ -1,37 +1,37 @@
 # Platform Adapter Config
 
-本目录保存 framework 连接 `RDC-Agent Tools` 与多平台模板生成所需的共享配置真相。
+This directory holds the shared config truth that bridges the debugger framework to generated platform templates.
 
-约束：
+## Rules
 
-- `debugger/common/` 是唯一长期维护来源。
-- `debugger/platforms/*` 全部视为生成产物；宿主模板只允许 direct-reference 到当前平台根目录的 `common/`。
-- 平台 tools 的真实路径、`tools_root`、MCP/CLI 启动命令属于 adapter/config 层，不属于 framework 真相。
-- `platform_adapter.json` 现在是强制用户配置入口，不再是“默认猜路径”的 convenience 文件。
+- `debugger/common/` is the only long-lived shared source tree.
+- `debugger/platforms/*` are generated platform artifacts.
+- Platform-local wrappers may only reference the platform-local `common/` directory after the shared tree is copied in.
+- Tools repository paths, MCP startup commands, and CLI adapter details are adapter concerns, not framework truth.
 
-当前文件：
+## Files
 
 - `platform_adapter.json`
-  - framework 级 Tools 定位入口
-  - 用户必须先配置 `paths.tools_root`
-  - Agent 必须按 `validation.required_paths` 做 fail-closed 校验
+  - fail-closed tools-root entrypoint
 - `role_manifest.json`
-  - 角色清单、共享 prompt 源、role skill 源、formal user entry 元数据与各平台文件名映射
+  - role inventory, shared prompt mapping, shared skill mapping, and platform file names
 - `role_policy.json`
-  - 角色模型意图、reasoning/verbosity、delegation 与 tool/hook policy
+  - reasoning effort, verbosity, tool policy, hook policy, and delegation
+  - must not contain per-platform model routing
 - `model_routing.json`
-  - 抽象模型策略与各宿主渲染映射
+  - single source of truth for model capability requirements, platform classes, and role-to-platform model routing
 - `mcp_servers.json`
-  - 逻辑 MCP server 定义
+  - logical MCP server definitions
 - `platform_capabilities.json`
-  - 宿主能力真相、降级方式与 required paths
+  - host capability truth, downgrade semantics, and required generated paths
 - `platform_targets.json`
-  - 平台生成目标、目录布局与渲染面
+  - generation targets, directory layout, and render surfaces
 
-`platform_adapter.json` 的使用规则：
+## Usage
 
-1. 用户先把 `paths.tools_root` 配到有效的 `RDC-Agent-Tools` 根目录。
-2. 可使用绝对路径，或相对于当前 framework/package 根目录的相对路径。
-3. 在通过 `validation.required_paths` 校验前，Agent 必须拒绝执行任何依赖平台真相的工作。
+1. Set `paths.tools_root` in `platform_adapter.json`.
+2. Validate every entry in `validation.required_paths`.
+3. Reject debugger execution when validation fails.
+4. Keep model routing in `model_routing.json` only.
 
-不允许在平台模板里手工散落第二份 Tools 路径真相、第二份 skill 路由或宿主专属平台定义。
+Generated wrappers, plugin files, and role configs must be re-synced from this directory rather than patched by hand.

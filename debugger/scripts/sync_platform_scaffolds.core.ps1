@@ -10,7 +10,7 @@ $McpServers = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "mcp_servers.
 $PlatformTargets = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "platform_targets.json") -Raw)
 $PlatformCaps = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "platform_capabilities.json") -Raw)
 $FrameworkCompliance = ConvertFrom-Json (Get-Content (Join-Path $ConfigRoot "framework_compliance.json") -Raw)
-$CopyNotice = "未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。"
+$CopyNotice = ''
 $Specs = @(
  @{ Key = "claude-code"; ManagedDirs = @(".claude", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md") },
  @{ Key = "code-buddy"; ManagedDirs = @(".codebuddy-plugin", "agents", "skills", "hooks", "common", "workspace"); ManagedFiles = @("README.md", "AGENTS.md", ".mcp.json") },
@@ -37,6 +37,9 @@ function Join-Parts([string[]]$Parts) {
  $path = $Parts[0]
  for ($i = 1; $i -lt $Parts.Count; $i++) { $path = Join-Path $path $Parts[$i] }
  return $path
+}
+function Code([string]$Text) {
+ return ('`{0}`' -f $Text)
 }
 
 function Package-Root([string]$Key) {
@@ -75,6 +78,7 @@ function Common-Ref([string]$Key, [string]$FromFile, [string[]]$Parts) {
 }
 function Add-Expected($Table, [string]$Path, [string]$Text) { $Table[$Path] = $(Normalize $Text) }
 function Roles() { return @($RoleManifest.roles) }
+$CopyNotice = ('未先将顶层 {0} 拷入当前平台根目录的 {1} 之前，不允许在宿主中使用当前平台模板。' -f (Code 'debugger/common/'), (Code 'common/'))
 
 function Get-Role([string]$AgentId) {
  foreach ($role in (Roles)) { if ($role.agent_id -eq $AgentId) { return $role } }
@@ -117,12 +121,12 @@ function Platform-Compliance-Notes([string]$PlatformKey) {
  $profile = $(Compliance-Profile $PlatformKey)
  $notes = New-Object System.Collections.Generic.List[string]
  if ($profile.enforcement_mode -eq "audit_only_gate") {
-  $null = $notes.Add("- 当前宿主没有 native hooks；只有生成 `artifacts/run_compliance.yaml` 且 `status=passed` 后，结案才算合规。")
+  $null = $notes.Add(('- 当前宿主没有 native hooks；只有生成 {0} 且 {1} 后，结案才算合规。' -f (Code 'artifacts/run_compliance.yaml'), (Code 'status=passed')))
  } elseif ($profile.enforcement_mode -eq "workflow_audit_gate") {
-  $null = $notes.Add("- 当前宿主按 `workflow_stage` 降级运行；最终仍必须生成 `artifacts/run_compliance.yaml` 才算合规结案。")
+  $null = $notes.Add(('- 当前宿主按 {0} 降级运行；最终仍必须生成 {1} 才算合规结案。' -f (Code 'workflow_stage'), (Code 'artifacts/run_compliance.yaml')))
   $null = $notes.Add("- 不得在该宿主上模拟实时 multi-agent handoff。")
  } else {
-  $null = $notes.Add("- native hooks 会阻断未通过 gate 的结案；同时仍要求生成 `artifacts/run_compliance.yaml` 作为统一合规裁决。")
+  $null = $notes.Add(('- native hooks 会阻断未通过 gate 的结案；同时仍要求生成 {0} 作为统一合规裁决。' -f (Code 'artifacts/run_compliance.yaml')))
  }
  return @($notes)
 }
@@ -132,20 +136,20 @@ function Role-Compliance-Notes([string]$PlatformKey, [string]$AgentId) {
  $notes = New-Object System.Collections.Generic.List[string]
  if ($AgentId -eq "team_lead") {
   if ($profile.enforcement_mode -eq "audit_only_gate") {
-   $null = $notes.Add("在 `run_compliance.yaml(status=passed)` 生成前，你只能输出阶段性 brief，不得宣称最终裁决。")
+   $null = $notes.Add(('在 {0} 生成前，你只能输出阶段性 brief，不得宣称最终裁决。' -f (Code 'run_compliance.yaml(status=passed)')))
   } else {
    $null = $notes.Add("只有在 session artifacts 完整且 gate/audit 通过后，你才能输出最终裁决。")
   }
  }
  if ($AgentId -eq "curator_agent") {
   if ($profile.enforcement_mode -eq "audit_only_gate") {
-   $null = $notes.Add("在 `run_compliance.yaml(status=passed)` 生成前，你只能产出 draft report，不得把报告视为正式结案。")
+   $null = $notes.Add(('在 {0} 生成前，你只能产出 draft report，不得把报告视为正式结案。' -f (Code 'run_compliance.yaml(status=passed)')))
   } else {
-   $null = $notes.Add("只有在 `session_evidence.yaml`、`skeptic_signoff.yaml`、`action_chain.jsonl` 完整后，你才能产出 final report。")
+   $null = $notes.Add(('只有在 {0}、{1}、{2} 完整后，你才能产出 final report。' -f (Code 'session_evidence.yaml'), (Code 'skeptic_signoff.yaml'), (Code 'action_chain.jsonl')))
   }
  }
  if ($profile.coordination_mode -eq "workflow_stage") {
-  $null = $notes.Add("当前平台只允许 `workflow_stage`；不得模拟实时 team-agent 并发 handoff。")
+  $null = $notes.Add(('当前平台只允许 {0}；不得模拟实时 team-agent 并发 handoff。' -f (Code 'workflow_stage')))
  }
  return @($notes)
 }
@@ -251,8 +255,6 @@ cases/
 }
 function Readme([string]$PlatformKey) {
  $caps = $PlatformCaps.platforms.$PlatformKey
- $target = $PlatformTargets.platforms.$PlatformKey
- $surfaces = [string]::Join(", ", @($target.native_surfaces))
  $lines = @(
  "# $($caps.display_name) Template",
  "",
@@ -260,20 +262,20 @@ function Readme([string]$PlatformKey) {
  "",
  "使用方式：",
  "",
- "1. 将仓库根目录 `debugger/common/` 整体拷贝到当前平台根目录的 `common/`，覆盖占位内容。",
- "2. 在当前平台根目录的 `common/config/platform_adapter.json` 中配置 `paths.tools_root`。",
- "3. 确认 `validation.required_paths` 在 `<resolved tools_root>/` 下全部存在。",
- "4. 使用当前平台根目录同级的 `workspace/` 作为运行区。",
+ ('1. 将仓库根目录 {0} 整体拷贝到当前平台根目录的 {1}，覆盖占位内容。' -f (Code 'debugger/common/'), (Code 'common/')),
+ ('2. 在当前平台根目录的 {0} 中配置 {1}。' -f (Code 'common/config/platform_adapter.json'), (Code 'paths.tools_root')),
+ ('3. 确认 {0} 在 {1} 下全部存在。' -f (Code 'validation.required_paths'), (Code '<resolved tools_root>/')),
+ ('4. 使用当前平台根目录同级的 {0} 作为运行区。' -f (Code 'workspace/')),
  "5. 完成覆盖后，再在对应宿主中打开当前平台根目录。",
- "6. 正常用户请求从 `team_lead` 发起；其他 specialist 默认是 internal/debug-only。",
+ ('6. 正常用户请求从 {0} 发起；其他 specialist 默认是 internal/debug-only。' -f (Code 'team_lead')),
  "",
  "约束：",
  "",
- "- `common/` 默认只保留一个占位文件；正式共享正文仍由顶层 `debugger/common/` 提供，并由用户显式拷入。",
- "- 未完成 `debugger/common/` 覆盖前，当前平台模板不可用。",
- "- 未完成 `platform_adapter.json` 配置或 `tools_root` 校验前，Agent 必须拒绝执行依赖平台真相的工作。",
- "- `workspace/` 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。",
- "- 维护者若重跑 scaffold，必须继续产出 platform-local `common/` 最小占位目录，不得回退到跨级引用。"
+ ('- {0} 默认只保留一个占位文件；正式共享正文仍由顶层 {1} 提供，并由用户显式拷入。' -f (Code 'common/'), (Code 'debugger/common/')),
+ ('- 未完成 {0} 覆盖前，当前平台模板不可用。' -f (Code 'debugger/common/')),
+ ('- 未完成 {0} 配置或 {1} 校验前，Agent 必须拒绝执行依赖平台真相的工作。' -f (Code 'platform_adapter.json'), (Code 'tools_root')),
+ ('- {0} 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。' -f (Code 'workspace/')),
+ ('- 维护者若重跑 scaffold，必须继续产出 platform-local {0} 最小占位目录，不得回退到跨级引用。' -f (Code 'common/'))
  )
  foreach ($note in $(Platform-Compliance-Notes $PlatformKey)) { $lines += $note }
  return ($lines -join "`n")
@@ -288,7 +290,7 @@ function PlatformAgentsMd([string]$PlatformKey, [string]$TargetFile) {
  $lines = @(
  "# $($PlatformCaps.platforms.$PlatformKey.display_name) Workspace Instructions",
  "",
- "当前目录是 $($PlatformCaps.platforms.$PlatformKey.display_name) 的 platform-local 模板。所有角色在进入 role-specific 行为前，都必须先服从本文件与共享 `common/` 约束。",
+ ('当前目录是 {0} 的 platform-local 模板。所有角色在进入 role-specific 行为前，都必须先服从本文件与共享 {1} 约束。' -f $PlatformCaps.platforms.$PlatformKey.display_name, (Code 'common/')),
  "",
  "先阅读：",
  "",
@@ -300,13 +302,13 @@ function PlatformAgentsMd([string]$PlatformKey, [string]$TargetFile) {
  "",
  '强制规则：',
  '',
- '- 正常用户入口只有 `team_lead`',
- '- 其他 specialist 默认是 internal/debug-only，由 `team_lead` 决定是否分派',
- '- `platform_adapter.json` 未配置或 `tools_root` 校验失败时，必须立即停止，不得继续做依赖平台真相的工作',
+ ('- 正常用户入口只有 {0}' -f (Code 'team_lead')),
+ ('- 其他 specialist 默认是 internal/debug-only，由 {0} 决定是否分派' -f (Code 'team_lead')),
+ ('- {0} 未配置或 {1} 校验失败时，必须立即停止，不得继续做依赖平台真相的工作' -f (Code 'platform_adapter.json'), (Code 'tools_root')),
  '',
  "$CopyNotice",
  '',
- '运行时工作区固定为：`../workspace`'
+ ('运行时工作区固定为：{0}' -f (Code '../workspace'))
  )
  foreach ($note in $(Platform-Compliance-Notes $PlatformKey)) { $lines += $note }
  return ($lines -join "`n")
@@ -326,7 +328,7 @@ function AgentBody([string]$PlatformKey, $Role, [string]$TargetFile) {
  "",
  "当前文件是 $($PlatformCaps.platforms.$PlatformKey.display_name) 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。",
  "",
- "本文件只负责宿主入口与角色元数据；共享正文统一从当前平台根目录的 `common/` 读取。",
+ ('本文件只负责宿主入口与角色元数据；共享正文统一从当前平台根目录的 {0} 读取。' -f (Code 'common/')),
  "",
  "$entryNotice",
  "",
@@ -342,7 +344,7 @@ function AgentBody([string]$PlatformKey, $Role, [string]$TargetFile) {
  ""
  )
  foreach ($note in $(Role-Compliance-Notes $PlatformKey $Role.agent_id)) { $lines += $note }
- $lines += '运行时工作区固定为：`../workspace`'
+ $lines += ('运行时工作区固定为：{0}' -f (Code '../workspace'))
  return ($lines -join "`n")
 }
 
@@ -362,7 +364,7 @@ function CopilotIdeAgent($Role, [string]$TargetFile) {
 }
 
 function CopilotCliAgent($Role, [string]$TargetFile) {
- $front = Yaml-Block ([ordered]@{ description = $Role.description })
+ $front = Yaml-Block ([ordered]@{ description = $Role.description; model = $(Platform-Model "copilot-cli" $Role.agent_id) })
  return ($front + "`n`n" + $(AgentBody "copilot-cli" $Role $TargetFile))
 }
 
@@ -375,7 +377,7 @@ function BaseSkillWrapper([string]$PlatformKey, [string]$TargetFile) {
  "",
  "当前文件是 $($PlatformCaps.platforms.$PlatformKey.display_name) 的 base skill 入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。",
  "",
- "本 skill 只引用当前平台根目录的 `common/`：",
+ ('本 skill 只引用当前平台根目录的 {0}：' -f (Code 'common/')),
  "",
  "- $skillRef",
  "- 进入任何平台真相相关工作前，必须先校验 $adapterRef",
@@ -383,7 +385,7 @@ function BaseSkillWrapper([string]$PlatformKey, [string]$TargetFile) {
  "",
  "$CopyNotice",
  "",
- '运行时 case/run 现场与第二层报告统一写入：`../workspace`'
+ ('运行时 case/run 现场与第二层报告统一写入：{0}' -f (Code '../workspace'))
  )
  return ($lines -join "`n")
 }
@@ -410,7 +412,7 @@ function RoleSkillWrapper([string]$PlatformKey, $Role, [string]$TargetFile) {
  ""
  )
  foreach ($note in $(Role-Compliance-Notes $PlatformKey $Role.agent_id)) { $lines += $note }
- $lines += '运行时 case/run 现场与第二层报告统一写入：`../workspace`'
+ $lines += ('运行时 case/run 现场与第二层报告统一写入：{0}' -f (Code '../workspace'))
  return ($lines -join "`n")
 }
 
@@ -430,7 +432,7 @@ function ClaudeCodeEntry([string]$TargetFile) {
  "",
  "$CopyNotice",
  "",
- '运行时工作区固定为：`../workspace`'
+ ('运行时工作区固定为：{0}' -f (Code '../workspace'))
  )
  return ($lines -join "`n")
 }
@@ -452,7 +454,7 @@ function CopilotInstructions([string]$TargetFile) {
  "",
  "$CopyNotice",
  "",
- '运行时工作区固定为：`../workspace`'
+ ('运行时工作区固定为：{0}' -f (Code '../workspace'))
  )
  return ($lines -join "`n")
 }
@@ -464,7 +466,7 @@ function ReferencesEntry([string]$PlatformKey, [string]$TargetFile) {
  $lines = @(
  "# $($PlatformCaps.platforms.$PlatformKey.display_name) Entrypoints",
  "",
- "当前目录只提供宿主入口提示；运行时共享文档统一从当前平台根目录的 `common/` 读取。",
+ ('当前目录只提供宿主入口提示；运行时共享文档统一从当前平台根目录的 {0} 读取。' -f (Code 'common/')),
  "",
  "先阅读：",
  "",
@@ -475,46 +477,46 @@ function ReferencesEntry([string]$PlatformKey, [string]$TargetFile) {
  ""
  )
  foreach ($note in $(Platform-Compliance-Notes $PlatformKey)) { $lines += $note }
- $lines += '运行时工作区固定为：`../workspace`'
+ $lines += ('运行时工作区固定为：{0}' -f (Code '../workspace'))
  return ($lines -join "`n")
 }
 
 function ManusWorkflow() {
-@"
-# RenderDoc/RDC GPU Debug Workflow
-
-## 目标
-
-在低能力宿主中，用 workflow 方式完成 RenderDoc/RDC GPU Debug 的最小闭环。正常任务 intake 仍由 `team_lead` / orchestrator 语义承担。
-
-## 阶段
-
-1. `tools preflight`
- - 校验 `platform_adapter.json` 与 `tools_root`
-2. `team_lead intake`
- - 接收用户请求，决定 triage / capture / specialist 的推进顺序
-3. `triage`
- - 结构化现象、触发条件、可能的 SOP 入口
-4. `capture/session`
- - 确认 `.rdc`、session、frame、event anchor
-5. `specialist analysis`
- - 从 pipeline、forensics、shader、driver 四个方向收集证据
-6. `skeptic`
- - 复核证据链是否足以支持结论
-7. `curation`
- - 生成 BugFull / BugCard，写入 session artifacts
-
-## workflow 约束
-
-- Manus 不承担 custom agents / per-agent model 的宿主能力。
-- `tools_root` 未配置或校验失败时必须立即停止。
-- workflow 的每一阶段都必须引用共享 artifact contract。
-- `workflow_stage` 是该平台的协作上限，不模拟 team-agent 实时协作。
-- remote 阶段由单一 runtime owner 顺序完成 `rd.remote.connect -> rd.remote.ping -> rd.capture.open_file -> rd.capture.open_replay -> re-anchor -> collect evidence`。
-- 若需要跨轮次继续调查，必须依赖可重建的 `runtime_baton`，不得凭记忆续跑 live runtime。
-- 如需动态 tool discovery，应停止 workflow 并切回支持 `MCP` 的平台。
-- 在 workflow 平台上，只有 `artifacts/run_compliance.yaml` 为 `status=passed` 时，结案才算合规。
-"@
+ return (@(
+ '# RenderDoc/RDC GPU Debug Workflow',
+ '',
+ '## 目标',
+ '',
+ ('在低能力宿主中，用 workflow 方式完成 RenderDoc/RDC GPU Debug 的最小闭环。正常任务 intake 仍由 {0} / orchestrator 语义承担。' -f (Code 'team_lead')),
+ '',
+ '## 阶段',
+ '',
+ ('1. {0}' -f (Code 'tools preflight')),
+ (' - 校验 {0} 与 {1}' -f (Code 'platform_adapter.json'), (Code 'tools_root')),
+ ('2. {0}' -f (Code 'team_lead intake')),
+ ' - 接收用户请求，决定 triage / capture / specialist 的推进顺序',
+ ('3. {0}' -f (Code 'triage')),
+ ' - 结构化现象、触发条件、可能的 SOP 入口',
+ ('4. {0}' -f (Code 'capture/session')),
+ (' - 确认 {0}、session、frame、event anchor' -f (Code '.rdc')),
+ ('5. {0}' -f (Code 'specialist analysis')),
+ ' - 从 pipeline、forensics、shader、driver 四个方向收集证据',
+ ('6. {0}' -f (Code 'skeptic')),
+ ' - 复核证据链是否足以支持结论',
+ ('7. {0}' -f (Code 'curation')),
+ ' - 生成 BugFull / BugCard，写入 session artifacts',
+ '',
+ '## workflow 约束',
+ '',
+ '- Manus 不承担 custom agents / per-agent model 的宿主能力。',
+ ('- {0} 未配置或校验失败时必须立即停止。' -f (Code 'tools_root')),
+ '- workflow 的每一阶段都必须引用共享 artifact contract。',
+ ('- {0} 是该平台的协作上限，不模拟 team-agent 实时协作。' -f (Code 'workflow_stage')),
+ ('- remote 阶段由单一 runtime owner 顺序完成 {0}。' -f (Code 'rd.remote.connect -> rd.remote.ping -> rd.capture.open_file -> rd.capture.open_replay -> re-anchor -> collect evidence')),
+ ('- 若需要跨轮次继续调查，必须依赖可重建的 {0}，不得凭记忆续跑 live runtime。' -f (Code 'runtime_baton')),
+ ('- 如需动态 tool discovery，应停止 workflow 并切回支持 {0} 的平台。' -f (Code 'MCP')),
+ ('- 在 workflow 平台上，只有 {0} 为 {1} 时，结案才算合规。' -f (Code 'artifacts/run_compliance.yaml'), (Code 'status=passed'))
+ ) -join "`n")
 }
 function Mcp-Payload() {
  $servers = @{}
@@ -570,7 +572,11 @@ function ClaudeCodeSettings() {
 }
 
 function CopilotIdePlugin() {
- $notes = @("Start normal user requests from team_lead / orchestrator.", "Preserve role routing and evidence gates even when the host ignores model preference.", "Read references/entrypoints.md before attempting a CLI-style flow inside the IDE host.")
+ $notes = @(
+  ('Start normal user requests from {0} / orchestrator.' -f (Code 'team_lead')),
+  'Preserve role routing and evidence gates even when the host ignores model preference.',
+  ('Read {0} before attempting a CLI-style flow inside the IDE host.' -f (Code 'references/entrypoints.md'))
+ )
  $notes += $(Platform-Compliance-Notes "copilot-ide")
  return @{ name = "renderdoc-rdc-gpu-debug-ide"; description = "RenderDoc/RDC GPU Debug 的 Copilot IDE platform-local common 适配包。"; agentsRoot = ".github/agents"; notes = $notes }
 }
@@ -581,35 +587,38 @@ function ClaudeDesktopConfig() {
  return @{ mcpServers = $servers }
 }
 function CodexReadme() {
- $base = @"
-# Codex Template
-
-当前目录是 Codex 的 workspace-native 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
-
-使用方式：
-
-1. 将仓库根目录 `debugger/common/` 整体拷贝到当前平台根目录的 `common/`，覆盖占位内容。
-2. 在 `common/config/platform_adapter.json` 中配置 `paths.tools_root`。
-3. 确认 `validation.required_paths` 在 `<resolved tools_root>/` 下全部存在。
-4. 使用当前平台根目录同级的 `workspace/` 作为运行区。
-5. 完成覆盖后，打开当前目录作为 Codex workspace root。
-6. 正常用户请求从 `team_lead` 发起；其他 specialist 默认是 internal/debug-only。
-7. AGENTS.md、.agents/skills/、.codex/config.toml 与 .codex/agents/*.toml 只允许引用当前平台根目录的 common/。
-
-约束：
-
-- common/ 默认只保留一个占位文件；正式共享正文仍由顶层 debugger/common/ 提供，并由用户显式拷入。
-- 未完成 debugger/common/ 覆盖前，当前平台模板不可用。
-- 未完成 `platform_adapter.json` 配置或 `tools_root` 校验前，Agent 必须拒绝执行依赖平台真相的工作。
-- workspace/ 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。
-- multi_agent 当前按 experimental / CLI-first 理解，但共享规则与 role config 已完整生成。
-"@
- return ($base.TrimEnd() + "`n" + [string]::Join("`n", $(Platform-Compliance-Notes "codex")))
+ $lines = @(
+  '# Codex Template',
+  '',
+  '当前目录是 Codex 的 workspace-native 模板。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。',
+  '',
+  '使用方式：',
+  '',
+  ('1. 将仓库根目录 {0} 整体拷贝到当前平台根目录的 {1}，覆盖占位内容。' -f (Code 'debugger/common/'), (Code 'common/')),
+  ('2. 在 {0} 中配置 {1}。' -f (Code 'common/config/platform_adapter.json'), (Code 'paths.tools_root')),
+  ('3. 确认 {0} 在 {1} 下全部存在。' -f (Code 'validation.required_paths'), (Code '<resolved tools_root>/')),
+  ('4. 使用当前平台根目录同级的 {0} 作为运行区。' -f (Code 'workspace/')),
+  '5. 完成覆盖后，打开当前目录作为 Codex workspace root。',
+  ('6. 正常用户请求从 {0} 发起；其他 specialist 默认是 internal/debug-only。' -f (Code 'team_lead')),
+  ('7. {0}、{1}、{2} 与 {3} 只允许引用当前平台根目录的 common/。' -f (Code 'AGENTS.md'), (Code '.agents/skills/'), (Code '.codex/config.toml'), (Code '.codex/agents/*.toml')),
+  '',
+  '约束：',
+  '',
+  ('- {0} 默认只保留一个占位文件；正式共享正文仍由顶层 {1} 提供，并由用户显式拷入。' -f (Code 'common/'), (Code 'debugger/common/')),
+  ('- 未完成 {0} 覆盖前，当前平台模板不可用。' -f (Code 'debugger/common/')),
+  ('- 未完成 {0} 配置或 {1} 校验前，Agent 必须拒绝执行依赖平台真相的工作。' -f (Code 'platform_adapter.json'), (Code 'tools_root')),
+  ('- {0} 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。' -f (Code 'workspace/')),
+  ('- {0} 当前按 experimental / CLI-first 理解，但共享规则与 role config 已完整生成。' -f (Code 'multi_agent'))
+ )
+ $lines += $(Platform-Compliance-Notes "codex")
+ return ($lines -join "`n")
 }
 
 function CodexConfig() {
  $rows = New-Object System.Collections.Generic.List[string]
- foreach ($line in @("model = `"gpt-5.4`"", "model_reasoning_effort = `"high`"", "model_verbosity = `"medium`"", "", "[features]", "multi_agent = true", "", "[windows]", "sandbox = `"elevated`"", "")) { $null = $rows.Add($line) }
+ $teamLeadStyle = $(Role-Style "team_lead")
+ $teamLeadModel = $(Platform-Model "codex" "team_lead")
+ foreach ($line in @("model = `"$teamLeadModel`"", "model_reasoning_effort = `"$($teamLeadStyle.reasoning_effort)`"", "model_verbosity = `"$($teamLeadStyle.verbosity)`"", "", "[features]", "multi_agent = true", "", "[windows]", "sandbox = `"elevated`"", "")) { $null = $rows.Add($line) }
  foreach ($prop in $McpServers.servers.PSObject.Properties) {
  $null = $rows.Add("[mcp_servers.$($prop.Name)]")
  $null = $rows.Add("command = `"$($prop.Value.command)`"")
