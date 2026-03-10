@@ -17,6 +17,9 @@
   - `rd.vfs.tree`
   - `rd.vfs.resolve`
 - `debugger` 文档中涉及探索面时，应按“只读 VFS + canonical `rd.*` tools”口径编写，不得把 `rd.vfs.*` 写成第二套平台真相
+- source repo 的 `platform_adapter.json` 保持占位 fail-closed；正式 manual binding 只在复制后的平台包根目录完成
+- `platform_adapter.json` 中的 Windows `tools_root` 路径必须使用合法 JSON 写法：前斜杠或转义反斜杠
+- 当前已验证的配对范围是 package-level manual binding 与 local-first flow；remote workflow 本轮未重新验证
 
 ## 手工接线前必跑
 

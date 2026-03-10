@@ -23,8 +23,21 @@ def _root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _json_error(path: Path, exc: json.JSONDecodeError) -> str:
+    hint = ""
+    if path.name == "platform_adapter.json":
+        hint = " For Windows paths, use forward slashes or escaped backslashes in JSON."
+    return (
+        f"invalid JSON in {path}: {exc.msg} "
+        f"(line {exc.lineno}, column {exc.colno}).{hint}"
+    )
+
+
 def _read_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8-sig"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(_json_error(path, exc)) from exc
 
 
 def _read_text(path: Path) -> str:

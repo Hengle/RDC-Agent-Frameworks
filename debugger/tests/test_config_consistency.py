@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -11,6 +14,15 @@ DEBUGGER_ROOT = REPO_ROOT / "debugger"
 
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def _load_module(path: Path, module_name: str):
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 class ConfigConsistencyTests(unittest.TestCase):
@@ -34,6 +46,33 @@ class ConfigConsistencyTests(unittest.TestCase):
         for profile in (routing.get("profiles") or {}).values():
             rendered = set((profile.get("platform_rendering") or {}).keys())
             self.assertEqual(capability_platforms, rendered)
+
+    def test_validate_tool_contract_reader_reports_invalid_adapter_json(self) -> None:
+        module = _load_module(DEBUGGER_ROOT / "scripts" / "validate_tool_contract.py", "validate_tool_contract_module")
+        with tempfile.TemporaryDirectory() as tmp:
+            bad_json = Path(tmp) / "platform_adapter.json"
+            bad_json.write_text('{"paths":{"tools_root":"D:\\broken\\path"}}\n', encoding="utf-8")
+
+            with self.assertRaises(ValueError) as exc:
+                module.read_json(bad_json)
+
+            self.assertIn("invalid JSON in", str(exc.exception))
+            self.assertIn("forward slashes or escaped backslashes", str(exc.exception))
+
+    def test_runtime_tool_contract_reader_reports_invalid_adapter_json(self) -> None:
+        module = _load_module(
+            DEBUGGER_ROOT / "common" / "hooks" / "utils" / "validate_tool_contract_runtime.py",
+            "validate_tool_contract_runtime_module",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            bad_json = Path(tmp) / "platform_adapter.json"
+            bad_json.write_text('{"paths":{"tools_root":"D:\\broken\\path"}}\n', encoding="utf-8")
+
+            with self.assertRaises(ValueError) as exc:
+                module._read_json(bad_json)
+
+            self.assertIn("invalid JSON in", str(exc.exception))
+            self.assertIn("forward slashes or escaped backslashes", str(exc.exception))
 
 
 if __name__ == "__main__":

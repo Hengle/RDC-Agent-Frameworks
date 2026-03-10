@@ -38,8 +38,18 @@ def path_base(cur):
  return cur.parent if is_source_root(cur) else cur
 
 
+def json_error(path, exc):
+ hint = ""
+ if Path(path).name == "platform_adapter.json":
+  hint = " For Windows paths, use forward slashes or escaped backslashes in JSON."
+ return f"invalid JSON in {path}: {exc.msg} (line {exc.lineno}, column {exc.colno}).{hint}"
+
+
 def read_json(path):
- return json.loads(path.read_text(encoding="utf-8-sig"))
+ try:
+  return json.loads(path.read_text(encoding="utf-8-sig"))
+ except json.JSONDecodeError as exc:
+  raise ValueError(json_error(path, exc)) from exc
 
 
 def adapter_payload(cur):
@@ -118,9 +128,11 @@ def main():
    catalog = source_snapshot(cur)
   else:
    catalog = default_catalog(cur)
- except Exception as exc: print(str(exc)); return 2
+ except ValueError as exc: print(str(exc)); return 2
  if not catalog.is_file(): print(f"catalog not found: {catalog}"); return 2
- known_tools, requires_session = load_catalog(catalog)
+ try:
+  known_tools, requires_session = load_catalog(catalog)
+ except ValueError as exc: print(str(exc)); return 2
  files = iter_scan_files(cur)
  findings = Findings(check_unknown_tools(files, known_tools), check_session_examples(files, requires_session))
  if findings.has_issues(): print_findings(findings); return 1 if args.strict else 0

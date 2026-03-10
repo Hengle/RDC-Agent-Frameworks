@@ -8,11 +8,18 @@
 
 开始使用 `debugger/` 之前，必须先完成：
 
-1. 配置 `common/config/platform_adapter.json`
+1. 在复制后的平台包根目录中配置 `common/config/platform_adapter.json`
 2. 将 `paths.tools_root` 指向有效的 `RDC-Agent-Tools` 根目录
 3. 确认 `validation.required_paths` 中的文件在 `<resolved tools_root>/` 下存在
 4. 运行 `python common/config/validate_binding.py --strict`
 5. 在当前对话提交至少一份 `.rdc`
+
+补充约束：
+
+- source repo 中的 `common/config/platform_adapter.json` 故意保留占位值，用于 fail-closed；不要把 source root 当成直接绑定目标。
+- `platform_adapter.json` 是 JSON 文件；Windows 路径必须写成合法 JSON，例如：
+  - `"D:/Projects/Native/RDX/RDC-Agent-Tools"`
+  - `"D:\\Projects\\Native\\RDX\\RDC-Agent-Tools"`
 
 未完成以上步骤前：
 
@@ -47,7 +54,7 @@
 
 1. 选择目标平台模板目录。
 2. 将根目录 `debugger/common/` 拷贝到该平台根的 `common/`。
-3. 在平台根目录的 `common/config/platform_adapter.json` 中配置 `paths.tools_root`。
+3. 在复制后的平台包根目录 `common/config/platform_adapter.json` 中配置 `paths.tools_root`。
 4. 确认 `validation.required_paths` 校验通过。
 5. 运行 `python common/config/validate_binding.py --strict`，确认 `tools_root`、snapshot 与宿主文档入口都已对齐。
 6. 完成覆盖后，在对应宿主中打开该平台根目录。
@@ -62,3 +69,4 @@
 - 任务开始时，Agent 必须向用户说明当前采用的入口模式；若所选入口的前置条件未满足，必须先阻断。
 - 缺少 `.rdc` 时，Agent 必须像 `tools_root` 未配置一样直接阻断，不得继续做 triage、investigation 或 planning。
 - 当前 snapshot 需要与 `RDC-Agent-Tools` 的 `202` 个 tools 对齐；其中新增的 `rd.vfs.*` 只读探索面也属于必须同步校验的 platform truth。
+- 当前已实测闭环的是 package-level manual binding 与 local-first 工具链；remote workflow 本轮未重新验证，不应在 framework 文档中写成“已验证”。

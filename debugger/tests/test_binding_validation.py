@@ -137,6 +137,21 @@ class BindingValidationTests(unittest.TestCase):
 
             self.assertIn("platform_adapter.json missing configured paths.tools_root", findings)
 
+    def test_validate_binding_reports_invalid_adapter_json(self) -> None:
+        validator = _load_validator_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "debugger"
+            _write(
+                root / "common" / "config" / "platform_adapter.json",
+                '{"paths":{"tools_root":"D:\\broken\\path"}}\n',
+            )
+
+            findings = validator.validate_binding(root)
+
+            self.assertEqual(len(findings), 1)
+            self.assertIn("invalid JSON in", findings[0])
+            self.assertIn("forward slashes or escaped backslashes", findings[0])
+
 
 if __name__ == "__main__":
     unittest.main()

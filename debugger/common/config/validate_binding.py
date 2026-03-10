@@ -32,8 +32,21 @@ def _default_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _json_error(path: Path, exc: json.JSONDecodeError) -> str:
+    hint = ""
+    if path.name == "platform_adapter.json":
+        hint = " For Windows paths, use forward slashes or escaped backslashes in JSON."
+    return (
+        f"invalid JSON in {path}: {exc.msg} "
+        f"(line {exc.lineno}, column {exc.colno}).{hint}"
+    )
+
+
 def _read_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8-sig"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(_json_error(path, exc)) from exc
 
 
 def _is_source_root(root: Path) -> bool:
@@ -62,8 +75,8 @@ def validate_binding(root: Path, *, platform: str = "") -> list[str]:
     if not adapter_path.is_file():
         return [f"missing adapter config: {adapter_path}"]
 
-    payload = _read_json(adapter_path)
     try:
+        payload = _read_json(adapter_path)
         tools_root = _resolve_tools_root(root, payload)
     except ValueError as exc:
         findings.append(str(exc))
@@ -88,10 +101,18 @@ def validate_binding(root: Path, *, platform: str = "") -> list[str]:
     if not snapshot_file.is_file():
         findings.append(f"missing tool catalog snapshot: {snapshot_file}")
     else:
-        snapshot = _read_json(snapshot_file)
+        try:
+            snapshot = _read_json(snapshot_file)
+        except ValueError as exc:
+            findings.append(str(exc))
+            snapshot = {}
         spec_file = tools_root / "spec" / "tool_catalog.json"
         if spec_file.is_file():
-            spec = _read_json(spec_file)
+            try:
+                spec = _read_json(spec_file)
+            except ValueError as exc:
+                findings.append(str(exc))
+                spec = {}
             snapshot_count = int(snapshot.get("tool_count") or 0)
             spec_count = int(spec.get("tool_count") or 0)
             if snapshot_count != spec_count:
@@ -104,7 +125,11 @@ def validate_binding(root: Path, *, platform: str = "") -> list[str]:
                 findings.append("tool snapshot missing rd.vfs.* entries")
 
     if _is_source_root(root):
-        platforms_payload = _read_json(root / "common" / "config" / "platform_capabilities.json")
+        try:
+            platforms_payload = _read_json(root / "common" / "config" / "platform_capabilities.json")
+        except ValueError as exc:
+            findings.append(str(exc))
+            return findings
         platform_rows = platforms_payload.get("platforms", {})
         target_platforms = [platform] if platform else sorted(platform_rows)
         for platform_name in target_platforms:
