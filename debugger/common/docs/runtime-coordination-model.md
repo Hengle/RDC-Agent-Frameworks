@@ -163,20 +163,22 @@ remote baton 的完整恢复顺序固定如下：
 
 1. 读取 baton 中的 `task_goal`、`evidence_refs`、`causal_anchor_ref`
 2. 若 `entry_mode=mcp`，先确认宿主 MCP server 已配置；若未配置，直接阻断
-3. `rd.remote.connect`
-4. `rd.remote.ping`
-5. `rd.capture.open_file`
-6. `rd.capture.open_replay(options.remote_id=...)`
-7. `rd.replay.set_frame`
-8. 若 baton 中存在 canonical `active_event_id`，执行 `rd.event.set_active`
-9. 使用 `rd.session.update_context` 恢复 `focus.pixel`、`focus.resource_id`、`focus.shader_id`、`notes`
-10. 执行本轮调查，并把新增 evidence 回填到 artifacts 与 hypothesis board
+3. 读取 catalog `prerequisites`，确认本轮调用序列满足前置状态
+4. `rd.remote.connect`
+5. `rd.remote.ping`
+6. `rd.capture.open_file`
+7. `rd.capture.open_replay(capture_file_id=..., options.remote_id=...)`
+8. `rd.replay.set_frame`
+9. 若 baton 中存在 canonical `active_event_id`，执行 `rd.event.set_active`
+10. 使用 `rd.session.update_context` 恢复 `focus.pixel`、`focus.resource_id`、`focus.shader_id`、`notes`
+11. 执行本轮调查，并把新增 evidence 回填到 artifacts 与 hypothesis board
 
 默认规则：
 
 - remote 下不做“专家各自重连抢 owner”。
 - owner 可以跨轮次重建 session。
 - 但 owner 身份在整个 remote case 内应保持稳定。
+- 长操作期间，以 tools 提供的 progress/status 为准；不要把无输出等待当成“未知状态”。
 
 ## 9. 失败语义
 

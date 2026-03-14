@@ -88,3 +88,4 @@ However, framework guidance must still require entry preconditions to be satisfi
 - local-first paths require a valid `tools_root`
 - `MCP` paths require the target host to have the expected MCP server configured
 - agents must tell the user which entry mode is being used before beginning platform-truth-dependent work
+- agents should prefer catalog `prerequisites` over prompt-memory when deciding whether a call sequence is valid

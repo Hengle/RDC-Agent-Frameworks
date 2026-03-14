@@ -1,7 +1,7 @@
 {
   "source_path": "spec/doc_extracted.txt",
   "tool_count": 202,
-  "generated_at": "2026-03-07T16:52:34.752055Z",
+  "generated_at": "2026-03-14T15:07:09.788453Z",
   "groups": {
     "3.1，核心与环境管理 (Core & Environment)": 9,
     "3.2，捕获文件与 Replay Session (Capture & Replay)": 13,
@@ -18,8 +18,9 @@
     "3.13，应用内接口抽象 (In-Application Instrumentation, Optional)": 9,
     "3.14，诊断工具 (Diagnostics, Heuristic Checks)": 11,
     "3.15，专家级宏工作流 (Expert Macro Workflows)": 14,
-    "3.16，通用辅助工具 (Utilities, Optional)": 10,
-    "3.17，上下文快照工具 (Context Snapshot Tools)": 2
+    "3.16，通用辅助工具 (Utilities, Optional)": 6,
+    "3.17，上下文快照工具 (Context Snapshot Tools)": 2,
+    "3.18，VFS 导航工具 (VFS Navigation Tools)": 4
   },
   "tools": [
     {
@@ -32,7 +33,8 @@
         "global_env",
         "enable_remote",
         "enable_app_api"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.core.shutdown",
@@ -40,7 +42,8 @@
       "description": "关闭运行时并释放所有资源（Replay Session、Remote 连接、临时文件句柄）。",
       "parameter_raw": "无",
       "returns_raw": "success (bool)<br>released (dict): {sessions, capture_files, remote_connections, temp_files}<br>error_message (str, 可选)",
-      "param_names": []
+      "param_names": [],
+      "prerequisites": []
     },
     {
       "name": "rd.core.get_version",
@@ -48,7 +51,8 @@
       "description": "获取 RenderDoc 运行时版本与构建信息。",
       "parameter_raw": "无",
       "returns_raw": "success (bool)<br>version (str)<br>commit_hash (str, 可选)<br>build_date (str, 可选)<br>error_message (str, 可选)",
-      "param_names": []
+      "param_names": [],
+      "prerequisites": []
     },
     {
       "name": "rd.core.get_capabilities",
@@ -58,7 +62,8 @@
       "returns_raw": "success (bool)<br>capabilities (dict): 例如 {replay: {...}, remote: {...}, shader_debug: {...}, counters: {...}}<br>error_message (str, 可选)",
       "param_names": [
         "detail_level"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.core.set_config",
@@ -68,7 +73,8 @@
       "returns_raw": "success (bool)<br>applied (dict): 实际生效的配置（包含默认值补全）<br>error_message (str, 可选)",
       "param_names": [
         "config"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.core.get_config",
@@ -76,7 +82,8 @@
       "description": "读取当前运行时配置。",
       "parameter_raw": "无",
       "returns_raw": "success (bool)<br>config (dict)<br>error_message (str, 可选)",
-      "param_names": []
+      "param_names": [],
+      "prerequisites": []
     },
     {
       "name": "rd.core.set_log_level",
@@ -86,7 +93,8 @@
       "returns_raw": "success (bool)<br>error_message (str, 可选)",
       "param_names": [
         "level"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.core.get_logs",
@@ -98,7 +106,8 @@
         "since_ms",
         "level_min",
         "max_lines"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.core.healthcheck",
@@ -109,7 +118,8 @@
       "param_names": [
         "check_remote",
         "check_replay"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.capture.open_file",
@@ -120,7 +130,8 @@
       "param_names": [
         "file_path",
         "read_only"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.capture.close_file",
@@ -130,6 +141,15 @@
       "returns_raw": "success (bool)<br>error_message (str, 可选)",
       "param_names": [
         "capture_file_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capture_file_id",
+          "via_tools": [
+            "rd.capture.open_file"
+          ],
+          "reason": "This tool requires an opened capture handle before it can act on capture-backed state."
+        }
       ]
     },
     {
@@ -140,6 +160,15 @@
       "returns_raw": "success (bool)<br>metadata (dict): {capture_time, executable, cmdline, api, driver_version, machine_name, notes?}<br>error_message (str, 可选)",
       "param_names": [
         "capture_file_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capture_file_id",
+          "via_tools": [
+            "rd.capture.open_file"
+          ],
+          "reason": "This tool requires an opened capture handle before it can act on capture-backed state."
+        }
       ]
     },
     {
@@ -151,6 +180,15 @@
       "param_names": [
         "capture_file_id",
         "max_size_px"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capture_file_id",
+          "via_tools": [
+            "rd.capture.open_file"
+          ],
+          "reason": "This tool requires an opened capture handle before it can act on capture-backed state."
+        }
       ]
     },
     {
@@ -161,6 +199,15 @@
       "returns_raw": "success (bool)<br>frames (list[dict]): 每个元素 {frame_index, timestamp?, has_thumbnail?, drawcall_count?}<br>error_message (str, 可选)",
       "param_names": [
         "capture_file_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capture_file_id",
+          "via_tools": [
+            "rd.capture.open_file"
+          ],
+          "reason": "This tool requires an opened capture handle before it can act on capture-backed state."
+        }
       ]
     },
     {
@@ -172,6 +219,23 @@
       "param_names": [
         "capture_file_id",
         "options"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capture_file_id",
+          "via_tools": [
+            "rd.capture.open_file"
+          ],
+          "reason": "Opening a replay always requires an opened capture handle."
+        },
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "when": "options.remote_id_present",
+          "reason": "Remote replay requires a live remote handle in options.remote_id."
+        }
       ]
     },
     {
@@ -182,6 +246,16 @@
       "returns_raw": "success (bool)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -193,6 +267,16 @@
       "param_names": [
         "session_id",
         "frame_index"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -204,6 +288,16 @@
       "param_names": [
         "session_id",
         "frame_index"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -215,6 +309,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -225,6 +329,16 @@
       "returns_raw": "success (bool)<br>active_event_id (int)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -235,6 +349,16 @@
       "returns_raw": "success (bool)<br>api_properties (dict)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -245,6 +369,16 @@
       "returns_raw": "success (bool)<br>driver_info (dict): {vendor, device, driver_version, driver_name, replay_api}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -257,6 +391,16 @@
         "session_id",
         "include_markers",
         "include_drawcalls"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -269,6 +413,16 @@
         "session_id",
         "max_depth",
         "filter"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -280,6 +434,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -291,6 +455,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -302,6 +476,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -314,6 +498,16 @@
         "session_id",
         "query",
         "max_results"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -325,6 +519,16 @@
       "param_names": [
         "session_id",
         "marker_policy"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -336,6 +540,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -349,6 +563,16 @@
         "event_id",
         "include_arguments",
         "max_calls"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -361,6 +585,16 @@
         "session_id",
         "event_id",
         "resolve_symbols"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -375,6 +609,16 @@
         "event_b",
         "scope",
         "include_unchanged"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -386,6 +630,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -397,6 +651,16 @@
       "param_names": [
         "session_id",
         "detail_level"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -409,6 +673,16 @@
         "session_id",
         "include_bindings",
         "include_shaders"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -420,6 +694,16 @@
       "param_names": [
         "session_id",
         "stage"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -430,6 +714,16 @@
       "returns_raw": "success (bool)<br>ia (dict): {topology, vertex_buffers, index_buffer, input_layout/attributes, primitive_restart?}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -440,6 +734,16 @@
       "returns_raw": "success (bool)<br>vertex_buffers (list[dict]): {slot, resource_id, offset, stride, byte_size?, name?}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -450,6 +754,16 @@
       "returns_raw": "success (bool)<br>index_buffer (dict): {resource_id, format, offset, name?}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -460,6 +774,16 @@
       "returns_raw": "success (bool)<br>topology (dict): {topology, patch_control_points?, restart_enabled?}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -470,6 +794,16 @@
       "returns_raw": "success (bool)<br>viewports (list[dict]): {x,y,w,h,min_depth,max_depth}<br>scissors (list[dict]): {x,y,w,h}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -480,6 +814,16 @@
       "returns_raw": "success (bool)<br>rasterizer (dict)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -490,6 +834,16 @@
       "returns_raw": "success (bool)<br>multisample (dict)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -500,6 +854,16 @@
       "returns_raw": "success (bool)<br>blend (dict)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -510,6 +874,16 @@
       "returns_raw": "success (bool)<br>depth_stencil (dict)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -520,6 +894,16 @@
       "returns_raw": "success (bool)<br>framebuffer (dict): {render_targets:[], depth_target?, samples?, formats?}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -530,6 +914,16 @@
       "returns_raw": "success (bool)<br>render_targets (list[dict])<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -540,6 +934,16 @@
       "returns_raw": "success (bool)<br>depth_target (dict, 可选): {resource_id, format, mip, slice, name}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -551,6 +955,16 @@
       "param_names": [
         "session_id",
         "stage"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -562,6 +976,16 @@
       "param_names": [
         "session_id",
         "stage"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -573,6 +997,16 @@
       "param_names": [
         "session_id",
         "stage"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -586,6 +1020,16 @@
         "stage",
         "include_contents",
         "max_bytes"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -598,6 +1042,16 @@
         "session_id",
         "decode_as",
         "layout"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -608,6 +1062,16 @@
       "returns_raw": "success (bool)<br>dynamic_state (dict)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -618,6 +1082,16 @@
       "returns_raw": "success (bool)<br>root_signature (dict, 可选)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -628,6 +1102,16 @@
       "returns_raw": "success (bool)<br>descriptor_heaps (dict, 可选)<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -639,6 +1123,16 @@
       "param_names": [
         "session_id",
         "resource_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -650,6 +1144,16 @@
       "param_names": [
         "session_id",
         "stage"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -662,6 +1166,16 @@
         "session_id",
         "types",
         "include_unused"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -674,6 +1188,16 @@
         "session_id",
         "include_render_targets",
         "include_depth_stencil"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -684,6 +1208,16 @@
       "returns_raw": "success (bool)<br>buffers (list[dict]): {resource_id, name, byte_size, usage_flags?, stride?, structured?}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -695,6 +1229,16 @@
       "param_names": [
         "session_id",
         "resource_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -707,6 +1251,16 @@
         "session_id",
         "resource_id",
         "max_events"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -720,6 +1274,16 @@
         "resource_id",
         "include_reads",
         "include_writes"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -732,6 +1296,16 @@
         "session_id",
         "resource_id",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -746,6 +1320,16 @@
         "subresource",
         "range",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -758,6 +1342,16 @@
         "session_id",
         "resource_id",
         "alias"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -770,6 +1364,16 @@
         "session_id",
         "resource_id",
         "new_name"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -782,6 +1386,16 @@
         "session_id",
         "resource_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -793,6 +1407,16 @@
       "param_names": [
         "session_id",
         "resource_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -804,6 +1428,16 @@
       "param_names": [
         "session_id",
         "resource_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -818,6 +1452,16 @@
         "subresource",
         "format",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -834,6 +1478,16 @@
         "sample",
         "export",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -851,6 +1505,16 @@
         "slice",
         "sample",
         "as_type"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -868,6 +1532,16 @@
         "sample",
         "stride",
         "as_type"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -885,6 +1559,16 @@
         "slice",
         "sample",
         "include_shaders"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -900,6 +1584,16 @@
         "slice",
         "sample",
         "channels"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -916,6 +1610,16 @@
         "channels",
         "bins",
         "range"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -931,6 +1635,16 @@
         "slice",
         "sample",
         "stride"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -946,6 +1660,16 @@
         "event_id",
         "output_path",
         "image_format"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -963,6 +1687,16 @@
         "channels",
         "remap",
         "flip_y"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -977,6 +1711,16 @@
         "output_dir",
         "file_format",
         "slice"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -991,6 +1735,16 @@
         "tex_b",
         "metric",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1006,6 +1760,16 @@
         "size",
         "output_path",
         "as_base64"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1021,6 +1785,16 @@
         "offset",
         "count",
         "max_elements"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1035,6 +1809,16 @@
         "output_path",
         "offset",
         "size"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1050,6 +1834,16 @@
         "offset",
         "size",
         "max_results"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1065,6 +1859,16 @@
         "instance",
         "view_index",
         "max_vertices"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1078,6 +1882,16 @@
         "event_id",
         "instance",
         "max_primitives"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1093,6 +1907,16 @@
         "vertex_offset",
         "vertex_count",
         "base_vertex"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1108,6 +1932,16 @@
         "index_offset",
         "index_count",
         "base_vertex"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1119,6 +1953,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1134,6 +1978,16 @@
         "output_path",
         "include_attributes",
         "space"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1149,6 +2003,16 @@
         "output_path",
         "width",
         "height"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1162,6 +2026,16 @@
         "shader_id",
         "include_bindings",
         "include_constant_blocks"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1174,6 +2048,16 @@
         "session_id",
         "shader_id",
         "target"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1186,6 +2070,16 @@
         "session_id",
         "shader_id",
         "prefer_original"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1199,6 +2093,16 @@
         "shader_id",
         "output_path",
         "container"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1212,6 +2116,16 @@
         "shader_id",
         "output_path",
         "container"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1223,6 +2137,16 @@
       "param_names": [
         "session_id",
         "shader_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1234,6 +2158,16 @@
       "param_names": [
         "session_id",
         "shader_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1246,6 +2180,16 @@
         "session_id",
         "shader_id",
         "block_name_or_index"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1261,6 +2205,16 @@
         "array_index",
         "max_bytes",
         "flatten"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1272,6 +2226,16 @@
       "param_names": [
         "session_id",
         "stage"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1283,6 +2247,16 @@
       "param_names": [
         "session_id",
         "replacement_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1293,6 +2267,16 @@
       "returns_raw": "success (bool)<br>replacements (list[dict]): {replacement_id, stage, original_shader_id, created_event?, status, messages?}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1304,6 +2288,16 @@
       "param_names": [
         "session_id",
         "severity_min"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1321,7 +2315,8 @@
         "include_dirs",
         "additional_args",
         "output_path"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.shader.debug_start",
@@ -1335,6 +2330,16 @@
         "event_id",
         "params",
         "timeout_ms"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1347,6 +2352,16 @@
         "session_id",
         "shader_debug_id",
         "detail_level"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1359,6 +2374,16 @@
         "session_id",
         "shader_debug_id",
         "step_mode"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1371,6 +2396,16 @@
         "session_id",
         "shader_debug_id",
         "timeout_ms"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1384,6 +2419,16 @@
         "shader_debug_id",
         "target",
         "timeout_ms"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1396,6 +2441,16 @@
         "session_id",
         "shader_debug_id",
         "breakpoints"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1407,6 +2462,16 @@
       "param_names": [
         "session_id",
         "shader_debug_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1421,6 +2486,16 @@
         "name_filter",
         "expand_depth",
         "max_variables"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1433,6 +2508,16 @@
         "session_id",
         "shader_debug_id",
         "expression"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1444,6 +2529,16 @@
       "param_names": [
         "session_id",
         "shader_debug_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1455,6 +2550,16 @@
       "param_names": [
         "session_id",
         "shader_debug_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1471,6 +2576,16 @@
         "sample",
         "include_tests",
         "include_shader_outputs"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1483,6 +2598,16 @@
         "session_id",
         "history_item",
         "verbosity"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1493,6 +2618,16 @@
       "returns_raw": "success (bool)<br>counters (list[dict]): {counter_id, name, description?, unit?, category?}<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1504,6 +2639,16 @@
       "param_names": [
         "session_id",
         "counter_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1517,6 +2662,16 @@
         "counter_ids",
         "event_range",
         "stride"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1529,6 +2684,16 @@
         "session_id",
         "event_range",
         "max_events"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1540,6 +2705,16 @@
       "param_names": [
         "session_id",
         "frame_index"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1551,6 +2726,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1562,6 +2747,16 @@
       "param_names": [
         "session_id",
         "frame_index"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1573,6 +2768,16 @@
       "param_names": [
         "session_id",
         "event_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1584,6 +2789,16 @@
       "param_names": [
         "session_id",
         "severity_min"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1598,6 +2813,16 @@
         "region",
         "sampling",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1614,6 +2839,16 @@
         "file_format",
         "include_alpha",
         "overlay"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1629,6 +2864,16 @@
         "output_path",
         "file_format",
         "remap"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1643,6 +2888,16 @@
         "output_path",
         "offset",
         "size"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1656,6 +2911,16 @@
         "event_id",
         "format",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1669,6 +2934,16 @@
         "event_id",
         "output_path",
         "detail_level"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1681,6 +2956,16 @@
         "session_id",
         "output_path",
         "max_depth"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1693,6 +2978,16 @@
         "session_id",
         "output_path",
         "types"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1707,6 +3002,16 @@
         "y",
         "target",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1722,6 +3027,16 @@
         "include_binaries",
         "include_reflection",
         "include_disassembly"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1736,6 +3051,16 @@
         "stages",
         "include_raw",
         "include_decoded"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1749,6 +3074,16 @@
         "bundle_spec",
         "focus",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1762,6 +3097,16 @@
         "report_spec",
         "focus",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -1774,6 +3119,15 @@
         "host",
         "port",
         "timeout_ms"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1784,6 +3138,22 @@
       "returns_raw": "success (bool)<br>error_message (str, 可选)",
       "param_names": [
         "remote_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1794,6 +3164,22 @@
       "returns_raw": "success (bool)<br>latency_ms (float, 可选)<br>error_message (str, 可选)",
       "param_names": [
         "remote_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1804,6 +3190,22 @@
       "returns_raw": "success (bool)<br>targets (list[dict]): {target_id, name, pid?, api?, status}<br>error_message (str, 可选)",
       "param_names": [
         "remote_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1819,6 +3221,22 @@
         "cmdline",
         "env",
         "capture_options"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1830,6 +3248,22 @@
       "param_names": [
         "remote_id",
         "options"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1841,6 +3275,22 @@
       "param_names": [
         "remote_id",
         "options"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1854,6 +3304,22 @@
         "target_id",
         "num_frames",
         "capture_delay_ms"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1866,6 +3332,22 @@
         "remote_id",
         "target_id",
         "num_frames"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1876,6 +3358,22 @@
       "returns_raw": "success (bool)<br>captures (list[dict]): {capture_id, timestamp, api, local_path?}<br>error_message (str, 可选)",
       "param_names": [
         "remote_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1888,6 +3386,22 @@
         "remote_id",
         "capture_id",
         "local_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1899,6 +3413,22 @@
       "param_names": [
         "remote_id",
         "capture_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "remote_id",
+          "via_tools": [
+            "rd.remote.connect"
+          ],
+          "reason": "This tool targets a live remote endpoint handle."
+        },
+        {
+          "requires": "capability.remote",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "Remote tools require remote capability to be enabled for the current runtime."
+        }
       ]
     },
     {
@@ -1909,6 +3439,15 @@
       "returns_raw": "success (bool)<br>available (bool)<br>detail (dict, 可选)<br>error_message (str, 可选)",
       "param_names": [
         "connection"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -1920,6 +3459,15 @@
       "param_names": [
         "connection",
         "device"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -1931,6 +3479,15 @@
       "param_names": [
         "connection",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -1943,6 +3500,15 @@
         "connection",
         "num_frames",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -1955,6 +3521,15 @@
         "connection",
         "option",
         "value"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -1965,6 +3540,15 @@
       "returns_raw": "success (bool)<br>options (dict)<br>error_message (str, 可选)",
       "param_names": [
         "connection"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -1976,6 +3560,15 @@
       "param_names": [
         "connection",
         "name"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -1986,6 +3579,15 @@
       "returns_raw": "success (bool)<br>error_message (str, 可选)",
       "param_names": [
         "connection"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -1997,6 +3599,15 @@
       "param_names": [
         "connection",
         "name"
+      ],
+      "prerequisites": [
+        {
+          "requires": "capability.app_api",
+          "via_tools": [
+            "rd.core.init"
+          ],
+          "reason": "In-process app tools require app API integration to be enabled."
+        }
       ]
     },
     {
@@ -2009,6 +3620,16 @@
         "session_id",
         "severity_min",
         "include_suggestions"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2020,6 +3641,16 @@
       "param_names": [
         "session_id",
         "expect"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2031,6 +3662,16 @@
       "param_names": [
         "session_id",
         "pixel"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2041,6 +3682,16 @@
       "returns_raw": "success (bool)<br>issues (list[dict])<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2052,6 +3703,16 @@
       "param_names": [
         "session_id",
         "mesh_preview"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2063,6 +3724,16 @@
       "param_names": [
         "session_id",
         "rt_index"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2074,6 +3745,16 @@
       "param_names": [
         "session_id",
         "textures"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2086,6 +3767,16 @@
         "session_id",
         "stages",
         "include_descriptor_dump"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2098,6 +3789,16 @@
         "session_id",
         "stages",
         "decode_values"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2109,6 +3810,16 @@
       "param_names": [
         "session_id",
         "resources"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2119,6 +3830,16 @@
       "returns_raw": "success (bool)<br>issues (list[dict])<br>error_message (str, 可选)",
       "param_names": [
         "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2133,6 +3854,16 @@
         "max_passes",
         "max_draws_per_pass",
         "include_timings"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2146,6 +3877,16 @@
         "pass_range",
         "include_resource_lists",
         "include_state_changes"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2158,6 +3899,16 @@
         "session_id",
         "name_regex",
         "max_results"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2172,6 +3923,16 @@
         "y",
         "target",
         "policy"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2186,6 +3947,16 @@
         "y",
         "target",
         "verbosity"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2200,6 +3971,16 @@
         "include_reads",
         "group_by_pass",
         "max_events"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2213,6 +3994,16 @@
         "event_range",
         "max_nodes",
         "max_edges"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2228,6 +4019,16 @@
         "target_value",
         "search_policy",
         "max_steps"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2241,6 +4042,16 @@
         "event_a",
         "event_b",
         "output_path"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2253,6 +4064,16 @@
         "session_id",
         "targets",
         "max_results"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2266,6 +4087,16 @@
         "texture_id",
         "scan",
         "output_dir"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2279,6 +4110,16 @@
         "event_id",
         "pixel",
         "output_dir"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2292,6 +4133,16 @@
         "focus",
         "output_path",
         "verbosity"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2305,6 +4156,16 @@
         "replacement",
         "validation",
         "output_dir"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2316,7 +4177,8 @@
       "param_names": [
         "path",
         "algo"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.util.diff_text",
@@ -2330,7 +4192,8 @@
         "a_is_path",
         "b_is_path",
         "context_lines"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.util.diff_images",
@@ -2343,7 +4206,8 @@
         "image_b_path",
         "metrics",
         "output_path"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.util.pack_zip",
@@ -2354,7 +4218,8 @@
       "param_names": [
         "paths",
         "output_path"
-      ]
+      ],
+      "prerequisites": []
     },
     {
       "name": "rd.util.list_artifacts",
@@ -2365,6 +4230,16 @@
       "param_names": [
         "session_id",
         "prefix"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2378,51 +4253,16 @@
         "older_than_ms",
         "prefix",
         "max_total_bytes"
-      ]
-    },
-    {
-      "name": "rd.vfs.ls",
-      "group": "3.16，通用辅助工具 (Utilities, Optional)",
-      "description": "以只读 VFS 方式列出指定路径下的子节点，适合人类探索 draw/pass/resource/shader/context 结构。",
-      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径，例如 `/draws`、`/pipeline`、`/context`<br>session_id (str, 可选): 显式指定 session；未提供时优先使用当前 context 中的 session",
-      "returns_raw": "success (bool)<br>path (str): 归一化后的 VFS 路径<br>entries (list[dict]): 每项包含 {name, path, kind, title, requires_session, canonical_tools}<br>error_message (str, 可选)",
-      "param_names": [
-        "path",
-        "session_id"
-      ]
-    },
-    {
-      "name": "rd.vfs.cat",
-      "group": "3.16，通用辅助工具 (Utilities, Optional)",
-      "description": "读取指定 VFS 节点的结构化内容，返回节点元数据、推荐 canonical tools 与当前节点数据。",
-      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径<br>session_id (str, 可选): 显式指定 session；未提供时优先使用当前 context 中的 session",
-      "returns_raw": "success (bool)<br>path (str)<br>node (dict): 包含 {path, name, kind, title, requires_session, canonical_tools, data?, entries?}<br>error_message (str, 可选)",
-      "param_names": [
-        "path",
-        "session_id"
-      ]
-    },
-    {
-      "name": "rd.vfs.tree",
-      "group": "3.16，通用辅助工具 (Utilities, Optional)",
-      "description": "以树形方式递归展开指定 VFS 路径，适合快速浏览当前 frame 的 draws/passes/resources 结构。",
-      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径<br>session_id (str, 可选): 显式指定 session；未提供时优先使用当前 context 中的 session<br>depth (int, 可选, 默认 2): 最大递归深度",
-      "returns_raw": "success (bool)<br>path (str)<br>tree (dict): 结构与 `rd.vfs.cat` 的 node 类似，但额外包含递归 children<br>error_message (str, 可选)",
-      "param_names": [
-        "path",
-        "session_id",
-        "depth"
-      ]
-    },
-    {
-      "name": "rd.vfs.resolve",
-      "group": "3.16，通用辅助工具 (Utilities, Optional)",
-      "description": "解析指定 VFS 路径到规范节点，返回该路径对应的 canonical tools、节点类型与读取结果。",
-      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径<br>session_id (str, 可选): 显式指定 session；未提供时优先使用当前 context 中的 session",
-      "returns_raw": "success (bool)<br>path (str)<br>resolved (dict): 归一化节点定义，包含 canonical_tools 与 data/entries<br>error_message (str, 可选)",
-      "param_names": [
-        "path",
-        "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     },
     {
@@ -2431,7 +4271,8 @@
       "description": "读取当前 context 快照，返回 runtime、remote、focus 与 recent artifacts 的结构化状态。",
       "parameter_raw": "",
       "returns_raw": "success (bool)<br>context_id (str)<br>runtime (dict): {session_id, capture_file_id, frame_index, active_event_id, backend_type}<br>remote (dict): {state, remote_id, origin_remote_id, endpoint, consumed_by_session_id}<br>focus (dict): {pixel?, resource_id?, shader_id?}<br>last_artifacts (list)<br>updated_at_ms (int)<br>error_message (str, 可选)",
-      "param_names": []
+      "param_names": [],
+      "prerequisites": []
     },
     {
       "name": "rd.session.update_context",
@@ -2442,6 +4283,92 @@
       "param_names": [
         "key",
         "value"
+      ],
+      "prerequisites": []
+    },
+    {
+      "name": "rd.vfs.ls",
+      "group": "3.18，VFS 导航工具 (VFS Navigation Tools)",
+      "description": "以 JSON-first 方式列出 read-only VFS 节点，用于探索 draws/passes/resources/context/artifacts 等路径空间。",
+      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 路径<br>session_id (str, 可选): 当 path 指向 replay 相关域时用于解析当前 session",
+      "returns_raw": "success (bool)<br>path (str)<br>entries (list[dict]): 每项包含 {name, path, kind, requires_session, summary?}<br>resolved_session_id (str, 可选)<br>context_id (str)<br>error_message (str, 可选)",
+      "param_names": [
+        "path",
+        "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
+      ]
+    },
+    {
+      "name": "rd.vfs.cat",
+      "group": "3.18，VFS 导航工具 (VFS Navigation Tools)",
+      "description": "读取 read-only VFS 节点的 JSON 表示，不新增第二套平行真相，而是对底层 rd.* 能力的导航封装。",
+      "parameter_raw": "path (str): VFS 路径<br>session_id (str, 可选): 当 path 指向 replay 相关域时用于解析当前 session",
+      "returns_raw": "success (bool)<br>path (str)<br>kind (str): 节点类型<br>value (json): 节点的 JSON 值<br>resolved_session_id (str, 可选)<br>context_id (str)<br>error_message (str, 可选)",
+      "param_names": [
+        "path",
+        "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
+      ]
+    },
+    {
+      "name": "rd.vfs.tree",
+      "group": "3.18，VFS 导航工具 (VFS Navigation Tools)",
+      "description": "按照 VFS 路径返回树形 read-only 视图，默认以结构化 JSON 表示节点与 children。",
+      "parameter_raw": "path (str, 可选, 默认 '/'): VFS 起点路径<br>depth (int, 可选, 默认 2): 递归深度<br>session_id (str, 可选): 当 path 指向 replay 相关域时用于解析当前 session",
+      "returns_raw": "success (bool)<br>path (str)<br>depth (int)<br>tree (dict): 包含 {name, path, kind, children?}<br>resolved_session_id (str, 可选)<br>context_id (str)<br>error_message (str, 可选)",
+      "param_names": [
+        "path",
+        "depth",
+        "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
+      ]
+    },
+    {
+      "name": "rd.vfs.resolve",
+      "group": "3.18，VFS 导航工具 (VFS Navigation Tools)",
+      "description": "解析 VFS 路径到对应节点元数据，用于判断 path 是否存在、是否需要 session 以及可使用哪类视图。",
+      "parameter_raw": "path (str): VFS 路径<br>session_id (str, 可选): 当 path 指向 replay 相关域时用于解析当前 session",
+      "returns_raw": "success (bool)<br>path (str)<br>node (dict): 包含 {name, path, kind, exists, requires_session, operations, summary?}<br>resolved_session_id (str, 可选)<br>context_id (str)<br>error_message (str, 可选)",
+      "param_names": [
+        "path",
+        "session_id"
+      ],
+      "prerequisites": [
+        {
+          "requires": "session_id",
+          "via_tools": [
+            "rd.capture.open_file",
+            "rd.capture.open_replay"
+          ],
+          "reason": "This tool operates on a live replay session."
+        }
       ]
     }
   ]

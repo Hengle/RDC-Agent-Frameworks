@@ -22,8 +22,8 @@ SNAPSHOT_PATH = Path("common") / "config" / "tool_catalog.snapshot.json"
 @dataclass
 class Findings:
  unknown_tools: dict[str, set[str]] = field(default_factory=dict)
- missing_session_examples: list[str] = field(default_factory=list)
- def has_issues(self): return any([self.unknown_tools, self.missing_session_examples])
+ missing_prerequisite_examples: list[str] = field(default_factory=list)
+ def has_issues(self): return any([self.unknown_tools, self.missing_prerequisite_examples])
 
 
 def root():
@@ -87,8 +87,19 @@ def source_snapshot(cur):
 def load_catalog(path):
  payload = read_json(path)
  names = {str(item.get("name", "")).strip() for item in payload.get("tools", []) if str(item.get("name", "")).strip()}
- requires_session = {str(item.get("name", "")).strip() for item in payload.get("tools", []) if "session_id" in {str(param).strip() for param in item.get("param_names", [])}}
- return names, requires_session
+ requires_prereq = {
+  str(item.get("name", "")).strip(): [
+   {
+    "requires": str(pr.get("requires", "")).strip(),
+    "when": str(pr.get("when", "")).strip(),
+   }
+   for pr in item.get("prerequisites", [])
+   if isinstance(pr, dict) and str(pr.get("requires", "")).strip()
+  ]
+  for item in payload.get("tools", [])
+  if str(item.get("name", "")).strip()
+ }
+ return names, requires_prereq
 
 
 def iter_scan_files(cur):
@@ -104,13 +115,28 @@ def check_unknown_tools(files, known_tools):
  return {str(path): {ref for ref in set(TOOL_RE.findall(read_text(path))) if ref not in known_tools} for path in files if {ref for ref in set(TOOL_RE.findall(read_text(path))) if ref not in known_tools}}
 
 
-def check_session_examples(files, requires_session):
- return [f"{path}:{lineno}: {tool}(...) missing session_id in example" for path in files for lineno, line in enumerate(read_text(path).splitlines(), start=1) for tool, arg_text in CALL_RE.findall(line) if tool in requires_session and "session_id" not in arg_text]
+def check_prerequisite_examples(files, prerequisites):
+ rows = []
+ for path in files:
+  for lineno, line in enumerate(read_text(path).splitlines(), start=1):
+   for tool, arg_text in CALL_RE.findall(line):
+    for prereq in prerequisites.get(tool, []):
+     required = prereq.get("requires", "")
+     when = prereq.get("when", "")
+     if when == "options.remote_id_present" and "remote_id" not in arg_text:
+      continue
+     if required == "session_id" and "session_id" not in arg_text:
+      rows.append(f"{path}:{lineno}: {tool}(...) missing session_id prerequisite in example")
+     if required == "capture_file_id" and "capture_file_id" not in arg_text:
+      rows.append(f"{path}:{lineno}: {tool}(...) missing capture_file_id prerequisite in example")
+     if required == "remote_id" and "remote_id" not in arg_text and "options.remote_id" not in arg_text:
+      rows.append(f"{path}:{lineno}: {tool}(...) missing remote_id prerequisite in example")
+ return rows
 
 
 def print_findings(findings):
  if findings.unknown_tools: print("[unknown rd.* references]"); [print(" - " + file_path + ": " + ", ".join(sorted(findings.unknown_tools[file_path]))) for file_path in sorted(findings.unknown_tools)]
- if findings.missing_session_examples: print("[example calls missing session_id]"); [print(" - " + row) for row in findings.missing_session_examples]
+ if findings.missing_prerequisite_examples: print("[example calls missing prerequisites]"); [print(" - " + row) for row in findings.missing_prerequisite_examples]
 
 
 def main():
@@ -131,10 +157,10 @@ def main():
  except ValueError as exc: print(str(exc)); return 2
  if not catalog.is_file(): print(f"catalog not found: {catalog}"); return 2
  try:
-  known_tools, requires_session = load_catalog(catalog)
+  known_tools, prerequisites = load_catalog(catalog)
  except ValueError as exc: print(str(exc)); return 2
  files = iter_scan_files(cur)
- findings = Findings(check_unknown_tools(files, known_tools), check_session_examples(files, requires_session))
+ findings = Findings(check_unknown_tools(files, known_tools), check_prerequisite_examples(files, prerequisites))
  if findings.has_issues(): print_findings(findings); return 1 if args.strict else 0
  print(f"tool contract validation passed ({catalog})")
  return 0

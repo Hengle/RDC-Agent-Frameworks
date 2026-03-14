@@ -62,15 +62,22 @@ def _resolve_tools_root(root: Path) -> Path:
     return tools_root
 
 
-def _load_catalog(root: Path) -> tuple[set[str], set[str]]:
+def _load_catalog(root: Path) -> tuple[set[str], dict[str, list[dict[str, str]]]]:
     payload = _read_json(_resolve_tools_root(root) / "spec" / "tool_catalog.json")
     names = {str(item.get("name", "")).strip() for item in payload.get("tools", []) if str(item.get("name", "")).strip()}
-    requires_session = {
-        str(item.get("name", "")).strip()
+    prerequisites = {
+        str(item.get("name", "")).strip(): [
+            {
+                "requires": str(pr.get("requires", "")).strip(),
+                "when": str(pr.get("when", "")).strip(),
+            }
+            for pr in item.get("prerequisites", [])
+            if isinstance(pr, dict) and str(pr.get("requires", "")).strip()
+        ]
         for item in payload.get("tools", [])
-        if "session_id" in {str(param).strip() for param in item.get("param_names", [])}
+        if str(item.get("name", "")).strip()
     }
-    return names, requires_session
+    return names, prerequisites
 
 
 def _iter_files(root: Path) -> list[Path]:
@@ -86,7 +93,7 @@ def _iter_files(root: Path) -> list[Path]:
 def main() -> int:
     root = _root()
     try:
-        known_tools, requires_session = _load_catalog(root)
+        known_tools, prerequisites = _load_catalog(root)
     except Exception as exc:  # noqa: BLE001
         print(str(exc), file=sys.stderr)
         return 2
@@ -100,8 +107,17 @@ def main() -> int:
             unknown_rows.append(f"{path}: {', '.join(unknown)}")
         for lineno, line in enumerate(text.splitlines(), start=1):
             for tool, arg_text in CALL_RE.findall(line):
-                if tool in requires_session and "session_id" not in arg_text:
-                    session_rows.append(f"{path}:{lineno}: {tool}(...) missing session_id in example")
+                for prereq in prerequisites.get(tool, []):
+                    required = prereq.get("requires", "")
+                    when = prereq.get("when", "")
+                    if when == "options.remote_id_present" and "remote_id" not in arg_text:
+                        continue
+                    if required == "session_id" and "session_id" not in arg_text:
+                        session_rows.append(f"{path}:{lineno}: {tool}(...) missing session_id prerequisite in example")
+                    if required == "capture_file_id" and "capture_file_id" not in arg_text:
+                        session_rows.append(f"{path}:{lineno}: {tool}(...) missing capture_file_id prerequisite in example")
+                    if required == "remote_id" and ("remote_id" not in arg_text and "options.remote_id" not in arg_text):
+                        session_rows.append(f"{path}:{lineno}: {tool}(...) missing remote_id prerequisite in example")
 
     if unknown_rows or session_rows:
         if unknown_rows:
@@ -109,7 +125,7 @@ def main() -> int:
             for row in unknown_rows:
                 print(f" - {row}")
         if session_rows:
-            print("[example calls missing session_id]")
+            print("[example calls missing prerequisites]")
             for row in session_rows:
                 print(f" - {row}")
         return 1
