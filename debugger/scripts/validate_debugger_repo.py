@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 
 def _root() -> Path:
     return Path(__file__).resolve().parents[1]
@@ -17,6 +19,10 @@ def _root() -> Path:
 
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def _read_yaml(path: Path):
+    return yaml.safe_load(path.read_text(encoding="utf-8-sig"))
 
 
 def _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -245,6 +251,62 @@ def _compliance_findings(root: Path) -> list[str]:
     return findings
 
 
+def _spec_store_findings(root: Path) -> list[str]:
+    findings: list[str] = []
+    spec_root = root / "common" / "knowledge" / "spec"
+    required = [
+        spec_root / "README.md",
+        spec_root / "registry" / "active_manifest.yaml",
+        spec_root / "registry" / "spec_registry.yaml",
+        spec_root / "policy" / "evolution_policy.yaml",
+        spec_root / "negative_memory.yaml",
+        spec_root / "ledger" / "evolution_ledger.jsonl",
+    ]
+    forbidden = [
+        spec_root / "skills",
+        spec_root / "invariants",
+        spec_root / "taxonomy",
+        root / "common" / "docs" / "sop_extraction_guide.md",
+    ]
+
+    for path in required:
+        if not path.exists():
+            findings.append(f"missing versioned spec store path: {path}")
+
+    for path in forbidden:
+        if path.exists():
+            findings.append(f"legacy spec path must not exist: {path}")
+
+    if findings:
+        return findings
+
+    manifest = _read_yaml(spec_root / "registry" / "active_manifest.yaml")
+    registry = _read_yaml(spec_root / "registry" / "spec_registry.yaml")
+    families = manifest.get("families") or {}
+    registry_families = registry.get("families") or {}
+    if set(families) != set(registry_families):
+        findings.append("active_manifest and spec_registry family keys differ")
+        return findings
+
+    for family, entry in sorted(families.items()):
+        if not isinstance(entry, dict):
+            findings.append(f"active_manifest family entry must be an object: {family}")
+            continue
+        object_path = root / str(entry.get("object_path", "")).replace("/", "\\")
+        if not object_path.is_file():
+            findings.append(f"{family}: active object missing: {object_path}")
+            continue
+        obj = _read_yaml(object_path)
+        if not isinstance(obj, dict):
+            findings.append(f"{family}: active object must be a YAML object")
+            continue
+        payload_path = root / str(obj.get("payload_path", "")).replace("/", "\\")
+        if not payload_path.is_file():
+            findings.append(f"{family}: active payload missing: {payload_path}")
+
+    return findings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate debugger repo")
     parser.add_argument("--strict", action="store_true", help="return non-zero when findings exist")
@@ -265,6 +327,7 @@ def main() -> int:
             findings.append(f"command failed: {' '.join(command)}")
 
     findings.extend(_compliance_findings(root))
+    findings.extend(_spec_store_findings(root))
     findings.extend(_model_routing_findings(root))
 
     if findings:

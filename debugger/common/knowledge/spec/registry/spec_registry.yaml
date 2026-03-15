@@ -1,0 +1,66 @@
+schema_version: "1"
+families:
+  sop_catalog:
+    spec_id: SOP-CATALOG
+    family: sop_catalog
+    active_version: 1
+    active_object_path: common/knowledge/spec/objects/sops/SOP-CATALOG@1.yaml
+    rollback_target: null
+    versions:
+      - spec_id: SOP-CATALOG
+        family: sop_catalog
+        version: 1
+        status: active
+        parent_version: null
+        object_path: common/knowledge/spec/objects/sops/SOP-CATALOG@1.yaml
+        rollback_target: null
+        dedupe_group: SOP-CATALOG
+        canonical_id: SOP-CATALOG
+  invariant_catalog:
+    spec_id: INVARIANT-CATALOG
+    family: invariant_catalog
+    active_version: 1
+    active_object_path: common/knowledge/spec/objects/invariants/INVARIANT-CATALOG@1.yaml
+    rollback_target: null
+    versions:
+      - spec_id: INVARIANT-CATALOG
+        family: invariant_catalog
+        version: 1
+        status: active
+        parent_version: null
+        object_path: common/knowledge/spec/objects/invariants/INVARIANT-CATALOG@1.yaml
+        rollback_target: null
+        dedupe_group: INVARIANT-CATALOG
+        canonical_id: INVARIANT-CATALOG
+  symptom_taxonomy:
+    spec_id: SYMPTOM-TAXONOMY
+    family: symptom_taxonomy
+    active_version: 1
+    active_object_path: common/knowledge/spec/objects/taxonomy/SYMPTOM-TAXONOMY@1.yaml
+    rollback_target: null
+    versions:
+      - spec_id: SYMPTOM-TAXONOMY
+        family: symptom_taxonomy
+        version: 1
+        status: active
+        parent_version: null
+        object_path: common/knowledge/spec/objects/taxonomy/SYMPTOM-TAXONOMY@1.yaml
+        rollback_target: null
+        dedupe_group: SYMPTOM-TAXONOMY
+        canonical_id: SYMPTOM-TAXONOMY
+  trigger_taxonomy:
+    spec_id: TRIGGER-TAXONOMY
+    family: trigger_taxonomy
+    active_version: 1
+    active_object_path: common/knowledge/spec/objects/taxonomy/TRIGGER-TAXONOMY@1.yaml
+    rollback_target: null
+    versions:
+      - spec_id: TRIGGER-TAXONOMY
+        family: trigger_taxonomy
+        version: 1
+        status: active
+        parent_version: null
+        object_path: common/knowledge/spec/objects/taxonomy/TRIGGER-TAXONOMY@1.yaml
+        rollback_target: null
+        dedupe_group: TRIGGER-TAXONOMY
+        canonical_id: TRIGGER-TAXONOMY

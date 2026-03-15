@@ -7,8 +7,7 @@
 ## 必读依赖
 
 - `../../agents/06_shader_ir.md`
-- `../../knowledge/spec/invariants/invariant_library.yaml`
-- `../../knowledge/spec/skills/sop_library.yaml`
+- `../../knowledge/spec/registry/active_manifest.yaml`
 
 ## 输出要求
 

@@ -17,6 +17,11 @@ TEXT_EXTS = {".md", ".yaml", ".yml", ".json", ".jsonl", ".py", ".toml"}
 TOOL_RE = re.compile(r"rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+")
 CALL_RE = re.compile(r"(rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+)\s*\(([^)]*)\)")
 PLACEHOLDER_PREFIX = "__CONFIGURE_"
+BANNED_SNIPPETS = {
+    "--connect": "legacy CLI connect flag removed; CLI is always daemon-backed",
+    "error_message": "use canonical error.message instead of legacy error_message",
+    "直接本地 runtime": "framework docs must not describe direct runtime ownership",
+}
 
 
 def _root() -> Path:
@@ -90,6 +95,14 @@ def _iter_files(root: Path) -> list[Path]:
     return files
 
 
+def _should_scan_banned_snippets(path: Path) -> bool:
+    if path.name == "tool_catalog.snapshot.json":
+        return False
+    if path.suffix.lower() == ".py":
+        return False
+    return True
+
+
 def main() -> int:
     root = _root()
     try:
@@ -100,11 +113,16 @@ def main() -> int:
 
     unknown_rows: list[str] = []
     session_rows: list[str] = []
+    banned_rows: list[str] = []
     for path in _iter_files(root):
         text = _read_text(path)
         unknown = sorted({ref for ref in set(TOOL_RE.findall(text)) if ref not in known_tools})
         if unknown:
             unknown_rows.append(f"{path}: {', '.join(unknown)}")
+        if _should_scan_banned_snippets(path):
+            for snippet, reason in BANNED_SNIPPETS.items():
+                if snippet in text:
+                    banned_rows.append(f"{path}: banned snippet `{snippet}` ({reason})")
         for lineno, line in enumerate(text.splitlines(), start=1):
             for tool, arg_text in CALL_RE.findall(line):
                 for prereq in prerequisites.get(tool, []):
@@ -119,7 +137,7 @@ def main() -> int:
                     if required == "remote_id" and ("remote_id" not in arg_text and "options.remote_id" not in arg_text):
                         session_rows.append(f"{path}:{lineno}: {tool}(...) missing remote_id prerequisite in example")
 
-    if unknown_rows or session_rows:
+    if unknown_rows or session_rows or banned_rows:
         if unknown_rows:
             print("[unknown rd.* references]")
             for row in unknown_rows:
@@ -127,6 +145,10 @@ def main() -> int:
         if session_rows:
             print("[example calls missing prerequisites]")
             for row in session_rows:
+                print(f" - {row}")
+        if banned_rows:
+            print("[banned legacy snippets]")
+            for row in banned_rows:
                 print(f" - {row}")
         return 1
 

@@ -1,55 +1,59 @@
-﻿# RenderDoc/RDC GPU Debug · Knowledge Root（common/knowledge/）
+# RenderDoc/RDC GPU Debug · Knowledge Root（common/knowledge/）
 
-`common/knowledge/` 是 Debugger 框架里所有「知识/案例资产」的统一根目录，避免在 `kb`、`cases`、`taxonomy` 等多处来回跳转。
+`common/knowledge/` 是 Debugger framework 的知识真相根目录。
 
-补充说明：
+这里固定分成三层：
 
-- `common/knowledge/` 负责共享知识真相与长期沉淀。
-- 运行时 case/run 工作现场位于 `../workspace/`，不混入 `common/knowledge/`。
-- 面向需求方/协作者的详细 Markdown 报告与 HTML summary 也位于 `../workspace/`，只回链这里的真相产物。
+- `spec/`
+  - 正式生效的 versioned knowledge store
+  - 由 `registry/active_manifest.yaml`、`spec_registry.yaml`、`objects/`、`policy/`、`ledger/` 组成
+- `library/`
+  - run/session 沉淀的共享真相与检索资产
+  - `bugcards/`、`bugfull/`、`sessions/`、索引与图谱
+- `proposals/`
+  - 正式 candidate 对象
+  - 会进入 replay、shadow、自动晋升、自动回滚
 
-## 目录约定
+运行现场仍位于 `../workspace/`，不与 `common/knowledge/` 混写。
 
-- `spec/`：规范知识（**必须稳定、可版本化**）
-  - `spec/taxonomy`：分类学（symptom/trigger 标签）
-  - `spec/invariants`：不变量库（detection_hints、known_issues、路由索引）
-  - `spec/skills`：SOP 与工具链规范（含 `sop_library.yaml`）
-- `library/`：运行时知识库（**可检索成品**）
-  - `library/bugcards/`：BugCard（YAML，供检索/RAG）
-  - `library/bugfull/`：BugFull（Markdown，完整调试报告）
-  - `library/bugcard_index.yaml`、`library/cross_device_fingerprint_graph.yaml`：索引与指纹图（可选）
-  - `library/sessions/`：session 级 gate artifacts
-- `examples/`：示例、教学样例与测试夹具（**不是 live artifacts**）
-- `proposals/`：知识演进提案（**需要人工审核后才能进入 spec**）
-- `traces/`：调试过程记录（**会话产物**）
-  - `traces/action_chains/`：Action Chains（用于复盘与 SOP 抽取）
-- `templates/`：模板与示例（**写作辅助，不直接入库**）
-  - `templates/bugcards/`、`templates/bugfulls/`
+## Session 真相分工
 
-## 路径使用（动态加载）
+session 级真相固定拆成四层：
 
-Agent prompt 中的「动态加载声明」统一使用**相对于 `common/`** 的路径，例如：
+- `library/sessions/<session_id>/action_chain.jsonl`
+  - append-only event ledger
+- `library/sessions/<session_id>/session_evidence.yaml`
+  - 当前裁决快照，必须记录 `spec_snapshot_ref`
+- `spec/registry/active_manifest.yaml`
+  - 当前生效 spec 快照指针
+- `../workspace/cases/<case_id>/runs/<run_id>/artifacts/run_compliance.yaml`
+  - 审计派生产物
 
-- `knowledge/spec/taxonomy/symptom_taxonomy.yaml`
-- `knowledge/spec/invariants/invariant_library.yaml`
-- `knowledge/spec/skills/sop_library.yaml`
+这四者的角色定义见 [`../docs/truth_store_contract.md`](../docs/truth_store_contract.md)。
+
+## 自动演化流程
+
+知识演进流程固定为：
+
+`compliant run -> auto candidate -> replay validation -> shadow observation -> active / rolled_back`
+
+自动演化只允许使用结构化真相：
+
+- `action_chain.jsonl`
+- `session_evidence.yaml`
+- BugCard / BugFull
+- approved counterfactual reviews
+- cross-device fingerprint graph
+
+`report.md` 和 `visual_report.html` 不是知识晋升真相源。
 
 ## 与 `workspace/` 的边界
 
-- `common/knowledge/library/**`：第一层真相与共享沉淀
-- `common/knowledge/examples/**`：样例与夹具，不参与 live gate
-- `../workspace/cases/<case_id>/runs/<run_id>/**`：运行现场与第二层交付物
+- `common/knowledge/**`：共享真相、候选对象、版本化 spec 和示例
+- `../workspace/cases/<case_id>/runs/<run_id>/**`：run 现场、日志、报告和审计产物
 
 硬规则：
 
-- 第二层 deliverables 只派生，不反写 `library/**` 真相
-- session gate artifacts 继续固定在 `library/sessions/**`
-
-## 迁移提示
-
-旧目录已收敛进本目录（不保留兼容层）：
-
-- `common/kb` → `common/knowledge/library`
-- `common/cases` → `common/knowledge/traces` / `common/knowledge/templates`
-- `common/taxonomy` / `common/invariants` / `common/skills` → `common/knowledge/spec/...`
-
+- report 只能引用已经成立的 ledger / snapshot / active spec snapshot
+- `run_compliance.yaml` 只能派生，不能反向充当 session 真相源
+- 正式知识切换只能通过 manifest/registry 指针完成，不得绕过版本库直接改写 active 内容

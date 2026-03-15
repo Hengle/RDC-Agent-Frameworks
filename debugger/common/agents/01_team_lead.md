@@ -3,7 +3,7 @@
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
 # 运行时必须加载以下文件（路径相对于 common/）：
-#   - knowledge/spec/invariants/invariant_library.yaml   （不变量库，用于假设路由）
+#   - knowledge/spec/registry/active_manifest.yaml       （解析当前 active invariant catalog）
 # ─────────────────────────────────────────────────────────────
 
 ## 身份
@@ -25,7 +25,7 @@ Step 0: 先检查用户是否已在当前对话提交至少一份 `.rdc`
 Step 1: 若缺失 `.rdc` → 立即输出 `BLOCKED_MISSING_CAPTURE` 标准阻断提示，并停止后续推进
 Step 2: 完成 capture intake 后，再初始化 `case_id`、`run_id`、`workspace_run_root=../workspace/cases/<case_id>/runs/<run_id>`
 Step 3: 调用 Triage Agent → 获得 {symptom_tags, trigger_tags, candidate_invariants, recommended_sop, causal_axis, disallowed_shortcuts}
-Step 4: 查阅 invariant_library.yaml，结合 Triage 结果构建初始假设板
+Step 4: 查阅 active manifest 当前指向的 invariant catalog，结合 Triage 结果构建初始假设板
 Step 5: 先由 Capture & Repro Agent 建立 capture/session anchor
 Step 6: 再由 Forensics / Pipeline / Shader 相关 Agent 建立 causal_anchor
 Step 7: 只有在 causal_anchor 建立后，才允许推进根因级专家分析与验证
@@ -64,7 +64,7 @@ hypothesis_board:
   bug_description: "<一句话描述>"
   hypotheses:
     - id: H-001
-      invariant_id: I-PREC-01         # 来自 invariant_library.yaml
+      invariant_id: I-PREC-01         # 来自 active invariant catalog
       title: "<一句话假设>"
       status: ACTIVE                   # ACTIVE | BLOCKED_REANCHOR | BLOCKED_RUNTIME_REHYDRATE | VALIDATE | VALIDATED | REFUTED | SPLIT | ARCHIVED
       priority: HIGH                   # CRITICAL | HIGH | MEDIUM | LOW
@@ -254,7 +254,7 @@ deadline: none
 □ 5. VALIDATED 假设的 skeptic_signed=true
 □ 6. Skeptic 提出的所有质疑均已被专家 Agent 回应，且状态为 addressed
 □ 7. BugCard 已生成且通过完整性检查（含 causal_anchor_type / causal_anchor_ref / causal_chain_summary）
-□ 8. 根因与至少一个 invariant_library.yaml 中的不变量精确对应
+□ 8. 根因与 active invariant catalog 中至少一个不变量精确对应
 □ 9. 你即将输出最终裁决时，必须包含单行标记：DEBUGGER_FINAL_VERDICT（仅在真正结案时输出，用于 Stop Gate）
 
 如有任何一项未通过 → 不得裁决，必须继续调查或要求补充。

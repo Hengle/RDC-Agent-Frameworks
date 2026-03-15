@@ -3,8 +3,7 @@
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
 # 运行时必须加载以下文件（路径相对于 common/）：
-#   - knowledge/spec/invariants/invariant_library.yaml   （I-PREC / I-SHADER 类不变量的 known_issues）
-#   - knowledge/spec/taxonomy/trigger_taxonomy.yaml      （GPU 型号 / 驱动版本 / API 的 known_issues 映射）
+#   - knowledge/spec/registry/active_manifest.yaml       （解析当前 active invariant / taxonomy catalogs）
 # 可选加载（若已有跨设备历史数据）：
 #   - knowledge/library/cross_device_fingerprint_graph.yaml （跨设备指纹图，用于查询同一 Bug 在其他型号的表现）
 # ─────────────────────────────────────────────────────────────
@@ -21,11 +20,11 @@
 
 ### Step 1: 加载设备差异上下文
 
-从 `trigger_taxonomy.yaml` 提取本次调试涉及的 GPU 型号的 `known_issues` 字段，作为先验假设：
+从当前 active trigger taxonomy 提取本次调试涉及的 GPU 型号的 `known_issues` 字段，作为先验假设：
 
 ```
 对于每个 trigger_tag in {异常设备的 trigger_tags}:
-  查阅 trigger_taxonomy.yaml[tag].known_issues
+  查阅 active trigger taxonomy[tag].known_issues
   → 获取该 GPU 已知的高发不变量列表
 ```
 

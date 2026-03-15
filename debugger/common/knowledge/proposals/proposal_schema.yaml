@@ -1,0 +1,83 @@
+schema_version: "2"
+
+allowed_proposal_types:
+  - sop_candidate
+  - invariant_candidate
+  - taxonomy_candidate
+
+required_fields:
+  - schema_version
+  - proposal_id
+  - proposal_type
+  - family
+  - spec_id
+  - status
+  - title
+  - summary
+  - base_version
+  - candidate_version
+  - confidence_score
+  - match_signature
+  - proposed_patch
+  - negative_evidence_summary
+  - dedupe_group
+  - dedupe_targets
+  - distinct_device_groups
+  - promotion_metrics
+  - validation_stage
+  - source_refs
+
+status_values:
+  - candidate
+  - replay_validated
+  - shadow_active
+  - active
+  - rolled_back
+  - rejected
+  - manual_hold
+
+match_signature:
+  required_subfields:
+    - symptom_tags
+    - trigger_tags
+    - resolved_invariants
+
+proposed_patch:
+  required_subfields:
+    - mode
+    - summary
+
+promotion_metrics:
+  required_subfields:
+    - counterfactual_approved_rate
+    - median_steps_to_anchor_improvement
+    - route_precision_improvement
+    - false_route_rate_delta
+    - critical_regression_streak
+    - shadow_run_count
+    - shadow_no_critical_regression_runs
+    - explanatory_gap_closure_rate
+    - cluster_purity
+
+source_refs:
+  required_subfields:
+    - session_ids
+    - run_ids
+    - event_ids
+
+type_specific_rules:
+  sop_candidate:
+    description: "最短有效路径、终止条件和路由索引的候选升级。"
+    recommended_fields:
+      - trigger_reasons
+      - promotion_target
+  invariant_candidate:
+    description: "最小解释约束与 symptom_to_invariants 路由的候选升级。"
+    recommended_fields:
+      - trigger_reasons
+      - promotion_target
+  taxonomy_candidate:
+    description: "稳定标签新增、alias 归并或高混淆标签拆分。"
+    recommended_fields:
+      - trigger_reasons
+      - promotion_target

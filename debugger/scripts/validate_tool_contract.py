@@ -17,13 +17,19 @@ CALL_RE = re.compile(r"(rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+)\s*\(([^)]*)\)")
 ENV_CATALOG = "DEBUGGER_PLATFORM_CATALOG"
 PLACEHOLDER_PREFIX = "__CONFIGURE_"
 SNAPSHOT_PATH = Path("common") / "config" / "tool_catalog.snapshot.json"
+BANNED_SNIPPETS = {
+ "error_message": "use canonical error.message instead of legacy error_message",
+ "--connect": "legacy CLI connect flag removed; CLI is always daemon-backed",
+ "直接本地 runtime": "framework docs must not describe direct runtime ownership",
+}
 
 
 @dataclass
 class Findings:
  unknown_tools: dict[str, set[str]] = field(default_factory=dict)
  missing_prerequisite_examples: list[str] = field(default_factory=list)
- def has_issues(self): return any([self.unknown_tools, self.missing_prerequisite_examples])
+ banned_snippets: list[str] = field(default_factory=list)
+ def has_issues(self): return any([self.unknown_tools, self.missing_prerequisite_examples, self.banned_snippets])
 
 
 def root():
@@ -134,9 +140,22 @@ def check_prerequisite_examples(files, prerequisites):
  return rows
 
 
+def check_banned_snippets(files):
+ rows = []
+ for path in files:
+  if path.name == "tool_catalog.snapshot.json" or path.suffix.lower() == ".py":
+   continue
+  text = read_text(path)
+  for snippet, reason in BANNED_SNIPPETS.items():
+   if snippet in text:
+    rows.append(f"{path}: banned snippet `{snippet}` ({reason})")
+ return rows
+
+
 def print_findings(findings):
  if findings.unknown_tools: print("[unknown rd.* references]"); [print(" - " + file_path + ": " + ", ".join(sorted(findings.unknown_tools[file_path]))) for file_path in sorted(findings.unknown_tools)]
  if findings.missing_prerequisite_examples: print("[example calls missing prerequisites]"); [print(" - " + row) for row in findings.missing_prerequisite_examples]
+ if findings.banned_snippets: print("[banned legacy snippets]"); [print(" - " + row) for row in findings.banned_snippets]
 
 
 def main():
@@ -160,7 +179,7 @@ def main():
   known_tools, prerequisites = load_catalog(catalog)
  except ValueError as exc: print(str(exc)); return 2
  files = iter_scan_files(cur)
- findings = Findings(check_unknown_tools(files, known_tools), check_prerequisite_examples(files, prerequisites))
+ findings = Findings(check_unknown_tools(files, known_tools), check_prerequisite_examples(files, prerequisites), check_banned_snippets(files))
  if findings.has_issues(): print_findings(findings); return 1 if args.strict else 0
  print(f"tool contract validation passed ({catalog})")
  return 0

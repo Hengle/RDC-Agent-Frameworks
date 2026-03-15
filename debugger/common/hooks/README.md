@@ -1,144 +1,58 @@
-﻿# RenderDoc/RDC GPU Debug · Quality Hooks 系统
+# RenderDoc/RDC GPU Debug · Quality Hooks 系统
 
-Quality Hooks 系统将 Debugger 框架的质量门槛从「被建议的」提升为「被强制执行的」。
+Quality Hooks 系统将 Debugger 框架的质量门槛从“被建议的”提升为“被强制执行的”。
 
 补充说明：
 
 - 对拥有 native hooks 的宿主，Hook 负责阻断不合规结案。
 - 对没有 native hooks 的宿主，最终以 `workspace/cases/<case_id>/runs/<run_id>/artifacts/run_compliance.yaml` 为统一审计裁决。
-
----
+- 审计现在同时校验 `session_evidence.yaml` 与 versioned spec snapshot 的绑定关系。
 
 ## 架构
 
-```
+```text
 common/hooks/
-├── README.md                        # 本文件：系统说明与扩展指南
+├── README.md
 ├── validators/
-│   ├── bugcard_validator.py         # BugCard 完整性检查（12 项规则）
-│   ├── counterfactual_validator.py  # 反事实验证记录检查
-│   └── skeptic_signoff_checker.py   # Skeptic 五把刀签署验证
+│   ├── bugcard_validator.py
+│   ├── counterfactual_validator.py
+│   └── skeptic_signoff_checker.py
 ├── utils/
-│   ├── run_compliance_audit.py      # run 级合规审计与统一裁决产物写入
-│   └── validate_tool_contract_runtime.py # 平台包内 tool contract 校验
+│   ├── spec_store.py
+│   ├── knowledge_evolution.py
+│   ├── run_compliance_audit.py
+│   └── validate_tool_contract_runtime.py
 └── schemas/
-    ├── bugcard_required_fields.yaml # BugCard 必填字段 Schema
-    └── skeptic_signoff_schema.yaml  # Skeptic 签署记录 Schema
-    └── run_compliance_schema.yaml   # run_compliance.yaml 结构定义
+    ├── bugcard_required_fields.yaml
+    ├── skeptic_signoff_schema.yaml
+    └── run_compliance_schema.yaml
 ```
 
-Claude Code 与其他宿主的 Hook 配置都应位于各自的平台包内；在源码树中请查看 `platforms/claude-code/.claude/settings.json` 与对应平台包目录。
+## 审计边界
 
----
+`run_compliance.yaml` 现在只承担派生审计职责，并额外输出 run 级 metrics：
 
-## 四类 Hook / Validator 详细说明
+- per-agent 耗时与事件数
+- tool success / failure 与失败率
+- hypothesis 状态分布
+- conflict 总数、仲裁数、平均仲裁时延
+- counterfactual 独立复核覆盖率
+- knowledge candidate 发射与状态迁移数
 
-### Hook 1 · BugCard 完整性检查
+这些指标全部从 `action_chain.jsonl`、`session_evidence.yaml`、`registry/active_manifest.yaml` 派生，不从 prose report 反推。
 
-| 属性 | 值 |
-|------|-----|
-| 触发时机 | BugCard YAML 写入 `knowledge/library/` 目录后（PostToolUse） |
-| 触发工具 | `bugcard_validator.py` |
-| 检查项数 | 12 项（字段存在性、格式、长度、签署状态） |
-| 失败行为 | 阻止写入，输出缺失字段列表 |
+## 新的知识演化约束
 
-独立运行：
-```bash
-python3 common/hooks/validators/bugcard_validator.py path/to/bugcard.yaml
-python3 common/hooks/validators/bugcard_validator.py path/to/bugcard.yaml --strict
-```
-
-### Hook 2 · Causal Anchor 检查
-
-| 属性 | 值 |
-|------|-----|
-| 触发时机 | Team Lead 结案时（Stop） |
-| 触发工具 | `causal_anchor_validator.py` |
-| 检查项 | `session_evidence.yaml` 根对象包含 `causal_anchor`；存在 `causal_anchor_evidence`；视觉 fallback 不得越权 |
-| 失败行为 | 阻止结案，要求补充因果锚点或回到 re-anchor |
-
-独立运行：
-```bash
-python3 common/hooks/validators/causal_anchor_validator.py "$(python3 common/hooks/utils/resolve_session_artifact.py --artifact session_evidence --must-exist)"
-```
-### Hook 3 · 反事实验证检查
-
-| 属性 | 值 |
-|------|-----|
-| 触发时机 | Team Lead 输出 `DEBUGGER_FINAL_VERDICT`（推荐）或「最终裁决/结案」类关键词时（Stop） |
-| 触发工具 | `counterfactual_validator.py` |
-| 检查项 | evidence 列表中存在 type: counterfactual_test + result: passed + 量化数据 |
-| 失败行为 | 阻止结案，要求补充反事实验证 |
-
-独立运行：
-```bash
-python3 common/hooks/validators/counterfactual_validator.py "$(python3 common/hooks/utils/resolve_session_artifact.py --artifact session_evidence --must-exist)"
-```
-
-### Hook 4 · Skeptic 签署检查
-
-| 属性 | 值 |
-|------|-----|
-| 触发时机 | Team Lead 结案时（Stop）；BugCard 入库时（PostToolUse） |
-| 触发工具 | `skeptic_signoff_checker.py` |
-| 检查项 | 五把刀全部覆盖 + 全部 pass + sign_off.signed=true + 无 open 质疑 |
-| 失败行为 | 阻止继续，列出未解质疑 |
-
-独立运行：
-```bash
-# 假设签署模式（默认）
-python3 common/hooks/validators/skeptic_signoff_checker.py skeptic_output.yaml
-
-# BugCard 签署模式
-python3 common/hooks/validators/skeptic_signoff_checker.py skeptic_output.yaml --mode bugcard
-```
-
----
-
-## 平台覆盖策略
-
-| 平台 | Hook 实现方式 | 强制等级 |
-|------|-------------|---------|
-| **Claude Code** | `.claude/settings.json` 原生 Hooks | 系统级强制（阻断） |
-| **Code Buddy** | `platforms/code-buddy/hooks/hooks.json` 原生 Hooks | 系统级强制（阻断） |
-| Claude Work | Agent Prompt 内嵌「质量门槛检查」清单 | Prompt 层软约束 |
-| Copilot | Agent Prompt 内嵌「质量门槛检查」清单 | Prompt 层软约束 |
-| Manus | 工作流 Step 5 和 Step 8 作为显式质量关卡 | 工作流层中等强制 |
-
-所有平台最终都要落到同一个 `run_compliance_audit.py`：
-
-- native hook 平台：可在 Stop/PostToolUse 中触发或补写统一审计产物
-- audit-only / workflow 平台：无 `run_compliance.yaml(status=passed)` 即不算合规结案
-
----
-
-## 扩展指南：添加新 Hook
-
-1. **写验证脚本** → 放入 `validators/` 目录
-   - 遵循退出码规范：0=通过，1=失败，2=解析错误
-   - 输出 ANSI 彩色结果（参考现有三个脚本的风格）
-
-2. **写 Schema**（可选）→ 放入 `schemas/` 目录
-
-3. **注册到 Claude Code**：在 `.claude/settings.json` 的 `hooks` 节中添加条目
-
-4. **为其他平台添加 Prompt 层降级**：在对应 Agent 的质量门槛检查清单中新增一行
-
----
+- `bugcard_validator.py` 的 strict 模式只认 active manifest 当前指向的 taxonomy / invariant / SOP。
+- `run_compliance_audit.py` 会在合规 run 上自动发射 candidate，并把事件写入 `evolution_ledger.jsonl`。
+- 自动晋升、自动回滚与 negative memory 由 `knowledge_evolution.py` 管理；不得绕过它直接改 manifest。
 
 ## 依赖
 
 推荐安装方式：
+
 ```bash
 python3 -m pip install -r common/hooks/requirements.txt
 ```
 
-或直接安装：
-```bash
-python3 -m pip install pyyaml
-```
-
-验证脚本仅依赖 Python 标准库 + PyYAML，无其他依赖。
-
-
-
+验证脚本仅依赖 Python 标准库 + PyYAML。

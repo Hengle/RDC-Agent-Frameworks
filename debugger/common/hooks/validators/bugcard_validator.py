@@ -29,6 +29,12 @@ except ModuleNotFoundError:
     print(f"请先安装依赖：python3 -m pip install -r {req}")
     sys.exit(2)
 
+UTILS_ROOT = Path(__file__).resolve().parents[1] / "utils"
+if str(UTILS_ROOT) not in sys.path:
+    sys.path.insert(0, str(UTILS_ROOT))
+
+from spec_store import load_reference_sets  # noqa: E402
+
 # ── 必填字段规则 ────────────────────────────────────────────────
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "bugcard_required_fields.yaml"
 
@@ -60,23 +66,8 @@ def _load_reference_sets():
     加载跨文件引用集合（用于 --strict 校验）。
     返回 dict[str, set[str]]
     """
-    root = Path(__file__).resolve().parents[3]  # debugger/
-    symptom = _load_yaml(root / "common" / "knowledge" / "spec" / "taxonomy" / "symptom_taxonomy.yaml") or {}
-    trigger = _load_yaml(root / "common" / "knowledge" / "spec" / "taxonomy" / "trigger_taxonomy.yaml") or {}
-    inv = _load_yaml(root / "common" / "knowledge" / "spec" / "invariants" / "invariant_library.yaml") or {}
-    sop = _load_yaml(root / "common" / "knowledge" / "spec" / "skills" / "sop_library.yaml") or {}
-
-    symptoms = {s.get("tag") for s in (symptom.get("symptoms") or []) if isinstance(s, dict)}
-    triggers = {t.get("tag") for t in (trigger.get("triggers") or []) if isinstance(t, dict)}
-    invariants = {i.get("id") for i in (inv.get("invariants") or []) if isinstance(i, dict)}
-    sops = {s.get("id") for s in (sop.get("sops") or []) if isinstance(s, dict)}
-
-    return {
-        "symptom_tags": {x for x in symptoms if x},
-        "trigger_tags": {x for x in triggers if x},
-        "violated_invariants": {x for x in invariants if x},
-        "recommended_sop": {x for x in sops if x},
-    }
+    root = Path(__file__).resolve().parents[3]
+    return load_reference_sets(root)
 
 
 def _eval_condition(condition: str, data: dict) -> tuple[bool, str | None]:
@@ -250,19 +241,19 @@ def validate_bugcard(data: dict, strict: bool = False) -> list:
 
         for tag in data.get("symptom_tags", []):
             if tag not in ref["symptom_tags"]:
-                errors.append(f"[引用] symptom_tags 中包含未知 tag：'{tag}'（不在 symptom_taxonomy.yaml）")
+                errors.append(f"[引用] symptom_tags 中包含未知 tag：'{tag}'（不在 active manifest 指向的 symptom taxonomy）")
 
         for tag in data.get("trigger_tags", []):
             if tag not in ref["trigger_tags"]:
-                errors.append(f"[引用] trigger_tags 中包含未知 tag：'{tag}'（不在 trigger_taxonomy.yaml）")
+                errors.append(f"[引用] trigger_tags 中包含未知 tag：'{tag}'（不在 active manifest 指向的 trigger taxonomy）")
 
         for inv in data.get("violated_invariants", []):
             if inv not in ref["violated_invariants"]:
-                errors.append(f"[引用] violated_invariants 中包含未知 id：'{inv}'（不在 invariant_library.yaml）")
+                errors.append(f"[引用] violated_invariants 中包含未知 id：'{inv}'（不在 active manifest 指向的 invariant catalog）")
 
         sop = str(data.get("recommended_sop", "")).strip()
         if sop and sop not in ref["recommended_sop"]:
-            errors.append(f"[引用] recommended_sop '{sop}' 不存在于 sop_library.yaml")
+            errors.append(f"[引用] recommended_sop '{sop}' 不存在于 active manifest 指向的 SOP catalog")
 
     return errors
 

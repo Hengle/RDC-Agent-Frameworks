@@ -13,6 +13,7 @@ Agent 的目标始终是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问
   - hooks
   - knowledge/spec
   - knowledge/library
+  - knowledge/proposals
 - `workspace/`：运行区
   - case/run 工作现场
   - 第二层图文报告与 HTML summary
@@ -30,10 +31,6 @@ Agent 的目标始终是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问
 因此，shared prompt / skill / docs 中引用运行区时，统一使用：
 
 - `../workspace`
-
-含义：
-
-- 平台模板里：`platform-root/common/../workspace`
 
 它始终解析到当前平台根目录下、与 `common/` 同级的 `workspace/`。
 
@@ -61,22 +58,10 @@ workspace/
           reports/
 ```
 
-语义：
-
-- `case_id`：已取得至少一份 `.rdc` 的问题实例
-- `run_id`：某一次调试轮次；承担 debug version
-- `inputs/captures/`：当前 case 的原始 capture 输入池
-- `capture_refs.yaml`：本次 run 实际采用的 capture 集合与角色
-
 最小规则：
 
 - `.rdc` 是创建 case 的硬前置条件；未拿到 `.rdc` 前，不创建 `case_id`、`run_id`、`workspace_run_root`
 - 同一 case 只允许一个 `current_run`
-- `case.yaml` 至少记录 `current_run` 与 `active_capture_set`
-- 原始 `.rdc` 只允许落在 `inputs/captures/`，不得落在 `runs/<run_id>/`
-- `inputs/captures/manifest.yaml` 记录所有导入 capture 的 `capture_id`、`file_name`、`sha256`、`source=user_upload`、`imported_at`、`role_hint`、`status`
-- `runs/<run_id>/capture_refs.yaml` 记录本次 run 实际采用的 capture ids，支持 `anomalous`、`baseline`、`supplemental` 等角色
-- 新上传 `.rdc` 默认 append 到当前 case 的输入池，不覆盖已有 capture
 - `reports/` 只放 `report.md` 与 `visual_report.html`
 - 图片默认复用 `screenshots/`
 - 第一层 gate artifacts 不复制到 `workspace/`，只在 `run.yaml` 中记录引用
@@ -98,7 +83,14 @@ workspace/
 
 - `common/agents/`
 - `common/config/`
-- `common/knowledge/spec/`
+- `common/knowledge/spec/objects/`
+- `common/knowledge/spec/registry/`
+- `common/knowledge/spec/policy/`
+
+说明：
+
+- agent 可以发射 candidate、记录 shadow 观察、触发自动晋升。
+- 但正式 active spec 只能由知识演化流程通过 manifest/registry 切换。
 
 ### 第二层：Stakeholder-facing Report
 

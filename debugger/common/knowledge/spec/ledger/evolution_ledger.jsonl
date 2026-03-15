@@ -1,0 +1,1 @@
+{"schema_version":"1","event_id":"evolution-bootstrap-20260315","ts_ms":1773532800000,"event_type":"spec_store_bootstrapped","proposal_id":"","payload":{"snapshot_id":"spec-snapshot-20260315-0001","status_flow":["candidate","replay_validated","shadow_active","active","rolled_back","rejected","manual_hold"]}}

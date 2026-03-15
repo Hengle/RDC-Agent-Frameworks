@@ -1,0 +1,28 @@
+schema_version: "1"
+snapshot_id: "spec-snapshot-20260315-0001"
+generated_at: "2026-03-15T00:00:00Z"
+families:
+  sop_catalog:
+    spec_id: SOP-CATALOG
+    canonical_id: SOP-CATALOG
+    version: 1
+    object_path: common/knowledge/spec/objects/sops/SOP-CATALOG@1.yaml
+    activated_at: "2026-03-15T00:00:00Z"
+  invariant_catalog:
+    spec_id: INVARIANT-CATALOG
+    canonical_id: INVARIANT-CATALOG
+    version: 1
+    object_path: common/knowledge/spec/objects/invariants/INVARIANT-CATALOG@1.yaml
+    activated_at: "2026-03-15T00:00:00Z"
+  symptom_taxonomy:
+    spec_id: SYMPTOM-TAXONOMY
+    canonical_id: SYMPTOM-TAXONOMY
+    version: 1
+    object_path: common/knowledge/spec/objects/taxonomy/SYMPTOM-TAXONOMY@1.yaml
+    activated_at: "2026-03-15T00:00:00Z"
+  trigger_taxonomy:
+    spec_id: TRIGGER-TAXONOMY
+    canonical_id: TRIGGER-TAXONOMY
+    version: 1
+    object_path: common/knowledge/spec/objects/taxonomy/TRIGGER-TAXONOMY@1.yaml
+    activated_at: "2026-03-15T00:00:00Z"

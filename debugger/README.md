@@ -65,8 +65,8 @@
 
 - 平台内 `common/` 默认只保留最小占位目录，用来等待整包覆盖。
 - 未完成 `debugger/common/ -> platforms/<platform>/common/` 覆盖前，平台模板不可用。
-- 平台入口选择必须遵循 shared docs 中的统一规则：可直达本地环境的宿主默认 local-first / `CLI`，不能直达本地环境的宿主默认 `MCP`。
+- 平台入口选择必须遵循 shared docs 中的统一规则：可直达本地环境的宿主默认 local-first / daemon-backed `CLI`，不能直达本地环境的宿主默认 `MCP`。
 - 任务开始时，Agent 必须向用户说明当前采用的入口模式；若所选入口的前置条件未满足，必须先阻断。
 - 缺少 `.rdc` 时，Agent 必须像 `tools_root` 未配置一样直接阻断，不得继续做 triage、investigation 或 planning。
-- 当前 snapshot 需要与 `RDC-Agent-Tools` 的 `202` 个 tools 对齐；其中新增的 `rd.vfs.*` 只读探索面也属于必须同步校验的 platform truth。
+- 当前 snapshot 需要与 `RDC-Agent-Tools` 的 `202` 个 tools 对齐；其中新增的 `rd.vfs.*` 只读探索面与 tabular projection 能力都属于必须同步校验的 platform truth。
 - 当前已实测闭环的是 package-level manual binding 与 local-first 工具链；remote workflow 本轮未重新验证，不应在 framework 文档中写成“已验证”。

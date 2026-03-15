@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "description": "Mandatory framework-to-tools binding. Agents must resolve tools_root and validate the required platform-truth files before doing any platform-truth-dependent work.",
+  "description": "Mandatory framework-to-tools binding. Agents must resolve tools_root, validate the required platform-truth files, and then use daemon-backed CLI/MCP adapters against the same daemon-owned runtime.",
   "paths": {
     "tools_root": "__CONFIGURE_TOOLS_ROOT__"
   },

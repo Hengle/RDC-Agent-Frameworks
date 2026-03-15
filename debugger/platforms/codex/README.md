@@ -5,7 +5,7 @@
 入口规则：
 
 - 当前宿主可直接访问本地进程、文件系统与 workspace，默认采用 local-first。
-- 默认入口是 `CLI`，按需叠加 daemon / context 维持长生命周期 runtime。
+- 默认入口是 daemon-backed `CLI`；当前宿主的 `CLI` 与 `MCP` 都依赖同一 daemon-owned runtime / context。
 - 只有用户明确要求按 `MCP` 接入时，才切换到 `MCP`。
 - 任务开始时，Agent 必须向用户说明当前采用的是 `CLI` 还是 `MCP`。
 - 若用户要求 `MCP`，但宿主未配置对应 MCP server，必须直接阻断并提示配置。
@@ -27,7 +27,7 @@
 - `common/` 默认只保留一个占位文件；正式共享正文仍由顶层 `debugger/common/` 提供，并由用户显式拷入。
 - 未完成 `debugger/common/` 覆盖前，当前平台模板不可用。
 - 未完成 `platform_adapter.json` 配置或 `tools_root` 校验前，Agent 必须拒绝执行依赖平台真相的工作。
-- 当前工具 snapshot 必须与 `RDC-Agent-Tools` 的 `202` 个 tools 对齐，并包含新增的只读 `rd.vfs.*` 探索面。
+- 当前工具 snapshot 必须与 `RDC-Agent-Tools` 的 `202` 个 tools 对齐，并包含新增的只读 `rd.vfs.*` 探索面与统一 tabular projection 能力。
 - 未提供 `.rdc` 时，Agent 必须以 `BLOCKED_MISSING_CAPTURE` 直接阻断，不得初始化 case/run 或继续 triage、investigation、planning。
 - `workspace/` 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。
 - `multi_agent` 当前按 experimental / local-first 理解，但共享规则与 role config 已完整生成。

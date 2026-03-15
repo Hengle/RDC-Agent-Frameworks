@@ -1,9 +1,9 @@
-schema_version: 1
+schema_version: 2
 
 required_fields:
   - field: schema_version
     type: string
-    pattern: "^1$"
+    pattern: "^2$"
   - field: platform
     type: string
     min_length: 3
@@ -27,6 +27,15 @@ required_fields:
     required_subfields:
       - passed
       - failed
+  - field: metrics
+    type: object
+    required_subfields:
+      - per_agent
+      - tool_execution
+      - hypotheses
+      - conflicts
+      - counterfactual_reviews
+      - knowledge_candidates
 
 check_schema:
   required:
@@ -37,6 +46,42 @@ check_schema:
     - path
     - severity
     - refs
+
+metrics_schema:
+  per_agent:
+    type: object
+  tool_execution:
+    required_subfields:
+      - total
+      - success
+      - failure
+      - failure_rate
+  hypotheses:
+    required_subfields:
+      - OPEN
+      - ACTIVE
+      - CONFLICTED
+      - ARBITRATED
+      - VALIDATED
+      - REFUTED
+  conflicts:
+    required_subfields:
+      - total
+      - arbitrated
+      - avg_arbitration_ms
+  counterfactual_reviews:
+    required_subfields:
+      - submitted
+      - independently_reviewed
+      - independent_review_coverage
+  knowledge_candidates:
+    required_subfields:
+      - emitted
+      - updated
+      - replay_validated
+      - shadow_active
+      - activated
+      - rolled_back
 
 allowed_check_results:
   - pass

@@ -3,8 +3,7 @@
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
 # 运行时必须加载以下文件（路径相对于 common/）：
-#   - knowledge/spec/invariants/invariant_library.yaml   （所有数值类不变量的 detection_hints）
-#   - knowledge/spec/skills/sop_library.yaml             （SOP-NAN-01 第 1-2 阶段工具链）
+#   - knowledge/spec/registry/active_manifest.yaml       （解析当前 active invariant / SOP catalogs）
 # ─────────────────────────────────────────────────────────────
 
 ## 身份
@@ -59,7 +58,7 @@ rd.debug.pixel_history(session_id=<session_id>, x=<X>, y=<Y>, include_tests=true
 | 颜色通道比例异常 | 颜色空间错误 | I-COLOR-01 |
 | 深度值异常 | 深度问题 | I-DEPTH-01 |
 
-读取 invariant_library.yaml 中对应不变量的 `detection_hints`，按步骤执行进一步检查。
+读取当前 active invariant catalog 中对应不变量的 `detection_hints`，按步骤执行进一步检查。
 
 ### Step 4: 数值范围扫描（必要时）
 

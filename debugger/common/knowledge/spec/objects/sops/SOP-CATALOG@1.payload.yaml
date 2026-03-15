@@ -7,10 +7,10 @@
 #   name                : 简短名称
 #   category            : 问题大类
 #   severity            : CRITICAL / HIGH / MEDIUM / LOW
-#   target_invariants   : 本 SOP 针对验证/修复的不变量列表（精确匹配 invariant_library.yaml）
+#   target_invariants   : 本 SOP 针对验证/修复的不变量列表（精确匹配 active invariant catalog）
 #   trigger_conditions  : 触发本 SOP 的条件组合
-#     symptom_tags      : 症状标签（精确匹配 symptom_taxonomy.yaml）
-#     trigger_tags      : 环境触发标签（精确匹配 trigger_taxonomy.yaml，可为空）
+#     symptom_tags      : 症状标签（精确匹配 active symptom taxonomy）
+#     trigger_tags      : 环境触发标签（精确匹配 active trigger taxonomy，可为空）
 #     confidence_notes  : 说明何种组合下触发置信度最高
 #   tool_chain          : 推荐工具链（按阶段组织）
 #     stage_id          : 阶段编号

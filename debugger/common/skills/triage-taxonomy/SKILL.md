@@ -7,10 +7,7 @@
 ## 必读依赖
 
 - `../../agents/02_triage_taxonomy.md`
-- `../../knowledge/spec/taxonomy/symptom_taxonomy.yaml`
-- `../../knowledge/spec/taxonomy/trigger_taxonomy.yaml`
-- `../../knowledge/spec/invariants/invariant_library.yaml`
-- `../../knowledge/spec/skills/sop_library.yaml`
+- `../../knowledge/spec/registry/active_manifest.yaml`
 
 ## 输出要求
 

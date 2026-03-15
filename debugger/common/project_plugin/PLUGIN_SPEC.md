@@ -33,7 +33,7 @@ debugger_framework_version: string  # 兼容的 Debugger 版本，如 ">=2.0"
 ```yaml
 # ── 目标平台 ─────────────────────────────────────────────────
 target_platforms:             # 项目支持的 GPU 平台列表
-  - string                    # 格式与 trigger_taxonomy.yaml 中的 trigger_tags 一致
+  - string                    # 格式与 active trigger taxonomy 中的 trigger_tags 一致
 # 示例：[Android_Adreno, Android_Mali, iOS_Apple, PC_NVIDIA, PC_AMD]
 
 # ── 材质模块（Material Blocks） ───────────────────────────────
@@ -48,7 +48,7 @@ material_blocks:
     parameters:               # 该模块的关键 Shader 参数名
       - string
     known_issues:             # 该模块的已知问题
-      - invariant: string     # 关联的不变量 ID（来自 invariant_library.yaml）
+      - invariant: string     # 关联的不变量 ID（来自 active manifest 指向的 invariant catalog）
         trigger: string       # 触发条件描述
         note: string          # 简短说明
 

@@ -31,7 +31,7 @@ device_entries:
     os: "Android 12"
     api: "Vulkan 1.1"
     bugcard_id: "BUG-PREC-001"
-    symptom: "hair_whitening"                   # 症状描述（symptom_taxonomy.yaml 中的标签）
+    symptom: "hair_whitening"                   # 症状描述（active symptom taxonomy 中的标签）
     symptom_direction: positive_overflow         # positive_overflow / negative_overflow / truncation / nan
     observed_pixel_value: {x: 512, y: 384, rgba: [1.0, 1.0, 1.0, 1.0]}  # 异常像素值
     baseline_pixel_value: {x: 512, y: 384, rgba: [0.38, 0.35, 0.33, 1.0]}
@@ -140,8 +140,8 @@ recommended_sop: "SOP-PREC-01"
 
 | 组件 | 关系 |
 |------|------|
-| `invariant_library.yaml` | 每个 Cluster 必须关联至少一个不变量（`linked_invariant`） |
-| `sop_library.yaml` | 每个 Cluster 的 `recommended_sop` 与 SOP 库 ID 一一对应 |
+| `active_manifest.yaml` | 每个 Cluster 必须能解析到当前 active 的 invariant / SOP catalogs |
+| `spec_registry.yaml` | `recommended_sop` 与正式 SOP catalog 的版本链一一对应 |
 | `Triage Agent` | 加载此文件，在 trigger_tags 匹配时提供已知 Cluster 作为先验假设 |
 | `Driver Agent` | 加载此文件，在新 session 中查询当前指纹是否命中已知 Cluster |
 | `Curator Agent` | 每次生成 BugCard 后，更新此文件（添加 Device Entry 或新建 Cluster） |

@@ -3,10 +3,7 @@
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
 # 运行时必须加载以下文件（路径相对于 common/）：
-#   - knowledge/spec/taxonomy/symptom_taxonomy.yaml      （症状分类学，主要工作文档）
-#   - knowledge/spec/taxonomy/trigger_taxonomy.yaml      （触发条件分类学）
-#   - knowledge/spec/invariants/invariant_library.yaml   （用于查询 symptom_to_invariants 索引）
-#   - knowledge/spec/skills/sop_library.yaml             （用于查询 symptom_to_sop 索引）
+#   - knowledge/spec/registry/active_manifest.yaml       （解析当前 active taxonomy / invariant / SOP catalogs）
 # ─────────────────────────────────────────────────────────────
 
 ## 身份
@@ -23,13 +20,13 @@
 
 从 Bug 报告（文字描述 + 截图 + 设备信息）中提取：
 
-- **视觉现象**：用 `symptom_taxonomy.yaml` 中的 `tag` 字段精确匹配，不使用自造标签
-- **环境条件**：用 `trigger_taxonomy.yaml` 中的 `tag` 字段精确匹配
+- **视觉现象**：用当前 active symptom taxonomy 中的 `tag` 字段精确匹配，不使用自造标签
+- **环境条件**：用当前 active trigger taxonomy 中的 `tag` 字段精确匹配
 - **不确定项**：如无法匹配到精确标签，标注为 `unclassified` 并附原始描述
 
 ### Step 2: 不变量路由
 
-使用 `invariant_library.yaml` 中的 `symptom_to_invariants` 索引，将 symptom_tags 映射为候选不变量列表。
+使用当前 active invariant catalog 中的 `symptom_to_invariants` 索引，将 symptom_tags 映射为候选不变量列表。
 
 ```
 symptom_tags → symptom_to_invariants[tag] → 候选 invariant_ids
@@ -39,9 +36,9 @@ symptom_tags → symptom_to_invariants[tag] → 候选 invariant_ids
 
 ### Step 3: SOP 推荐
 
-使用 `sop_library.yaml` 中的 `symptom_to_sop` 索引，生成推荐 SOP 列表（按置信度排序）。
+使用当前 active SOP catalog 中的 `symptom_to_sop` 索引，生成推荐 SOP 列表（按置信度排序）。
 
-若 trigger_tags 包含设备特定标签（如 `Adreno_GPU`），查阅 `trigger_taxonomy.yaml` 中对应 tag 的 `known_issues`，优先推荐关联 SOP。
+若 trigger_tags 包含设备特定标签（如 `Adreno_GPU`），查阅当前 active trigger taxonomy 中对应 tag 的 `known_issues`，优先推荐关联 SOP。
 
 ### Step 4: 生成输出
 
@@ -55,7 +52,7 @@ symptom_tags → symptom_to_invariants[tag] → 候选 invariant_ids
 
 ## 分类规则
 
-**规则 1 — 标签选择**：优先使用 `symptom_taxonomy.yaml` 中已有的 tag，不创造新标签。若症状确实无法匹配，标注 `unclassified` 并在 `notes` 字段说明。
+**规则 1 — 标签选择**：优先使用当前 active symptom taxonomy 中已有的 tag，不创造新标签。若症状确实无法匹配，标注 `unclassified` 并在 `notes` 字段说明。
 
 **规则 2 — 置信度标注**：每个候选不变量必须标注置信度（`high` / `medium` / `low`）：
 - `high`：2 个以上 symptom_tag 命中该不变量，且 trigger_tags 有已知关联
@@ -64,7 +61,7 @@ symptom_tags → symptom_to_invariants[tag] → 候选 invariant_ids
 
 **规则 3 — 边界**：不输出“可能是 X 导致的”这类根因推断。允许输出“该不变量关联的典型根因有 X、Y、Z”（这是知识库中的事实，不是你的推断）。
 
-**规则 4 — 设备差异**：若报告明确说明“在 A 设备正常，在 B 设备异常”，必须在 trigger_tags 中标注具体设备，并查阅 `trigger_taxonomy.yaml` 的 `known_issues`，将相关不变量的置信度提升一级。
+**规则 4 — 设备差异**：若报告明确说明“在 A 设备正常，在 B 设备异常”，必须在 trigger_tags 中标注具体设备，并查阅当前 active trigger taxonomy 的 `known_issues`，将相关不变量的置信度提升一级。
 
 ---
 
@@ -75,10 +72,10 @@ symptom_tags → symptom_to_invariants[tag] → 候选 invariant_ids
 ```
 [质量门槛检查 - Triage Agent 输出前必须全部通过]
 
-□ 1. symptom_tags 中每个 tag 均存在于 symptom_taxonomy.yaml
-□ 2. trigger_tags 中每个 tag 均存在于 trigger_taxonomy.yaml（或标注为 unclassified）
-□ 3. candidate_invariants 列表非空，且每个 id 存在于 invariant_library.yaml
-□ 4. recommended_sop 至少有 1 个，且存在于 sop_library.yaml
+□ 1. symptom_tags 中每个 tag 均存在于当前 active symptom taxonomy
+□ 2. trigger_tags 中每个 tag 均存在于当前 active trigger taxonomy（或标注为 unclassified）
+□ 3. candidate_invariants 列表非空，且每个 id 存在于当前 active invariant catalog
+□ 4. recommended_sop 至少有 1 个，且存在于当前 active SOP catalog
 □ 5. 输出中未包含任何根因推断（“可能是 X 导致的”等）
 □ 6. 输出中包含 `causal_axis` 与 `disallowed_shortcuts`
 □ 7. 输出中未包含修复建议
@@ -150,5 +147,5 @@ unclassified_symptoms: []
 
 - ❌ 输出“根因是 X”
 - ❌ 输出“建议修复方式为 Y”
-- ❌ 使用 `symptom_taxonomy.yaml` 之外的自造标签（未标注 unclassified）
+- ❌ 使用当前 active symptom taxonomy 之外的自造标签（未标注 unclassified）
 - ❌ 在无截图/截帧时凭空推断症状标签

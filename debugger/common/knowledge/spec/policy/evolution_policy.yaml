@@ -1,0 +1,68 @@
+schema_version: "1"
+validation_basis: replay_then_shadow
+status_flow:
+  - candidate
+  - replay_validated
+  - shadow_active
+  - active
+  - rolled_back
+  - rejected
+  - manual_hold
+candidates:
+  sop_candidate:
+    family: sop_catalog
+    replay_thresholds:
+      support_runs: 5
+      distinct_sessions: 3
+      distinct_device_groups: 2
+      counterfactual_approved_rate_min: 1.0
+      median_steps_to_anchor_improvement_min: 0.1
+      route_precision_improvement_min: 0.1
+    shadow_thresholds:
+      no_critical_regression_runs: 20
+      false_route_rate_delta_max: 0.02
+    rollback_thresholds:
+      critical_regression_streak: 3
+      false_route_rate_delta_max: 0.05
+      counterfactual_approved_rate_floor: 0.95
+  invariant_candidate:
+    family: invariant_catalog
+    replay_thresholds:
+      support_runs: 8
+      distinct_sessions: 5
+      distinct_device_groups: 2
+      counterfactual_approved_rate_min: 1.0
+      explanatory_gap_closure_rate_min: 0.9
+    shadow_thresholds:
+      no_critical_regression_runs: 30
+      false_route_rate_delta_max: 0.02
+    rollback_thresholds:
+      critical_regression_streak: 3
+      false_route_rate_delta_max: 0.05
+      counterfactual_approved_rate_floor: 0.95
+  taxonomy_candidate:
+    family: taxonomy
+    replay_thresholds:
+      support_runs: 12
+      distinct_sessions: 6
+      distinct_device_groups: 2
+      counterfactual_approved_rate_min: 1.0
+      cluster_purity_min: 0.9
+      route_precision_improvement_floor: 0.0
+    shadow_thresholds:
+      no_critical_regression_runs: 50
+      false_route_rate_delta_max: 0.0
+    rollback_thresholds:
+      critical_regression_streak: 3
+      false_route_rate_delta_max: 0.05
+      counterfactual_approved_rate_floor: 0.95
+compaction:
+  sop:
+    max_step_edit_distance: 2
+    require_equal_termination: true
+    require_equivalent_counterfactual_distribution: true
+  invariant:
+    require_equal_coverage: true
+    require_no_conflict_regression: true
+  taxonomy:
+    canonicalize_aliases_only: true

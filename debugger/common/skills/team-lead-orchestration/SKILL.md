@@ -14,7 +14,7 @@
 ## 必读依赖
 
 - `../../agents/01_team_lead.md`
-- `../../knowledge/spec/invariants/invariant_library.yaml`
+- `../../knowledge/spec/registry/active_manifest.yaml`
 
 ## 输出要求
 

@@ -8,19 +8,19 @@
 
 framework 必须把以下三层分开理解：
 
-- `CLI`
-  - 本地直接执行入口。
+- `CLI adapter`
+  - daemon-backed 本地命令入口。
   - 适用于能直接访问本地进程、文件系统与 daemon 的宿主。
-- daemon
+- daemon owner
   - 长生命周期 runtime / context 持有层。
-  - 用于跨命令、跨轮次维持 live session、focus 与 recent artifacts。
-- `MCP`
+  - 是唯一的 live session / focus / recent artifacts / runtime owner。
+- `MCP adapter`
   - 协议桥接入口。
   - 适用于无法直接进入本地环境的宿主，或用户明确要求按 `MCP` 接入的场景。
 
 这意味着：
 
-- 是否使用 daemon，取决于是否需要长期供应 live runtime / context，而不是取决于是否选择 `CLI` 或 `MCP`。
+- `CLI` 与 `MCP` 的差异只在 adapter / 接入方式，不在执行真相。
 - 不应把 `MCP` 写成所有 Agent 的默认主入口。
 - 对可直达本地环境的宿主，framework 默认 local-first。
 - 对不能直达本地环境的宿主，framework 默认 `MCP`。

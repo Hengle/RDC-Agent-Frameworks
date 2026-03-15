@@ -1,0 +1,20 @@
+spec_id: SOP-CATALOG
+family: sop_catalog
+version: 1
+status: active
+parent_version: null
+effective_window:
+  start: "2026-03-15T00:00:00Z"
+  end: null
+rollback_target: null
+support_stats:
+  support_runs: 0
+  distinct_sessions: 0
+  distinct_device_groups: 0
+validation_refs:
+  replay: []
+  shadow: []
+  rollback: []
+dedupe_group: SOP-CATALOG
+canonical_id: SOP-CATALOG
+payload_path: common/knowledge/spec/objects/sops/SOP-CATALOG@1.payload.yaml

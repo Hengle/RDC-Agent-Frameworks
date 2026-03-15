@@ -9,7 +9,7 @@
 - `../../agents/09_report_knowledge_curator.md`
 - `../../knowledge/templates/bugcards/bugcard_template.md`
 - `../../knowledge/templates/bugfulls/bugfull_template.md`
-- `../../knowledge/spec/skills/sop_library.yaml`
+- `../../knowledge/spec/registry/active_manifest.yaml`
 
 ## 输出要求
 

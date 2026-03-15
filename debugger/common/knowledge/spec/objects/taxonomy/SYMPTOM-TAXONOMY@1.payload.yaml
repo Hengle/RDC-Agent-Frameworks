@@ -8,7 +8,7 @@
 #   description      : 症状的精确描述
 #   category         : 所属大类（visual_color / visual_geometry / visual_texture /
 #                      visual_depth / visual_lighting / performance）
-#   likely_invariants: 最可能违反的不变量（匹配 invariant_library.yaml 中的 id）
+#   likely_invariants: 最可能违反的不变量（匹配 active invariant catalog 中的 id）
 #   priority_order   : 在同类症状中的优先排查顺序（1=最高）
 #   examples         : 典型现象描述（帮助 Triage Agent 做初始分类判断）
 
