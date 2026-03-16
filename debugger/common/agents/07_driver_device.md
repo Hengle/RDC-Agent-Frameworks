@@ -1,4 +1,4 @@
-# Agent: Driver / Device Specialist
+# Agent: Driver / Device Specialist（驱动与设备差异分析专家）
 # 角色：驱动与设备差异分析专家
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
@@ -18,7 +18,7 @@
 
 ## 核心工作流
 
-### Step 1: 加载设备差异上下文
+### 步骤 1：加载设备差异上下文
 
 从当前 active trigger taxonomy 提取本次调试涉及的 GPU 型号的 `known_issues` 字段，作为先验假设：
 
@@ -28,7 +28,7 @@
   → 获取该 GPU 已知的高发不变量列表
 ```
 
-### Step 2: 对比 A/B 设备 API Trace
+### 步骤 2：对比 A/B 设备 API Trace
 
 ```
 # 拉取异常设备（A）的 API 调用日志
@@ -46,7 +46,7 @@ rd.event.get_api_calls(session_id=<session_id_b>, event_id=<first_bad_event>, in
 - Render Target 格式（特别是 HDR/FP16/FP32 格式差异）
 - Blend State / Depth State 设置
 
-### Step 3: 提取并对比 ISA（机器码层）
+### 步骤 3：提取并对比 ISA（机器码层）
 
 当 Shader & IR Agent 报告「相同 SPIR-V / HLSL，但 IR 层差异」时：
 
@@ -62,7 +62,7 @@ rd.shader.get_disassembly(session_id=<session_id_b>, shader_id=<shader_id_b>, ta
 - 编译器是否将 FP32 op 替换为 FP16 op（Adreno 上的激进精度降级）
 - 寄存器分配差异（影响中间值精度）
 
-### Step 4: 驱动版本回归测试
+### 步骤 4：驱动版本回归测试
 
 ```
 rd.replay.get_driver_info(session_id=<session_id_a>)
@@ -77,7 +77,7 @@ rd.replay.get_driver_info(session_id=<session_id_a>)
 
 若命中历史 BugCard：直接引用条目，作为强证据。
 
-### Step 5: API Conformance 检查
+### 步骤 5：API Conformance 检查
 
 针对已知 API 合规性问题（来自 trigger_taxonomy 的 `known_issues`），执行定向检查：
 
@@ -88,7 +88,7 @@ rd.replay.get_driver_info(session_id=<session_id_a>)
 | Resource Barrier 完整性 | API: Vulkan/D3D12 + 渲染错误 | `rd.pipeline.get_resource_states(session_id=<session_id_a>, resource_id=<target_resource>)` |
 | RelaxedPrecision 实际精度 | trigger_tag: Adreno_GPU + 精度异常 | 引用 Shader & IR Agent 的 SPIR-V 分析结果 |
 
-### Step 6: 跨设备指纹图查询（若有历史数据）
+### 步骤 6：跨设备指纹图查询（若有历史数据）
 
 ```
 若 cross_device_fingerprint_graph.yaml 已加载：
@@ -96,7 +96,7 @@ rd.replay.get_driver_info(session_id=<session_id_a>)
   → 确认该指纹在哪些 GPU 型号上已有历史案例
   → 为 Team Lead 提供"同指纹跨设备复现记录"
 
-### Step 7: 写入 `workspace` 运行区
+### 步骤 7：写入 `workspace` 运行区
 
 收到 `workspace_run_root` 后，你必须把本阶段证据分层写入：
 

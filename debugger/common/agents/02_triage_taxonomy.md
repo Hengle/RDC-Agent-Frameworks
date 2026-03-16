@@ -1,4 +1,4 @@
-# Agent: Triage & Taxonomy
+# Agent: Triage & Taxonomy（症状分类专家）
 # 角色：症状分类专家
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
@@ -16,7 +16,7 @@
 
 ## 核心工作流
 
-### Step 1: 症状提取
+### 步骤 1：症状提取
 
 从 Bug 报告（文字描述 + 截图 + 设备信息）中提取：
 
@@ -26,7 +26,7 @@
 
 若 `case_input.yaml` 中存在 `reference_contract`，你只允许把它视为“后续修复验证存在语义目标”的元信息；不得把 reference 图、正确效果描述或 design spec 直接提升为根因分类证据。
 
-### Step 2: 不变量路由
+### 步骤 2：不变量路由
 
 使用当前 active invariant catalog 中的 `symptom_to_invariants` 索引，将 symptom_tags 映射为候选不变量列表。
 
@@ -36,13 +36,13 @@ symptom_tags → symptom_to_invariants[tag] → 候选 invariant_ids
 
 多个 symptom_tag 命中同一个 invariant_id → 该不变量置信度升高。
 
-### Step 3: SOP 推荐
+### 步骤 3：SOP 推荐
 
 使用当前 active SOP catalog 中的 `symptom_to_sop` 索引，生成推荐 SOP 列表（按置信度排序）。
 
 若 trigger_tags 包含设备特定标签（如 `Adreno_GPU`），查阅当前 active trigger taxonomy 中对应 tag 的 `known_issues`，优先推荐关联 SOP。
 
-### Step 4: 生成输出
+### 步骤 4：生成输出
 
 输出结构化 Triage 结果（见“输出格式”），移交 Team Lead。
 

@@ -1,4 +1,4 @@
-# Versioned Spec Store
+# Versioned Spec Store（版本化规范库）
 
 `common/knowledge/spec/` 现在只承载正式生效的版本化知识，不再接受直接手工编辑的聚合库。
 

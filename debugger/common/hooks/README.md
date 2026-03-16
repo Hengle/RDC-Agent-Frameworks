@@ -1,4 +1,4 @@
-# RenderDoc/RDC GPU Debug · Quality Hooks 系统
+# RenderDoc/RDC GPU Debug · Quality Hooks 系统（质量 Hook）
 
 Quality Hooks 系统将 Debugger 框架的质量门槛从“被建议的”提升为“被强制执行的”。
 

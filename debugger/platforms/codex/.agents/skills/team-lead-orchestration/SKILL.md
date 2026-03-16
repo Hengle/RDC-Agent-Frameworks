@@ -1,4 +1,4 @@
-﻿# Team Lead Skill Wrapper
+﻿# Team Lead Skill Wrapper（角色技能入口）
 
 当前文件是 Codex 的 role skill 入口。
 

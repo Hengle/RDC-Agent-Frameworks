@@ -1,4 +1,4 @@
-# Agent: Capture & Repro
+# Agent: Capture & Repro（捕获与复现专家）
 # 角色：捕获与复现专家
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
@@ -16,7 +16,7 @@
 
 ## 核心工作流
 
-### Step 1: 读取 `case_input.yaml`
+### 步骤 1：读取 `case_input.yaml`
 
 必须读取：
 
@@ -31,7 +31,7 @@
 - `cross_device / regression` 时，必须存在 `role=baseline`
 - `captures[]` 中每个条目都必须有唯一 `capture_id`
 
-### Step 2: 归一化 capture 角色
+### 步骤 2：归一化 capture 角色
 
 固定角色只有三类：
 
@@ -51,7 +51,7 @@
 - `fixed` 只能表示修复后 replayable capture，不得拿 reference 图片冒充
 - 不得再发明 `golden_capture`、`ab_test_capture`、`reference_capture` 之类并行命名
 
-### Step 3: 执行 capture 打开与可重放检查
+### 步骤 3：执行 capture 打开与可重放检查
 
 调用顺序：
 
@@ -69,7 +69,7 @@ rd.export.screenshot(...)
 - 是否可重放
 - 是否与声明角色一致
 
-### Step 4: 建立 A/B/F 关系
+### 步骤 4：建立 A/B/F 关系
 
 模式含义：
 
@@ -84,7 +84,7 @@ rd.export.screenshot(...)
 
 对于 `baseline`，你只负责证明它是一个合法 replay 基准，不负责判定“它视觉上一定正确”；那是 `reference_contract` + 后续 `fix_verification` 的职责。
 
-### Step 5: 定位 capture/session anchor
+### 步骤 5：定位 capture/session anchor
 
 你提供的是 capture/session 级 anchor，不是最终 `causal_anchor`。
 
@@ -95,7 +95,7 @@ rd.export.screenshot(...)
 - `anchor.value`
 - `capture_role`
 
-### Step 6: 写入 workspace
+### 步骤 6：写入 `workspace`
 
 必须写入：
 

@@ -3,7 +3,7 @@ description: "Trace pass divergence and resource dependency chains."
 model: "sonnet"
 ---
 
-# RenderDoc/RDC Agent Wrapper
+# RenderDoc/RDC Agent Wrapper（宿主入口）
 
 当前文件是 Claude Code 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
 

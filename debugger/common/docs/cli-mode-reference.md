@@ -1,4 +1,4 @@
-# RenderDoc/RDC GPU Debug Local-First CLI Reference
+# RenderDoc/RDC GPU Debug Local-First CLI Reference（本地优先 CLI 参考）
 
 本文用于说明 framework 在 local-first 场景下如何依赖 daemon-backed `CLI` 入口。
 
@@ -33,7 +33,7 @@
 
 Agent 应把它们理解为“已知入口”，而不是把 `CLI` 当成只给人工排障的壳层。
 
-## 3. 允许依赖的关键状态名
+## 3. 可依赖的关键状态名
 
 `CLI` 路径下，Agent 可依赖这些 daemon-owned 平台状态名：
 

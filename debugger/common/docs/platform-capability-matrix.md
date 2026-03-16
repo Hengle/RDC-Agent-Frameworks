@@ -1,6 +1,6 @@
-# Platform Capability Matrix
+# Platform Capability Matrix（平台能力矩阵）
 
-This matrix mirrors `common/config/platform_capabilities.json`.
+本矩阵是 `common/config/platform_capabilities.json` 的文档镜像。
 
 | Platform | Custom Agents | Skills | Hooks | MCP | Per-Agent Model | Handoffs | Coordination Mode | Packaging |
 |---|---|---|---|---|---|---|---|---|
@@ -12,10 +12,10 @@ This matrix mirrors `common/config/platform_capabilities.json`.
 | Manus | Workflow-only | No | No | No | Inherit-only | Workflow-level | `workflow_stage` | Workflow package |
 | Codex | Yes | Yes | No | Yes | Config-file | Multi-agent | `concurrent_team` | Workspace-native |
 
-## Notes
+## 说明
 
-- `code-buddy`, `copilot-ide`, and `copilot-cli` are treated as explicit per-agent routing hosts in this repo.
-- `claude-code` supports per-agent routing, but the available family is constrained by the host model pool.
-- `claude-desktop` and `manus` are inherit-only downgrade hosts.
-- `codex` keeps per-agent config files, but the approved routed family is currently GPT across all roles.
-- Remote live-debug ownership still follows the shared runtime rule: one runtime owner per live chain.
+- `code-buddy`、`copilot-ide` 和 `copilot-cli` 在本仓中按显式 per-agent routing 宿主处理。
+- `claude-code` 支持 per-agent routing，但可选模型族受宿主模型池限制。
+- `claude-desktop` 和 `manus` 属于 inherit-only 的降级宿主。
+- `codex` 保留 per-agent 配置文件，但当前批准的路由模型族统一为 GPT。
+- remote live-debug 的 owner 仍遵守共享 runtime 规则：每条 live 链路只能有一个 runtime owner。

@@ -1,4 +1,4 @@
-# RenderDoc/RDC GPU Debug · Knowledge Root（common/knowledge/）
+# RenderDoc/RDC GPU Debug · Knowledge Root（知识根目录）
 
 `common/knowledge/` 是 Debugger framework 的知识真相根目录。
 

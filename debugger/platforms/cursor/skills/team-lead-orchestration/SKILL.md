@@ -1,4 +1,4 @@
-# Team Lead Orchestration Skill Wrapper
+# Team Lead Orchestration Skill Wrapper（角色技能入口）
 
 当前文件是 Cursor 平台的 team-lead-orchestration skill 入口。
 

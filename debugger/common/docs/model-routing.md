@@ -1,54 +1,54 @@
-# Model Routing
+# Model Routing（模型路由）
 
-This document defines the single source of truth for role-to-model routing in the debugger framework.
+本文定义 Debugger framework 中角色到模型族的唯一权威路由。
 
-## Source of Truth
+## 权威来源
 
 - `common/config/model_routing.json`
-  - Owns model capability requirements, platform classes, and per-profile platform routing.
+  - 负责模型能力要求、平台分类和按 profile 划分的平台路由。
 - `common/config/role_policy.json`
-  - Owns reasoning effort, verbosity, tool policy, hook policy, and delegation.
+  - 负责 reasoning effort、verbosity、tool policy、hook policy 与 delegation。
 - `debugger/scripts/sync_platform_scaffolds.py`
-  - Renders the shared truth into host-native wrappers, config files, and plugin metadata.
+  - 负责把共享真相渲染为宿主原生 wrapper、配置文件和插件 metadata。
 
-No platform wrapper may invent its own model mapping. No second model-routing table may exist in `role_policy.json` or in generated host artifacts.
+任何平台 wrapper 都不得自创模型映射；`role_policy.json` 和生成后的宿主产物中也不得出现第二张 model-routing 表。
 
-## Global Model Requirements
+## 全局模型要求
 
-All debugger roles inherit the same baseline model constraints:
+所有 Debugger 角色都继承同一组基础模型约束：
 
-- Native multimodal support is required.
-- The model must be suitable for texture and framebuffer driven visual analysis.
-- Long-context support is required.
-- A 1M context window is preferred whenever the host/provider supports it.
+- 必须原生支持 multimodal。
+- 必须适合处理 texture 与 framebuffer 驱动的视觉分析。
+- 必须支持长上下文。
+- 当宿主或 provider 支持时，优先选择 1M context window。
 
-These constraints exist because debugger sessions routinely move texture exports, framebuffer evidence, shader source, IR output, JSON tool payloads, and report artifacts through the same conversation.
+之所以有这些约束，是因为 Debugger session 往往会在同一段对话里同时搬运 texture 导出、framebuffer 证据、shader 源码、IR 输出、JSON tool payload 与报告 artifact。
 
-## Role Priorities
+## 角色优先级
 
 - `orchestrator`
-  - Prioritizes planning depth, branching control, imagination, and verdict gating.
+  - 优先考虑规划深度、分支控制、想象力和裁决 gate。
 - `investigator`
-  - Prioritizes evidence handling, long evidence chains, and medium-latency deep inspection.
+  - 优先考虑证据处理、长证据链和中等延迟下的深度检查。
 - `verifier`
-  - Prioritizes logic rigor, adversarial review, and counterfactual pressure testing.
+  - 优先考虑逻辑严谨性、对抗性审查和反事实施压测试。
 - `reporter`
-  - Prioritizes writing quality, knowledge curation, and stakeholder-facing web/report composition.
+  - 优先考虑写作质量、知识沉淀和面向利益相关方的 web/report 生成能力。
 
-## Platform Classes
+## 平台分类
 
-- Explicit per-agent routing
-  - `code-buddy`, `copilot-ide`, `copilot-cli`
-- Host-limited per-agent routing
+- 显式 per-agent routing
+  - `code-buddy`、`copilot-ide`、`copilot-cli`
+- 宿主受限的 per-agent routing
   - `claude-code`
-- Inherit-only hosts
-  - `claude-desktop`, `manus`
-- Single approved family per-agent routing
+- 仅继承的宿主
+  - `claude-desktop`、`manus`
+- 单一批准模型族的 per-agent routing
   - `codex`
 
-## Current Routing Policy
+## 当前路由策略
 
-- `code-buddy`, `copilot-ide`, `copilot-cli`
+- `code-buddy`、`copilot-ide`、`copilot-cli`
   - `orchestrator` -> latest Opus
   - `investigator` -> latest Sonnet
   - `verifier` -> latest GPT
@@ -58,15 +58,15 @@ These constraints exist because debugger sessions routinely move texture exports
   - `investigator` -> Sonnet
   - `verifier` -> Opus
   - `reporter` -> Sonnet
-- `claude-desktop`, `manus`
-  - all roles -> `inherit`
+- `claude-desktop`、`manus`
+  - 全部角色 -> `inherit`
 - `codex`
-  - all roles -> latest GPT
-  - role differentiation happens through reasoning and verbosity, not a different model family
+  - 全部角色 -> latest GPT
+  - 角色差异通过 reasoning 与 verbosity 区分，而不是依赖不同模型族。
 
-## Constraints
+## 约束
 
-- Generated platform files must always come from `model_routing.json`.
-- Inherit-only platforms must not carry dead explicit model strings in routing.
-- Platforms that render per-agent models must surface the model selected by the routing table.
-- Platforms that cannot render per-agent models may keep role boundaries and workflow boundaries, but must not pretend to expose unsupported model controls.
+- 生成后的平台文件必须始终来自 `model_routing.json`。
+- inherit-only 平台不得携带失效的显式模型字符串。
+- 能渲染 per-agent model 的平台必须显式暴露路由表选中的模型。
+- 无法渲染 per-agent model 的平台可以保留角色边界和 workflow 边界，但不得假装支持宿主并不具备的模型控制能力。

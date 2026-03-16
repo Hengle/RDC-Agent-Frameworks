@@ -1,4 +1,4 @@
-# RenderDoc/RDC GPU Debug Base Skill
+# RenderDoc/RDC GPU Debug Base Skill（基础技能）
 
 ## 任务目标
 
@@ -25,7 +25,7 @@
 11. 若用户明确要求 `CLI` 模式：`../../docs/cli-mode-reference.md`
 12. `../../docs/workspace-layout.md`
 
-## Mandatory Preflight
+## Mandatory Preflight（强制预检）
 
 开始任何平台真相相关工作前，必须先校验 `../../config/platform_adapter.json`：
 

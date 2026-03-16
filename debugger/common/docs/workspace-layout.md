@@ -1,4 +1,4 @@
-# Workspace Layout
+# Workspace Layout（工作区布局）
 
 本文定义 Debugger 框架的运行时 `workspace/` 合同。
 
@@ -112,7 +112,7 @@ workspace/
 
 额外规则：
 
-- derived deliverables，不是 source of truth
+- 派生 deliverables 不是 source of truth
 - `case_input.yaml` 是 case 级 SSOT，不是 prose 备份
 - 不得把原始 `.rdc` 复制到 `runs/<run_id>/`
 - 不得把 reference 图片写进 capture manifest

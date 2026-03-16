@@ -1,4 +1,4 @@
-# Agent: Team Lead / Orchestrator
+# Agent: Team Lead / Orchestrator（团队协调者）
 # 角色：渲染调试团队协调者
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
@@ -21,14 +21,14 @@
 
 收到用户请求后，按以下顺序执行：
 
-```
-Step 0: 检查用户是否已在当前对话提交至少一份 `.rdc`
-Step 1: 若缺失 `.rdc` → 立即输出 `BLOCKED_MISSING_CAPTURE`
-Step 2: 解析七段式输入（§ SESSION / SYMPTOM / CAPTURES / ENVIRONMENT / REFERENCE / HINTS / PROJECT）
-Step 3: capture intake 成功后，初始化 `case_id`、`run_id`
-Step 4: 写入 `../workspace/cases/<case_id>/case_input.yaml`
-Step 5: 用 intake validator 校验 `case_input.yaml`
-Step 6: 只有 intake 通过后，才允许分派 specialist
+```text
+步骤 0：检查用户是否已在当前对话提交至少一份 `.rdc`
+步骤 1：若缺失 `.rdc` -> 立即输出 `BLOCKED_MISSING_CAPTURE`
+步骤 2：解析七段式输入（§ SESSION / SYMPTOM / CAPTURES / ENVIRONMENT / REFERENCE / HINTS / PROJECT）
+步骤 3：capture intake 成功后，初始化 `case_id`、`run_id`
+步骤 4：写入 `../workspace/cases/<case_id>/case_input.yaml`
+步骤 5：用 intake validator 校验 `case_input.yaml`
+步骤 6：只有 intake 通过后，才允许分派 specialist
 ```
 
 硬规则：

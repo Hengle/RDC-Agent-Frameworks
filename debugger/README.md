@@ -1,4 +1,4 @@
-# RenderDoc/RDC GPU Debug
+# RenderDoc/RDC GPU Debug（调试框架）
 
 `debugger/` 是 `RDC-Agent-Frameworks` 中面向 RenderDoc/RDC GPU 调试场景的专属 framework 根目录。
 

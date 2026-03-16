@@ -1,5 +1,6 @@
-# Optimizer
-## Multi-Agent Optimization Framework
+# Optimizer（优化框架）
+
+## 定位
 
 > 当前状态：`incubating`
 >
@@ -26,12 +27,12 @@ Optimization 的主驱动是“性能预算不变量”（frame time / bandwidth
 - bottleneck 归因明确且有机制解释（对应到具体 pass/event/资源）。
 - 至少一个优化实验完成反事实验证，并记录验证数据。
 
-## 典型输入 / 输出
+## 典型输入与输出
 
 - 输入：性能 profile、trace、指标面板、A/B 数据、资源依赖图、配置矩阵、成本账单等。
 - 输出：瓶颈归因报告、可验证优化方案（含收益预估）、实验记录（A/B/开关）、回归验证结论、可检索知识条目。
 
-## 目录建议（描述，不强制）
+## 目录建议（说明性建议，不构成强约束）
 
 参考 `debugger/` 的分层方式，建议逐步演进到：
 

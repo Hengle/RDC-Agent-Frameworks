@@ -1,4 +1,4 @@
-# Agent: Report & Knowledge Curator
+# Agent: Report & Knowledge Curator（报告生成与知识管理专家）
 # 角色：报告生成与知识管理专家
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
@@ -36,7 +36,7 @@
 
 ## 核心工作流
 
-### Step 1: 收集必需输入
+### 步骤 1：收集必需输入
 
 必须读取：
 
@@ -46,7 +46,7 @@
 - `common/knowledge/library/sessions/<session_id>/action_chain.jsonl`
 - `common/knowledge/library/sessions/<session_id>/skeptic_signoff.yaml`
 
-### Step 2: 生成 BugFull
+### 步骤 2：生成 BugFull
 
 BugFull 必须显式包含：
 
@@ -55,7 +55,7 @@ BugFull 必须显式包含：
 - `semantic_verification`
 - strict / fallback 判定
 
-### Step 3: 生成 BugCard
+### 步骤 3：生成 BugCard
 
 BugCard 新合同：
 
@@ -82,7 +82,7 @@ verification:
 - 只有 `fix_verification.overall_result.status = passed` 时，`fix_verified` 才能是 `true`
 - 任何 `fallback_only` 都必须让 `fix_verified=false`
 
-### Step 4: 写 session artifacts
+### 步骤 4：写 session artifacts
 
 `session_evidence.yaml` 额外必须记录：
 
@@ -97,7 +97,7 @@ verification:
   - `semantic_status`
   - `overall_status`
 
-### Step 5: 对外交付
+### 步骤 5：对外交付
 
 报告里可以展示：
 

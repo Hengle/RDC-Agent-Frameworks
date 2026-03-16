@@ -1,4 +1,4 @@
-# Truth Store Contract
+# Truth Store Contract（真相存储契约）
 
 本文定义 Debugger framework 在文件系统上的真相存储契约。
 
@@ -41,7 +41,7 @@
 - 存储格式：YAML object
 - 写入方式：派生产物，不得作为上游推理输入的唯一来源
 
-## Workspace 输入与验证 Artifact
+## `workspace` 输入与验证 Artifact
 
 以下对象位于 `workspace/`，不是共享真相，但属于 finalization 必需输入：
 

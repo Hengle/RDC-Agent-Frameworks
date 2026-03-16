@@ -1,4 +1,4 @@
-﻿# Docs Scope
+﻿# Docs Scope（维护者文档范围）
 
 `debugger/docs/` 只服务 `debugger/` 维护者，用来说明平台模板、脚手架与目录治理。
 

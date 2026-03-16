@@ -1,91 +1,88 @@
-# Platform Capability Model
+# Platform Capability Model（平台能力模型）
 
-This document explains how the debugger framework separates host capability truth from routing policy.
+本文说明 Debugger framework 如何把宿主能力真相与路由策略拆开表达。
 
-## Capability Layers
+## 能力层
 
-The framework depends on two distinct layers:
+framework 依赖两个彼此独立的层次：
 
-- Host capabilities
+- 宿主能力层
   - `custom_agents`
   - `skills`
   - `hooks`
   - `mcp`
   - `handoffs`
   - `per_agent_model`
-- Runtime contract
+- runtime 合同层
   - `context_state_model`
   - `local_parallelism`
   - `remote_handle_lifecycle`
   - `remote_coordination_mode`
   - `rehydration_contract`
 
-Host capabilities answer "what the host can express."
-Runtime contract answers "what is safe when driving live RenderDoc/RDC state."
+宿主能力回答的是“宿主能表达什么”，runtime 合同回答的是“驱动 live RenderDoc/RDC 状态时什么是安全的”。
 
-## Entry Selection Rule
+## 入口选择规则
 
-Framework docs must treat `CLI`, daemon, and `MCP` as different layers:
+framework 文档必须把 `CLI`、daemon 和 `MCP` 当作不同层次的概念：
 
 - `CLI`
-  - local-first execution entry for hosts that can directly access local process, filesystem, and daemon
+  - 适用于可直接访问本地进程、文件系统与 daemon 的宿主，是 local-first 执行入口。
 - daemon
-  - long-lived runtime/context owner for cross-command and cross-turn work
+  - 负责跨命令、跨轮次的长生命周期 runtime/context 持有。
 - `MCP`
-  - protocol bridge for hosts that cannot directly enter the local environment, or when the user explicitly requires `MCP`
+  - 适用于无法直接进入本地环境的宿主，或用户明确要求使用 `MCP` 的协议桥接入口。
 
-The framework must not describe `MCP` as the default entry for all agents.
-The correct decision boundary is:
+framework 不得把 `MCP` 写成所有 agent 的默认入口。正确的决策边界只有两条：
 
-- can the host directly access the local environment
-- does the task need a long-lived runtime/context owner
+- 宿主是否能直接访问本地环境；
+- 任务是否需要长生命周期的 runtime/context owner。
 
-When the host can directly access the local environment, framework guidance should default to `CLI` / local-first.
-When the host cannot, framework guidance should default to `MCP`.
+宿主能直达本地环境时，framework 默认 `CLI` / local-first；不能直达时，framework 默认 `MCP`。
 
-## Routing Policy vs Host Capability
+## 路由策略与宿主能力的分工
 
-- `model_routing.json` defines which model family each role wants on each platform.
-- `platform_capabilities.json` defines whether the host can render that routing natively, partially, or only through downgrade semantics.
-- Generated platform wrappers must preserve role boundaries even when the host downgrades model control.
+- `model_routing.json` 定义每个平台上各角色希望使用的模型族。
+- `platform_capabilities.json` 定义宿主能否原生、部分或仅以 downgrade 语义表达该路由。
+- 即使宿主发生模型控制降级，生成后的平台 wrapper 也必须保持角色边界。
 
-## Platform Classes Used By This Repo
+## 本仓使用的平台分类
 
-- Explicit per-agent routing
-  - `code-buddy`, `copilot-ide`, `copilot-cli`
-- Host-limited per-agent routing
+- 显式 per-agent routing
+  - `code-buddy`、`copilot-ide`、`copilot-cli`
+- 宿主受限的 per-agent routing
   - `claude-code`
-- Inherit-only
-  - `claude-desktop`, `manus`
-- Single approved family
+- inherit-only
+  - `claude-desktop`、`manus`
+- 单一批准模型族
   - `codex`
 
-## Required Downgrade Behavior
+## 必需的降级行为
 
-- Explicit per-agent platforms
-  - Must render the routed model for each role.
-- Host-limited per-agent platforms
-  - May map routed roles to the closest host-native model family or alias.
-- Inherit-only platforms
-  - Must not advertise per-agent model control.
-  - Must route all roles as `inherit`.
-- Single approved family platforms
-  - May keep per-agent config files, but the routed model family is intentionally unified.
+- 显式 per-agent 平台
+  - 必须为每个角色渲染路由后的模型。
+- 宿主受限的 per-agent 平台
+  - 可以把路由后的角色映射到最接近的宿主原生模型族或 alias。
+- inherit-only 平台
+  - 不得宣称支持 per-agent model control。
+  - 必须把全部角色路由为 `inherit`。
+- 单一批准模型族平台
+  - 可以保留 per-agent 配置文件，但路由后的模型族应有意统一。
 
-## What Is Not Framework Truth
+## 哪些内容不属于 framework 真相
 
-The following remain adapter/config concerns, not framework concepts:
+以下内容仍然属于 adapter/config 细节，而不是 framework 概念：
 
-- actual tools repository path
-- actual MCP command line
-- actual CLI convenience wrapper
-- host plugin package naming
+- 实际的 tools 仓库路径
+- 实际的 MCP 命令行
+- 实际的 CLI convenience wrapper
+- 宿主插件包命名
 
-Those details belong in `platform_adapter.json`, `mcp_servers.json`, or generated host packaging, not in role prompts or routing policy prose.
+这些细节应写在 `platform_adapter.json`、`mcp_servers.json` 或生成后的宿主打包产物中，而不是角色 prompt 或路由策略 prose 里。
 
-However, framework guidance must still require entry preconditions to be satisfied before execution starts:
+不过，framework 仍必须要求在执行开始前满足入口前置条件：
 
-- local-first paths require a valid `tools_root`
-- `MCP` paths require the target host to have the expected MCP server configured
-- agents must tell the user which entry mode is being used before beginning platform-truth-dependent work
-- agents should prefer catalog `prerequisites` over prompt-memory when deciding whether a call sequence is valid
+- local-first 路径需要有效的 `tools_root`
+- `MCP` 路径需要目标宿主预先配置好 MCP server
+- agent 在进入依赖平台真相的工作前必须向用户说明当前使用的入口模式
+- agent 在判断调用序列是否合法时，应优先参考 catalog `prerequisites`，而不是依赖 prompt memory

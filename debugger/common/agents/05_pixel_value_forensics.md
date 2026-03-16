@@ -1,4 +1,4 @@
-# Agent: Pixel / Value Forensics
+# Agent: Pixel / Value Forensics（像素取证专家）
 # 角色：像素取证专家
 #
 # ── 动态加载声明 ──────────────────────────────────────────────
@@ -18,7 +18,7 @@
 
 ## 核心工作流
 
-### Step 1: 接收锚点，选取目标像素
+### 步骤 1：接收锚点，选取目标像素
 
 从 Pass Graph Agent 的输出（或 Triage 的 anchor_suggestion）获取：
 - 异常 Pass 的 event_id 范围
@@ -31,7 +31,7 @@
 
 若 pipeline / render target 链路暂时不稳定，允许先用截图、texture 导出或 screen-like fallback 来**选点**；但这些证据只能服务于回到 Pixel History 或等价链路，不能单独代替 `first_bad_event`。
 
-### Step 2: Pixel History 追溯
+### 步骤 2：Pixel History 追溯
 
 ```
 rd.debug.pixel_history(session_id=<session_id>, x=<X>, y=<Y>, include_tests=true, include_shader_outputs=true)   → 获取目标像素的完整历史
@@ -45,7 +45,7 @@ rd.debug.pixel_history(session_id=<session_id>, x=<X>, y=<Y>, include_tests=true
 事件 N+1: 像素值 (1.0, 1.0, 1.0)   → 传播结果
 ```
 
-### Step 3: 数值异常类型判定
+### 步骤 3：数值异常类型判定
 
 在 First Bad Event 处，判断异常类型：
 
@@ -60,7 +60,7 @@ rd.debug.pixel_history(session_id=<session_id>, x=<X>, y=<Y>, include_tests=true
 
 读取当前 active invariant catalog 中对应不变量的 `detection_hints`，按步骤执行进一步检查。
 
-### Step 4: 数值范围扫描（必要时）
+### 步骤 4：数值范围扫描（必要时）
 
 对于范围类问题（精度、颜色空间），需要读取更大区域的像素值：
 
@@ -73,7 +73,7 @@ rd.texture.get_region_values(session_id=<session_id>, texture_id=<RT_ID>, rect={
 - 数值分布（最大/最小/均值）
 - 异常像素的空间分布模式（随机 or 规律性区域）
 
-### Step 5: 写入 `workspace` 运行区
+### 步骤 5：写入 `workspace` 运行区
 
 收到 `workspace_run_root` 后，你必须把本阶段证据分层写入：
 

@@ -1,4 +1,4 @@
-﻿# Triage & Taxonomy Skill Wrapper
+﻿# Triage & Taxonomy Skill Wrapper（角色技能入口）
 
 当前文件是 Code Buddy 的 role skill 入口。
 

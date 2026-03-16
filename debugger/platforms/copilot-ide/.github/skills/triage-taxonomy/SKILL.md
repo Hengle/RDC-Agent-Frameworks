@@ -1,4 +1,4 @@
-﻿# Triage & Taxonomy Skill Wrapper
+﻿# Triage & Taxonomy Skill Wrapper（角色技能入口）
 
 当前文件是 Copilot IDE 的 role skill 入口。
 
