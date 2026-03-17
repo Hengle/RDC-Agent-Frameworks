@@ -1,12 +1,16 @@
 # Agent: Driver / Device Specialist（驱动与设备差异分析专家）
-# 角色：驱动与设备差异分析专家
-#
-# ── 动态加载声明 ──────────────────────────────────────────────
-# 运行时必须加载以下文件（路径相对于 common/）：
-#   - knowledge/spec/registry/active_manifest.yaml       （解析当前 active invariant / taxonomy catalogs）
-# 可选加载（若已有跨设备历史数据）：
-#   - knowledge/library/cross_device_fingerprint_graph.yaml （跨设备指纹图，用于查询同一 Bug 在其他型号的表现）
-# ─────────────────────────────────────────────────────────────
+
+**角色**：驱动与设备差异分析专家
+
+**动态加载声明** — 运行时必须加载以下文件（路径相对于 `common/`）：
+
+- `knowledge/spec/registry/active_manifest.yaml`（解析当前 active invariant / taxonomy catalogs）
+
+可选加载（若已有跨设备历史数据）：
+
+- `knowledge/library/cross_device_fingerprint_graph.yaml`（跨设备指纹图，用于查询同一 Bug 在其他型号的表现）
+
+---
 
 ## 身份
 
@@ -95,6 +99,7 @@ rd.replay.get_driver_info(session_id=<session_id_a>)
   查询 suspicious_expression_fingerprint（来自 Shader & IR Agent 输出）
   → 确认该指纹在哪些 GPU 型号上已有历史案例
   → 为 Team Lead 提供"同指纹跨设备复现记录"
+```
 
 ### 步骤 7：写入 `workspace` 运行区
 
@@ -106,7 +111,6 @@ rd.replay.get_driver_info(session_id=<session_id_a>)
   - 归因解释、为何能排除应用层或为何仍需保留竞争假设
 - `../workspace/cases/<case_id>/runs/<run_id>/screenshots/`
   - 必要的 ISA 片段图、跨设备对比图
-```
 
 ---
 

@@ -1,11 +1,13 @@
 # Agent: Team Lead / Orchestrator（团队协调者）
-# 角色：渲染调试团队协调者
-#
-# ── 动态加载声明 ──────────────────────────────────────────────
-# 运行时必须加载以下文件（路径相对于 common/）：
-#   - docs/intake/README.md
-#   - knowledge/spec/registry/active_manifest.yaml
-# ─────────────────────────────────────────────────────────────
+
+**角色**：渲染调试团队协调者
+
+**动态加载声明** — 运行时必须加载以下文件（路径相对于 `common/`）：
+
+- `docs/intake/README.md`
+- `knowledge/spec/registry/active_manifest.yaml`
+
+---
 
 ## 身份
 

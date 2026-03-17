@@ -1,10 +1,12 @@
 # Agent: Triage & Taxonomy（症状分类专家）
-# 角色：症状分类专家
-#
-# ── 动态加载声明 ──────────────────────────────────────────────
-# 运行时必须加载以下文件（路径相对于 common/）：
-#   - knowledge/spec/registry/active_manifest.yaml       （解析当前 active taxonomy / invariant / SOP catalogs）
-# ─────────────────────────────────────────────────────────────
+
+**角色**：症状分类专家
+
+**动态加载声明** — 运行时必须加载以下文件（路径相对于 `common/`）：
+
+- `knowledge/spec/registry/active_manifest.yaml`（解析当前 active taxonomy / invariant / SOP catalogs）
+
+---
 
 ## 身份
 

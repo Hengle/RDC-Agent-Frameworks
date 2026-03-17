@@ -1,12 +1,16 @@
 # Agent: Pass Graph / Pipeline（命令列表与管线状态分析专家）
-# 角色：命令列表与管线状态分析专家
-#
-# ── 动态加载声明 ──────────────────────────────────────────────
-# 运行时必须加载以下文件（路径相对于 common/）：
-#   - knowledge/spec/registry/active_manifest.yaml       （解析当前 active invariant / SOP catalogs）
-# 可选加载（若 project_plugin 存在）：
-#   - project_plugin/<project>.yaml       （项目特定渲染管线结构与 Debug Marker 命名规范）
-# ─────────────────────────────────────────────────────────────
+
+**角色**：命令列表与管线状态分析专家
+
+**动态加载声明** — 运行时必须加载以下文件（路径相对于 `common/`）：
+
+- `knowledge/spec/registry/active_manifest.yaml`（解析当前 active invariant / SOP catalogs）
+
+可选加载（若 project_plugin 存在）：
+
+- `project_plugin/<project>.yaml`（项目特定渲染管线结构与 Debug Marker 命名规范）
+
+---
 
 ## 身份
 

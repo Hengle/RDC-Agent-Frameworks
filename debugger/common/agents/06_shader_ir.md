@@ -1,12 +1,16 @@
 # Agent: Shader & IR（着色器与中间表示分析专家）
-# 角色：着色器与中间表示分析专家
-#
-# ── 动态加载声明 ──────────────────────────────────────────────
-# 运行时必须加载以下文件（路径相对于 common/）：
-#   - knowledge/spec/registry/active_manifest.yaml       （解析当前 active invariant / SOP catalogs）
-# 可选加载（若 project_plugin 存在）：
-#   - project_plugin/<project>.yaml       （Block 计算指纹，用于从 IR 反推引擎模块）
-# ─────────────────────────────────────────────────────────────
+
+**角色**：着色器与中间表示分析专家
+
+**动态加载声明** — 运行时必须加载以下文件（路径相对于 `common/`）：
+
+- `knowledge/spec/registry/active_manifest.yaml`（解析当前 active invariant / SOP catalogs）
+
+可选加载（若 project_plugin 存在）：
+
+- `project_plugin/<project>.yaml`（Block 计算指纹，用于从 IR 反推引擎模块）
+
+---
 
 ## 身份
 
@@ -59,6 +63,7 @@ rd.shader.extract_binary(session_id=<session_id>, shader_id=<shader_id>, output_
 - 确认哪些 HLSL `half` 变量对应了 RelaxedPrecision decoration
 
 **注意：screen-space shader 中发现的 `RelaxedPrecision` 只能算线索，除非它已经绑定到 `first_bad_event` 或 `root_drawcall`；否则不得直接把它提升为根因归因。**
+
 ### 步骤 4：A/B Shader 差分分析（有基准时必须执行）
 
 若有 A（异常）和 B（基准）两份 capture：
@@ -185,5 +190,3 @@ engine_module_mapping:                 # 若有 project_plugin 则填写
 - ❌ 直接修改 Shader 代码（这是 Patch Engine 的工作，由 Team Lead 决策触发）
 - ❌ 判断是否为驱动问题（这是 Driver Agent 的职责）
 - ❌ 跳过 SPIR-V 分析直接结论（精度类 Bug 必须提供 decoration 证据）
-
-
