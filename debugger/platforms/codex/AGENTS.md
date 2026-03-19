@@ -37,3 +37,17 @@
 
 运行时工作区固定为：`../workspace`
 - 当前宿主没有 native hooks；只有生成 `artifacts/run_compliance.yaml` 且 `status=passed` 后，结案才算合规。
+
+## Sub-Agent 协调约束
+
+当前平台的 coordination_mode 为 `staged_handoff`。Codex sub-agents 之间**不具备直接通信能力**（no peer-to-peer channel）。
+
+规则：
+
+- `team_lead` 是唯一的 runtime_owner，负责所有 agent 分派与工具执行。
+- Specialist sub-agents 只能通过 workspace artifacts 传递调查结果，不得直接调用或消息通知其他 specialist。
+- 所有跨 agent 信息传递路径：sub-agent 将结果写入 `workspace/cases/<case_id>/runs/<run_id>/` 指定位置 → `team_lead` 读取后决定下一步分派。
+- Specialist 不得直接分派其他 specialist，所有分派必须经由 `team_lead`。
+- 标准分派顺序：`team_lead` → `triage_agent` → `capture_repro_agent` → 专家 specialists（`pixel_forensics`、`pass_graph_pipeline`、`shader_ir`、`driver_device`）→ `skeptic_agent` → `curator_agent`。
+
+权威规范：参见 `common/docs/runtime-coordination-model.md` 中 `staged_handoff` 模式定义。

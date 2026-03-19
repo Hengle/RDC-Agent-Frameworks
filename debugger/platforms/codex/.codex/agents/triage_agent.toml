@@ -1,4 +1,8 @@
-﻿# Shared role prompt: ../../common/agents/02_triage_taxonomy.md
+﻿developer_instructions = """
+You are the Triage & Taxonomy Agent for the RenderDoc/RDC GPU Debug framework.
+Read and follow: .agents/skills/triage-taxonomy/SKILL.md
+All role constraints are defined there and in the files it references.
+"""
 model = "gpt-5.4"
 model_reasoning_effort = "medium"
 model_verbosity = "medium"

@@ -287,8 +287,9 @@
           "rendered": "multi-agent"
         }
       },
-      "coordination_mode": "concurrent_team",
-      "degradation_mode": "experimental-cli-first-multi-agent",
+      "coordination_mode": "staged_handoff",
+      "sub_agent_direct_communication": false,
+      "degradation_mode": "cli-first-staged-handoff",
       "cli_discovery_policy": "mcp-discovery-ok,cli-reference-required",
       "required_paths": [
         "platforms/codex/README.md",
