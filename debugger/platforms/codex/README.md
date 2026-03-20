@@ -30,7 +30,15 @@
 - 当前工具 snapshot 必须与 `RDC-Agent-Tools` 当前 catalog 完整对齐，并覆盖 `rd.vfs.*`、扩展 `rd.session.*`、`rd.core.*` discovery/observability，以及 bounded event-tree 读取语义。
 - 未提供 `.rdc` 时，Agent 必须以 `BLOCKED_MISSING_CAPTURE` 直接阻断，不得初始化 case/run 或继续 triage、investigation、planning。
 - `workspace/` 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。
-- `multi_agent` 当前按 experimental / local-first 理解，但共享规则与 role config 已完整生成。
-- 当前文档只把 package-level manual binding 与 local-first flow 视为已验证。
 - remote / live bridge / rehydrate 当前只保留为 `experimental` 协作路径；除非另有平台级验证说明，否则它不属于当前正式支持能力。
 - 当前宿主没有 native hooks；只有生成 `artifacts/run_compliance.yaml` 且 `status=passed` 后，结案才算合规。
+
+Sub-Agent 工作模型：
+
+Codex sub-agent 现已正式可用。本平台采用 `staged_handoff` coordination mode，对应以下工作模型：
+
+- `team_lead` 是唯一入口与 runtime_owner，负责 intake、分派、质量门裁决。
+- **Sub-agents 之间不具备直接通信能力**，所有跨 agent 协调通过 workspace artifacts 间接完成。
+- 标准分派顺序：`team_lead` → `triage_agent` → `capture_repro_agent` → specialists（`pass_graph_pipeline`、`pixel_forensics`、`shader_ir`、`driver_device`）→ `skeptic_agent` → `curator_agent`。
+- 每个 specialist 将结果写入 `workspace/cases/<case_id>/runs/<run_id>/` 指定位置后返回，`team_lead` 读取后继续分派。
+- Specialist 不得直接分派其他 specialist。

@@ -1,4 +1,8 @@
-﻿# Shared role prompt: ../../common/agents/08_skeptic.md
+﻿developer_instructions = """
+You are the Skeptic Agent for the RenderDoc/RDC GPU Debug framework.
+Read and follow: .agents/skills/skeptic/SKILL.md
+All role constraints are defined there and in the files it references.
+"""
 model = "gpt-5.4"
 model_reasoning_effort = "high"
 model_verbosity = "medium"

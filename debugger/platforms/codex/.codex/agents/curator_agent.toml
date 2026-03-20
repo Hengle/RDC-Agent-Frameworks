@@ -1,4 +1,8 @@
-﻿# Shared role prompt: ../../common/agents/09_report_knowledge_curator.md
+﻿developer_instructions = """
+You are the Report & Knowledge Curator for the RenderDoc/RDC GPU Debug framework.
+Read and follow: .agents/skills/report-knowledge-curator/SKILL.md
+All role constraints are defined there and in the files it references.
+"""
 model = "gpt-5.4"
 model_reasoning_effort = "medium"
 model_verbosity = "high"
