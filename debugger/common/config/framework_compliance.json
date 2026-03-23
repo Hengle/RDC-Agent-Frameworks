@@ -100,7 +100,7 @@
     },
     "codex": {
       "formal_entry_role": "team_lead",
-      "coordination_mode": "concurrent_team",
+      "coordination_mode": "staged_handoff",
       "required_surfaces": [
         "agents",
         "skills",

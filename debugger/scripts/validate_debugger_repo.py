@@ -10,9 +10,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import yaml
-
-
 def _root() -> Path:
     return Path(__file__).resolve().parents[1]
 
@@ -22,6 +19,10 @@ def _read_json(path: Path) -> dict:
 
 
 def _read_yaml(path: Path):
+    try:
+        import yaml
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("PyYAML is required to read debugger YAML specs") from exc
     return yaml.safe_load(path.read_text(encoding="utf-8-sig"))
 
 
@@ -396,6 +397,35 @@ def _intake_contract_findings(root: Path) -> list[str]:
     return findings
 
 
+def _claude_settings_findings(root: Path) -> list[str]:
+    findings: list[str] = []
+    settings_path = root / "platforms" / "claude-code" / ".claude" / "settings.json"
+    if not settings_path.is_file():
+        findings.append(f"missing Claude Code settings: {settings_path}")
+        return findings
+
+    payload = _read_json(settings_path)
+    hooks = payload.get("hooks") or {}
+    if not isinstance(hooks, dict):
+        findings.append("claude-code settings hooks must be an object")
+        return findings
+
+    for event_name, entries in hooks.items():
+        if not isinstance(entries, list):
+            findings.append(f"claude-code settings hooks.{event_name} must be a list")
+            continue
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                findings.append(f"claude-code settings hooks.{event_name}[{index}] must be an object")
+                continue
+            matcher = entry.get("matcher")
+            if matcher is not None and not isinstance(matcher, str):
+                findings.append(
+                    f"claude-code settings hooks.{event_name}[{index}].matcher must be a string"
+                )
+    return findings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate debugger repo")
     parser.add_argument("--strict", action="store_true", help="return non-zero when findings exist")
@@ -421,6 +451,7 @@ def main() -> int:
     findings.extend(_model_routing_findings(root))
     findings.extend(_role_manifest_findings(root))
     findings.extend(_doc_contract_findings(root))
+    findings.extend(_claude_settings_findings(root))
 
     if findings:
         print("[debugger repo findings]")

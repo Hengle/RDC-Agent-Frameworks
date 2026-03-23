@@ -58,11 +58,11 @@
 调用顺序：
 
 ```text
-rd.capture.open_file(...)
-rd.capture.open_replay(...)
-rd.replay.set_frame(...)
-rd.event.get_actions(...)
-rd.export.screenshot(...)
+rd.capture.open_file(file_path=...)
+rd.capture.open_replay(capture_file_id=...)
+rd.replay.set_frame(session_id=..., frame_index=...)
+rd.event.get_actions(session_id=...)
+rd.export.screenshot(session_id=..., output_path=...)
 ```
 
 对每个 capture 角色都要执行：

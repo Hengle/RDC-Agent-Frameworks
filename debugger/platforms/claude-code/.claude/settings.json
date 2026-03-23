@@ -20,10 +20,7 @@
                                                             "on_failure":  "block"
                                                         }
                                                     ],
-                                          "matcher":  {
-                                                          "tool_name":  "Write",
-                                                          "file_pattern":  "**/knowledge/library/**/*bugcard*.yaml"
-                                                      }
+                                          "matcher":  "Write"
                                       },
                                       {
                                           "hooks":  [
@@ -35,10 +32,7 @@
                                                             "on_failure":  "warn"
                                                         }
                                                     ],
-                                          "matcher":  {
-                                                          "tool_name":  "Write",
-                                                          "file_pattern":  "**/knowledge/library/sessions/**/skeptic_signoff.yaml"
-                                                      }
+                                          "matcher":  "Write"
                                       }
                                   ],
                   "Stop":  [
@@ -52,9 +46,7 @@
                                                      "on_failure":  "block"
                                                  }
                                              ],
-                                   "matcher":  {
-                                                   "assistant_message_pattern":  ".*"
-                                               }
+                                   "matcher":  ""
                                }
                            ]
               }

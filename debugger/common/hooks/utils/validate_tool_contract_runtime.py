@@ -16,11 +16,14 @@ if hasattr(sys.stderr, "reconfigure"):
 TEXT_EXTS = {".md", ".yaml", ".yml", ".json", ".jsonl", ".py", ".toml"}
 TOOL_RE = re.compile(r"rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+")
 CALL_RE = re.compile(r"(rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+)\s*\(([^)]*)\)")
-PLACEHOLDER_PREFIX = "__CONFIGURE_"
+EXPECTED_TOOLS_ROOT = "tools"
 BANNED_SNIPPETS = {
     "--connect": "legacy CLI connect flag removed; CLI is always daemon-backed",
     "error_message": "use canonical error.message instead of legacy error_message",
-    "直接本地 runtime": "framework docs must not describe direct runtime ownership",
+    "鐩存帴鏈湴 runtime": "framework docs must not describe direct runtime ownership",
+    "__CONFIGURE_TOOLS_ROOT__": "legacy configurable tools_root flow removed; use the package-local tools/ directory",
+    "配置 `paths.tools_root`": "legacy manual tools_root configuration removed; use the package-local tools/ directory",
+    "configure `paths.tools_root`": "legacy manual tools_root configuration removed; use the package-local tools/ directory",
 }
 
 
@@ -28,21 +31,11 @@ def _root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def _json_error(path: Path, exc: json.JSONDecodeError) -> str:
-    hint = ""
-    if path.name == "platform_adapter.json":
-        hint = " For Windows paths, use forward slashes or escaped backslashes in JSON."
-    return (
-        f"invalid JSON in {path}: {exc.msg} "
-        f"(line {exc.lineno}, column {exc.colno}).{hint}"
-    )
-
-
 def _read_json(path: Path) -> dict:
     try:
         return json.loads(path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
-        raise ValueError(_json_error(path, exc)) from exc
+        raise ValueError(f"invalid JSON in {path}: {exc.msg} (line {exc.lineno}, column {exc.colno}).") from exc
 
 
 def _read_text(path: Path) -> str:
@@ -52,18 +45,22 @@ def _read_text(path: Path) -> str:
 def _resolve_tools_root(root: Path) -> Path:
     adapter = _read_json(root / "common" / "config" / "platform_adapter.json")
     raw_root = str((adapter.get("paths") or {}).get("tools_root", "")).strip()
-    if not raw_root or raw_root.startswith(PLACEHOLDER_PREFIX):
-        raise ValueError("platform_adapter.json missing configured paths.tools_root")
-    tools_root = Path(raw_root)
-    if not tools_root.is_absolute():
-        tools_root = (root / tools_root).resolve()
-    required_paths = [str(item).strip() for item in (adapter.get("validation") or {}).get("required_paths", []) if str(item).strip()]
+    if raw_root != EXPECTED_TOOLS_ROOT:
+        raise ValueError(
+            f"platform_adapter.json must keep paths.tools_root='{EXPECTED_TOOLS_ROOT}' and use the package-local tools/ directory"
+        )
+    tools_root = (root / EXPECTED_TOOLS_ROOT).resolve()
+    required_paths = [
+        str(item).strip()
+        for item in (adapter.get("validation") or {}).get("required_paths", [])
+        if str(item).strip()
+    ]
     if not required_paths:
         raise ValueError("platform_adapter.json missing validation.required_paths")
     missing = [rel for rel in required_paths if not (tools_root / rel).is_file()]
     if missing:
         paths = ", ".join(str(tools_root / rel) for rel in missing)
-        raise ValueError(f"tools_root validation failed: missing {paths}")
+        raise ValueError(f"package-local tools validation failed: missing {paths}")
     return tools_root
 
 
@@ -86,7 +83,11 @@ def _load_catalog(root: Path) -> tuple[set[str], dict[str, list[dict[str, str]]]
 
 
 def _iter_files(root: Path) -> list[Path]:
-    bases = [root / name for name in ("common", "agents", "skills", "hooks", "references", "workflows", ".claude", ".github", ".agents", ".codex") if (root / name).exists()]
+    bases = [
+        root / name
+        for name in ("common", "agents", "skills", "hooks", "references", "workflows", ".claude", ".github", ".agents", ".codex")
+        if (root / name).exists()
+    ]
     files: list[Path] = []
     for base in bases:
         for path in ([base] if base.is_file() else base.rglob("*")):

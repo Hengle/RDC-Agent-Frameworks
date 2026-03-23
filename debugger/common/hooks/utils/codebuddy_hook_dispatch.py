@@ -16,7 +16,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Tuple
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -25,14 +25,15 @@ if hasattr(sys.stderr, "reconfigure"):
 
 KEYWORDS = (
     "DEBUGGER_FINAL_VERDICT",
-    "最终裁决",
-    "根因确认",
-    "结案",
+    "\u6700\u7ec8\u88c1\u51b3",
+    "\u6839\u56e0\u786e\u8ba4",
+    "\u7ed3\u6848",
     "final verdict",
     "case closed",
 )
-
 _SAFE_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_PATH_KEYS = ("file_path", "path", "output_file", "output_path", "file")
+_NESTED_PATH_KEYS = ("tool_input", "tool_result", "result", "output", "payload")
 
 
 def _normalize_path_text(value: str) -> str:
@@ -46,14 +47,14 @@ def _is_yaml_path(path: str) -> bool:
 
 def _is_bugcard_path(path: str) -> bool:
     lowered = _normalize_path_text(path).lower()
-    return ("/knowledge/library/bugcards/" in lowered) and _is_yaml_path(lowered)
+    return "/knowledge/library/bugcards/" in lowered and _is_yaml_path(lowered)
 
 
 def _is_skeptic_signoff_path(path: str) -> bool:
     lowered = _normalize_path_text(path).lower()
     if not _is_yaml_path(lowered):
         return False
-    return ("/knowledge/library/sessions/" in lowered) and (
+    return "/knowledge/library/sessions/" in lowered and (
         lowered.endswith("/skeptic_signoff.yaml") or lowered.endswith("/skeptic_signoff.yml")
     )
 
@@ -92,24 +93,65 @@ def _script_paths(root: Path) -> tuple[Path, Path]:
     return resolve_artifact, validate_contract
 
 
-def _extract_tool_output_file() -> str:
-    payload = os.environ.get("CODEBUDDY_TOOL_INPUT", "").strip()
-    if payload:
-        try:
-            obj = json.loads(payload)
-        except json.JSONDecodeError:
-            obj = {}
-        if isinstance(obj, dict):
-            for key in ("file_path", "path", "output_file", "output_path", "file"):
-                file_path = str(obj.get(key, "")).strip()
-                if file_path:
-                    return file_path
-            nested = obj.get("result")
-            if isinstance(nested, dict):
-                for key in ("file_path", "path", "output_file", "output_path", "file"):
-                    file_path = str(nested.get(key, "")).strip()
-                    if file_path:
-                        return file_path
+def _parse_json_payload(text: str) -> dict[str, Any]:
+    payload = str(text or "").strip()
+    if not payload:
+        return {}
+    try:
+        obj = json.loads(payload)
+    except json.JSONDecodeError:
+        return {}
+    return obj if isinstance(obj, dict) else {}
+
+
+def _find_path_in_payload(payload: Any, *, depth: int = 0) -> str:
+    if depth > 4:
+        return ""
+    if isinstance(payload, dict):
+        for key in _PATH_KEYS:
+            candidate = str(payload.get(key, "")).strip()
+            if candidate:
+                return candidate
+        for key in _NESTED_PATH_KEYS:
+            nested = payload.get(key)
+            candidate = _find_path_in_payload(nested, depth=depth + 1)
+            if candidate:
+                return candidate
+        for value in payload.values():
+            candidate = _find_path_in_payload(value, depth=depth + 1)
+            if candidate:
+                return candidate
+    elif isinstance(payload, list):
+        for item in payload:
+            candidate = _find_path_in_payload(item, depth=depth + 1)
+            if candidate:
+                return candidate
+    return ""
+
+
+def _extract_tool_name(stdin_text: str = "") -> str:
+    payload = _parse_json_payload(stdin_text)
+    if not payload:
+        return ""
+    for key in ("tool_name", "toolName", "tool"):
+        value = str(payload.get(key, "")).strip()
+        if value:
+            return value
+    tool_input = payload.get("tool_input")
+    if isinstance(tool_input, dict):
+        for key in ("tool_name", "toolName", "tool"):
+            value = str(tool_input.get(key, "")).strip()
+            if value:
+                return value
+    return ""
+
+
+def _extract_tool_output_file(stdin_text: str = "") -> str:
+    env_payload = _parse_json_payload(os.environ.get("CODEBUDDY_TOOL_INPUT", ""))
+    for payload in (env_payload, _parse_json_payload(stdin_text)):
+        candidate = _find_path_in_payload(payload)
+        if candidate:
+            return candidate
     return str(os.environ.get("TOOL_OUTPUT_FILE", "")).strip()
 
 
@@ -135,15 +177,19 @@ def _cmd_write_bugcard(root: Path) -> int:
     bugcard_validator, _, _, _ = _validator_paths(root)
     _, _, _, skeptic_checker = _validator_paths(root)
     _, validate_contract = _script_paths(root)
-    file_path = _extract_tool_output_file()
-    if not file_path:
+    stdin_text = sys.stdin.read()
+    tool_name = _extract_tool_name(stdin_text)
+    file_path = _extract_tool_output_file(stdin_text)
+    if tool_name and tool_name != "Write":
         return 0
-    if not _is_bugcard_path(file_path):
+    if not file_path or not _is_bugcard_path(file_path):
         return 0
+
     strict = _run(_py_cmd(str(validate_contract), "--strict"))
     _relay(strict)
     if strict.returncode != 0:
         return strict.returncode
+
     proc = _run(_py_cmd(str(bugcard_validator), file_path))
     _relay(proc)
     if proc.returncode != 0:
@@ -177,15 +223,19 @@ def _cmd_write_bugcard(root: Path) -> int:
 def _cmd_write_skeptic(root: Path) -> int:
     _, _, _, skeptic_checker = _validator_paths(root)
     _, validate_contract = _script_paths(root)
-    file_path = _extract_tool_output_file()
-    if not file_path:
+    stdin_text = sys.stdin.read()
+    tool_name = _extract_tool_name(stdin_text)
+    file_path = _extract_tool_output_file(stdin_text)
+    if tool_name and tool_name != "Write":
         return 0
-    if not _is_skeptic_signoff_path(file_path):
+    if not file_path or not _is_skeptic_signoff_path(file_path):
         return 0
+
     strict = _run(_py_cmd(str(validate_contract), "--strict"))
     _relay(strict)
     if strict.returncode != 0:
         return strict.returncode
+
     proc = _run(_py_cmd(str(skeptic_checker), file_path, "--mode", "format"))
     _relay(proc)
     return proc.returncode
@@ -207,32 +257,30 @@ def _resolve_artifact(root: Path, artifact: str) -> Tuple[int, str, str]:
 def _extract_assistant_message(stdin_text: str) -> str:
     if not stdin_text.strip():
         return ""
-    try:
-        payload = json.loads(stdin_text)
-    except json.JSONDecodeError:
+    payload = _parse_json_payload(stdin_text)
+    if not payload:
         return stdin_text
 
-    if isinstance(payload, dict):
-        for key in ("assistant_message", "assistantMessage", "message", "text"):
-            value = payload.get(key)
-            if isinstance(value, str) and value.strip():
-                return value
-        messages = payload.get("messages")
-        if isinstance(messages, list):
-            for msg in reversed(messages):
-                if not isinstance(msg, dict):
-                    continue
-                if msg.get("role") != "assistant":
-                    continue
-                content = msg.get("content")
-                if isinstance(content, str) and content.strip():
-                    return content
-                if isinstance(content, list) and content:
-                    first = content[0]
-                    if isinstance(first, dict):
-                        text = first.get("text")
-                        if isinstance(text, str) and text.strip():
-                            return text
+    for key in ("assistant_message", "assistantMessage", "message", "text"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    messages = payload.get("messages")
+    if isinstance(messages, list):
+        for msg in reversed(messages):
+            if not isinstance(msg, dict):
+                continue
+            if msg.get("role") != "assistant":
+                continue
+            content = msg.get("content")
+            if isinstance(content, str) and content.strip():
+                return content
+            if isinstance(content, list) and content:
+                first = content[0]
+                if isinstance(first, dict):
+                    text = first.get("text")
+                    if isinstance(text, str) and text.strip():
+                        return text
     return ""
 
 

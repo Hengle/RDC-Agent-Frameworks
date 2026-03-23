@@ -62,13 +62,13 @@ class ConfigConsistencyTests(unittest.TestCase):
         module = _load_module(DEBUGGER_ROOT / "scripts" / "validate_tool_contract.py", "validate_tool_contract_module")
         with tempfile.TemporaryDirectory() as tmp:
             bad_json = Path(tmp) / "platform_adapter.json"
-            bad_json.write_text('{"paths":{"tools_root":"D:\\broken\\path"}}\n', encoding="utf-8")
+            bad_json.write_text('{"paths":{"tools_root":"tools",}}\n', encoding="utf-8")
 
             with self.assertRaises(ValueError) as exc:
                 module.read_json(bad_json)
 
             self.assertIn("invalid JSON in", str(exc.exception))
-            self.assertIn("forward slashes or escaped backslashes", str(exc.exception))
+            self.assertNotIn("forward slashes or escaped backslashes", str(exc.exception))
 
     def test_runtime_tool_contract_reader_reports_invalid_adapter_json(self) -> None:
         module = _load_module(
@@ -77,13 +77,13 @@ class ConfigConsistencyTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp:
             bad_json = Path(tmp) / "platform_adapter.json"
-            bad_json.write_text('{"paths":{"tools_root":"D:\\broken\\path"}}\n', encoding="utf-8")
+            bad_json.write_text('{"paths":{"tools_root":"tools",}}\n', encoding="utf-8")
 
             with self.assertRaises(ValueError) as exc:
                 module._read_json(bad_json)
 
             self.assertIn("invalid JSON in", str(exc.exception))
-            self.assertIn("forward slashes or escaped backslashes", str(exc.exception))
+            self.assertNotIn("forward slashes or escaped backslashes", str(exc.exception))
 
     def test_repo_validator_expected_rendered_model_supports_cursor(self) -> None:
         module = _load_module(DEBUGGER_ROOT / "scripts" / "validate_debugger_repo.py", "validate_debugger_repo_module")

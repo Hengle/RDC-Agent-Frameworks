@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -34,6 +35,33 @@ class RepoBaselineValidationTests(unittest.TestCase):
         self.assertIn(DEBUGGER_ROOT / "platforms" / "cursor" / "agents" / "01_team_lead.md", expected)
         self.assertIn(DEBUGGER_ROOT / "platforms" / "cursor" / "skills" / "renderdoc-rdc-gpu-debug" / "SKILL.md", expected)
         self.assertIn(DEBUGGER_ROOT / "platforms" / "cursor" / "hooks" / "hooks.json", expected)
+
+    def test_claude_settings_matchers_are_strings(self) -> None:
+        settings = json.loads(
+            (DEBUGGER_ROOT / "platforms" / "claude-code" / ".claude" / "settings.json").read_text(
+                encoding="utf-8-sig"
+            )
+        )
+        hooks = settings.get("hooks") or {}
+
+        for event_name, entries in hooks.items():
+            self.assertIsInstance(entries, list, event_name)
+            for entry in entries:
+                self.assertIsInstance(entry.get("matcher"), str, f"{event_name} matcher must be string")
+
+    def test_codex_coordination_mode_is_consistent(self) -> None:
+        compliance = json.loads(
+            (DEBUGGER_ROOT / "common" / "config" / "framework_compliance.json").read_text(encoding="utf-8-sig")
+        )
+        capabilities = json.loads(
+            (DEBUGGER_ROOT / "common" / "config" / "platform_capabilities.json").read_text(encoding="utf-8-sig")
+        )
+
+        self.assertEqual(
+            compliance["platforms"]["codex"]["coordination_mode"],
+            capabilities["platforms"]["codex"]["coordination_mode"],
+        )
+        self.assertEqual(capabilities["platforms"]["codex"]["coordination_mode"], "staged_handoff")
 
 
 if __name__ == "__main__":

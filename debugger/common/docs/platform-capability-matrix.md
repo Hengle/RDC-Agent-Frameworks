@@ -10,7 +10,7 @@
 | Copilot IDE | Yes | Yes (wrapper) | Documented boundary | Yes | Preferred | Native | `staged_handoff` | `.github/agents` plus MCP |
 | Claude Desktop | No | No | No | Yes | Inherit-only | Workflow brief only | `workflow_stage` | Desktop MCP config |
 | Manus | Workflow-only | No | No | No | Inherit-only | Workflow-level | `workflow_stage` | Workflow package |
-| Codex | Yes | Yes | No | Yes | Config-file | Multi-agent | `concurrent_team` | Workspace-native |
+| Codex | Yes | Yes | No | Yes | Config-file | Multi-agent | `staged_handoff` | Workspace-native |
 | Cursor | Yes | Yes | Yes | Yes | Explicit | Prompt-directed | `concurrent_team` | Project config plus rules |
 
 ## 说明

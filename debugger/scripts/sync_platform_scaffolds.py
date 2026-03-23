@@ -139,6 +139,7 @@ cases/
 def validate_source_tree(ctx: dict[str, Any]) -> list[str]:
     required = [
         COMMON,
+        COMMON / "README.md",
         COMMON / "agents",
         COMMON / "skills" / "renderdoc-rdc-gpu-debug" / "SKILL.md",
         COMMON / "docs" / "workspace-layout.md",

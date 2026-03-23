@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "description": "Framework-to-tools binding. tools_root is fixed to the relative path 'tools'; users must copy RDC-Agent-Tools into the platform root tools/ directory before use.",
+  "description": "Framework-to-tools binding. paths.tools_root is fixed to the package-local directory 'tools'; copy RDC-Agent-Tools into the platform root tools/ directory before use and do not hand-edit this binding.",
   "paths": {
     "tools_root": "tools"
   },
