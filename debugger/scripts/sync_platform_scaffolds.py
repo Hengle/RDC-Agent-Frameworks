@@ -42,7 +42,7 @@ def load_context(root: Path = ROOT) -> dict[str, Any]:
 
 
 def common_placeholder_text() -> str:
-    return """# Platform Local Common Placeholder
+    return """# 平台本地 `common/` 占位说明
 
 当前目录是平台本地 `common/` 的最小占位目录，不是正式运行时内容。
 
@@ -62,7 +62,7 @@ def common_placeholder_text() -> str:
 
 
 def tools_placeholder_text() -> str:
-    return """# Platform Local Tools Placeholder（本地 `tools/` 占位说明）
+    return """# 平台本地 `tools/` 占位说明
 
 当前目录是平台本地 `tools/` 的最小占位目录，不是正式运行时内容。
 
@@ -83,13 +83,13 @@ def tools_placeholder_text() -> str:
 
 
 def workspace_placeholder_text() -> str:
-    return """# Platform Local Workspace Placeholder
+    return """# 平台本地 `workspace/` 占位说明
 
 当前目录是平台本地 `workspace/` 运行区骨架。
 
 用途：
 
-- 存放 accepted `rdc-debugger` intake 之后的 `case_id/run_id` 级运行现场
+- 存放通过 `rdc-debugger` intake 之后的 `case_id/run_id` 级运行现场
 - 承载 case 级 `inputs/captures/`、run 级 `screenshots/`、`artifacts/`、`logs/`、`notes/`
 - 承载第二层交付物 `reports/report.md` 与 `reports/visual_report.html`
 
@@ -100,13 +100,13 @@ def workspace_placeholder_text() -> str:
 - 平台包装层中涉及运行区时，应统一把它表述为当前平台根目录下的 `workspace/`。
 - 导入后的原始 `.rdc` 只允许落在 `cases/<case_id>/inputs/captures/`，不得落在 `runs/<run_id>/`
 - standalone `capture open` 只建立 tools-layer session state，不会创建这里的 `case/run`
-- 这里的 `case/run` 只由 accepted `rdc-debugger` intake 流程初始化
+- 这里的 `case/run` 只由已通过的 `rdc-debugger` intake 流程初始化
 - 模板仓库只保留占位骨架，不提交真实运行产物。
 """
 
 
 def cases_placeholder_text() -> str:
-    return """# Workspace Cases Placeholder
+    return """# `workspace/cases/` 占位说明
 
 当前目录用于承载运行时 case。
 
@@ -136,9 +136,9 @@ cases/
 - `.rdc` 是创建 case 的硬前置条件；未提供 capture 时不得初始化 case/run
 - `case_id` 是问题实例/需求线程的稳定标识。
 - `run_id` 承担 debug version。
-- 用户只负责提供 `.rdc`；accepted intake 后由 Agent 导入到 `inputs/captures/`。
+- 用户只负责提供 `.rdc`；intake 通过后由 Agent 导入到 `inputs/captures/`。
 - 导入后的原始 `.rdc` 只允许落在 `inputs/captures/`；run 只保留 capture 引用与派生产物。
-- standalone `capture open` 不会创建这里的 case/run；这里只承载 accepted `rdc-debugger` intake 之后的 workspace state。
+- standalone `capture open` 不会创建这里的 case/run；这里只承载通过 `rdc-debugger` intake 之后的 workspace state。
 - 第一层 session artifacts 仍写入同级 `common/knowledge/library/sessions/`；`workspace/` 不复制 gate 真相。
 """
 
@@ -290,7 +290,7 @@ def _public_entry_skill(ctx: dict[str, Any]) -> str:
 def main_skill_wrapper_text(ctx: dict[str, Any], platform_key: str) -> str:
     display_name = str((ctx["platform_capabilities"]["platforms"][platform_key] or {}).get("display_name", platform_key)).strip()
     public_entry_skill = _public_entry_skill(ctx)
-    return f"""# RDC Debugger Main Skill Wrapper
+    return f"""# `RDC Debugger` 主技能包装说明
 
 当前文件是 {display_name} 的 public main skill 入口。
 
@@ -322,7 +322,7 @@ def role_skill_wrapper_text(ctx: dict[str, Any], platform_key: str, role: dict[s
     public_entry_skill = _public_entry_skill(ctx)
     role_skill = str(role["role_skill_path"]).replace("\\", "/")
     role_intro = "该角色默认是 internal/debug-only specialist。平台启动后不会自动进入该角色；只有用户手动召唤 `rdc-debugger` 并由它分派时，才进入当前 role。"
-    title = "Role Skill Wrapper"
+    title = "角色技能包装说明"
     return f"""# {title}
 
 当前文件是 {display_name} 的 role skill 入口。
@@ -375,7 +375,7 @@ def agent_wrapper_body_text(ctx: dict[str, Any], platform_key: str, role: dict[s
     extra = ""
 
     tail = ("\n\n" + extra) if extra else ""
-    return f"""# RenderDoc/RDC Agent Wrapper（宿主入口）
+    return f"""# RenderDoc/RDC Agent 宿主入口
 
 当前文件是 {host_name} 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
 

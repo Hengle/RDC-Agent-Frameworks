@@ -1,42 +1,24 @@
----
-name: rdc-debugger
-description: Use for the RenderDoc/RDC GPU debugger framework when the user wants GPU rendering defect diagnosis, root-cause analysis, regression explanation, or fix verification from one or more `.rdc` captures in a compatible workspace.
-metadata:
-  short-description: Enter the RenderDoc/RDC GPU debugger workflow
----
+﻿# `RDC Debugger` 主技能包装说明
 
-# RDC Debugger Main Skill Wrapper
+当前文件是 Codex 的 public main skill 入口。
 
-This file is the public main skill entry for Codex in the RenderDoc/RDC debugger framework.
+平台启动后默认保持普通对话态。只有用户手动召唤 `rdc-debugger`，才进入 RenderDoc/RDC GPU Debug 调试框架。
 
-Stay in ordinary conversation mode unless the user explicitly invokes `rdc-debugger`.
-
-After `rdc-debugger` is invoked, this skill owns:
+进入 `rdc-debugger` 后，本 skill 负责：
 
 - `intent_gate`
 - preflight
-- missing-input collection
-- intake normalization
-- case/run initialization
-- specialist dispatch
-- stage progression
-- verdict gating
+- 缺失输入补料
+- intake 规范化
+- case/run 初始化
+- specialist 分派、阶段推进与质量门裁决
 
-This wrapper only points to the current workspace `common/` content:
+本 skill 只引用当前平台根目录的 `common/`：
 
-- `common/skills/rdc-debugger/SKILL.md`
-- validate `common/config/platform_adapter.json` before platform-truth work
-- use `common/config/platform_capabilities.json` for the current `coordination_mode` and degradation boundaries
+- common/skills/rdc-debugger/SKILL.md
+- 进入任何平台真相相关工作前，必须先校验 common/config/platform_adapter.json
+- coordination_mode 与降级边界以 common/config/platform_capabilities.json 的当前平台定义为准。
 
-Preconditions:
+未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。
 
-1. `common/AGENT_CORE.md` exists
-2. `tools/spec/tool_catalog.json` exists
-3. The workspace is a RenderDoc/RDC debugger platform template
-
-Blocking rules:
-
-- Do not use this platform template until `debugger/common/` has been copied into the platform-root `common/`
-- If the user has not provided an importable `.rdc`, stop at `BLOCKED_MISSING_CAPTURE`
-
-Runtime case/run artifacts and second-layer reports are written under the platform-root `workspace/`.
+运行时 case/run 现场与第二层报告统一写入平台根目录下的 `workspace/`

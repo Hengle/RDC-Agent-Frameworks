@@ -1,4 +1,4 @@
-# Session Examples
+﻿# Session 示例产物
 
 本目录保存示例 session artifacts，用于：
 
@@ -7,4 +7,3 @@
 - SOP / action chain 研究
 
 这些文件不是 live session，不得作为 `library/sessions/` 的真实 gate artifacts。
-

@@ -1,4 +1,4 @@
-﻿# RDC Debugger Main Skill Wrapper
+﻿# `RDC Debugger` 主技能包装说明
 
 当前文件是 Cursor 的 public main skill 入口。
 

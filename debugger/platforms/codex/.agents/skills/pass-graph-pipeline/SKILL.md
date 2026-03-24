@@ -1,4 +1,4 @@
-﻿# Role Skill Wrapper
+﻿# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 

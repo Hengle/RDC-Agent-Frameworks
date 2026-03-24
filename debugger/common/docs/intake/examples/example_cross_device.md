@@ -1,4 +1,4 @@
-# Example: Cross Device
+﻿# ???Cross Device
 
 ```text
 § SESSION

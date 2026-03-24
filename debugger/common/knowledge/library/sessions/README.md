@@ -1,23 +1,22 @@
-﻿# Session Artifacts
+﻿# Session Artifacts（会话产物）
 
-This directory stores live per-session mandatory artifacts.
+当前目录用于存放 live per-session 的必需 artifacts。
 
-Required paths:
+必需路径：
 - `<session_id>/session_evidence.yaml`
 - `<session_id>/skeptic_signoff.yaml`
 - `<session_id>/action_chain.jsonl`
-- `.current_session` (plain text; current session id)
+- `.current_session`（plain text；记录当前 `session_id`）
 
-Do not store examples in this directory. Example sessions live under `../../examples/sessions/`.
+不要在本目录存放 examples。示例 session 应放在 `../../examples/sessions/`。
 
-Update `.current_session` before finalization.
+在 finalization 之前，必须先更新 `.current_session`。
 
-`session_evidence.yaml` root object must include:
+`session_evidence.yaml` 的 root object 必须包含：
 - `causal_anchor.type`
 - `causal_anchor.ref`
 - `causal_anchor.established_by`
 - `causal_anchor.justification`
 
-Allowed evidence item types now include `causal_anchor_evidence` and `visual_fallback_observation`.
-`visual_fallback_observation` may be used for selection and sanity checks, but it cannot replace `causal_anchor_evidence`.
-
+当前允许的 evidence item type 包含 `causal_anchor_evidence` 与 `visual_fallback_observation`。
+`visual_fallback_observation` 可用于 selection 和 sanity check，但不能替代 `causal_anchor_evidence`。

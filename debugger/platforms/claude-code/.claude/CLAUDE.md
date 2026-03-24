@@ -1,28 +1,28 @@
-# Claude Code Entry
+﻿# Claude Code 入口说明
 
 @../AGENTS.md
 @../common/AGENT_CORE.md
 @../common/docs/platform-capability-model.md
 @../common/docs/model-routing.md
 
-Current directory is the Claude Code platform-local template for the RenderDoc/RDC GPU debugger framework.
+当前目录是面向 `RenderDoc/RDC GPU debugger framework` 的 Claude Code platform-local 模板。
 
-Entry contract:
+入口约束：
 
-- startup stays in ordinary chat mode; do not auto-enter the debugger framework
-- public main skill: `.claude/skills/rdc-debugger/`
-- enter the debugger framework only when the user explicitly invokes `rdc-debugger`
-- default entry mode is local-first `CLI`
-- switch to `MCP` only when the user explicitly asks for `MCP`
-- a configured `MCP` server is an optional surface, not a default live-access mandate
+- 启动后保持普通对话态，不自动进入 debugger framework
+- public main skill 为 `.claude/skills/rdc-debugger/`
+- 只有用户显式调用 `rdc-debugger` 时，才进入 debugger framework
+- 默认入口模式是 local-first `CLI`
+- 只有用户明确要求 `MCP` 时，才切换到 `MCP`
+- 已配置的 `MCP` server 只是可选接入面，不是默认 live-access 前提
 
-Runtime contract:
+运行时约束：
 
-- standalone `python ...run_cli.py` or `rdx capture open` only establish tools-layer session state
-- standalone tools-layer session bootstrap does not create framework `workspace/case/run`
-- accepted manual `rdc-debugger` intake is the only path that may initialize framework workspace state
-- runtime workspace is fixed to platform-root `workspace/`
+- 单独执行 `python ...run_cli.py` 或 `rdx capture open` 只会建立 tools-layer session state
+- 独立的 tools-layer session bootstrap 不会创建 framework `workspace/case/run`
+- 只有手动触发且被 `rdc-debugger` 接受的 intake，才允许初始化 framework workspace state
+- 运行时 workspace 固定在 platform-root `workspace/`
 
-Prerequisite:
+前置条件：
 
-- do not use this template until top-level `debugger/common/` has been copied into platform-root `common/`
+- 在将顶层 `debugger/common/` 拷贝到 platform-root `common/` 之前，不得使用当前模板

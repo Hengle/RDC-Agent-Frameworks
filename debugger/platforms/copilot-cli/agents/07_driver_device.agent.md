@@ -3,7 +3,7 @@ description: "Perform cross-device attribution and platform-specific checks."
 model: "sonnet-4.6"
 ---
 
-# RenderDoc/RDC Agent Wrapper（宿主入口）
+# RenderDoc/RDC Agent 宿主入口
 
 当前文件是 Copilot CLI 宿主入口。Agent 的目标是使用 RenderDoc/RDC platform tools 调试 GPU 渲染问题。
 
