@@ -4,6 +4,12 @@
 本 framework 依赖的 `Tools` 真相边界聚焦于“打开 `.rdc` 后做离线 replay / 调试 / 导出”，不把任意 app 控制面视为默认公开能力。
 这里定义 `debugger` 自身的运行前提、共享运行时文档入口、平台模板使用方式与维护者文档边界；仓库根 README 不承载这些规则。
 
+当前 `shader` 相关能力已把 raw `SPIR-V Asm` 纳入现有 `rd.shader.*` tool 的正式扩展面：
+
+- 推荐工作流是 `rd.shader.get_disassembly(target="SPIR-V ASM") -> rd.shader.edit_and_replace(source_text|diff_text, source_target="SPIR-V ASM", source_encoding="spirvasm") -> validate -> rd.shader.revert_replacement`。
+- 这条链要配套多点验证。raw asm 精确 patch 成功，只能证明工具链具备等价编辑/应用能力，不代表当前删掉的 `RelaxedPrecision` decoration 一定就是正确修复；样本级 bisect 仍要看多个像素点与回滚后一致性。
+- 这条链解决的是精确 IR patch / apply / revert 语义，不等价于 `qrenderdoc` 主视窗的最终 framebuffer 观察链；若 UI 主视图与 `rd.export.screenshot` 不一致，应单独按 framebuffer 观察问题处理。
+
 ## 使用前提
 
 开始使用 `debugger/` 之前，必须先完成：

@@ -7,6 +7,11 @@
 - 当前宿主可直接访问本地进程、文件系统与 workspace，默认采用 local-first。
 - 默认入口是 daemon-backed `CLI`；当前宿主的 `CLI` 与 `MCP` 都依赖同一 daemon-owned runtime / context。
 - 只有用户明确要求按 `MCP` 接入时，才切换到 `MCP`。
+- 遇到 `qrenderdoc` 风格的 shader IR 调试诉求时，不要只停在 `force_full_precision` 一类高层 patch。
+  - 优先使用 `rd.shader.get_disassembly(target="SPIR-V ASM")` 拿 raw asm。
+  - 再用 `rd.shader.edit_and_replace(source_text|diff_text, source_target="SPIR-V ASM", source_encoding="spirvasm")` 做精确替换。
+  - 观察与验证链仍使用现有 `texture` / `export` / `macro` tool；若最终 framebuffer 观察不等价 `qrenderdoc` 主视图，需单独记录为观察链问题，不要与 raw asm 编辑能力混淆。
+  - raw asm bisect 结论必须建立在多点采样与稳定 revert 上；单次 patch 的“已应用”只证明 tool 链路成立，不足以证明该 patch 就是正确修复。
 - 任务开始时，Agent 必须向用户说明当前采用的是 `CLI` 还是 `MCP`。
 - 若用户要求 `MCP`，但宿主未配置对应 MCP server，必须直接阻断并提示配置。
 - 当前模板默认不预注册 MCP；若要启用，使用 `.codex/config.mcp.opt-in.toml` 的示例片段显式接入。

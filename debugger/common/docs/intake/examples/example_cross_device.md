@@ -1,4 +1,4 @@
-﻿# ???Cross Device
+# 跨设备 Cross Device
 
 ```text
 § SESSION

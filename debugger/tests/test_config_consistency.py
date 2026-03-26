@@ -36,7 +36,9 @@ class ConfigConsistencyTests(unittest.TestCase):
         self.assertIn("replacement_id", replace_tool.get("returns_raw") or "")
         self.assertIn("resolved_event_id", replace_tool.get("returns_raw") or "")
         self.assertIn("compile_flags", replace_tool.get("returns_raw") or "")
-        self.assertIn("mock_applied", replace_tool.get("returns_raw") or "")
+        self.assertIn("patch_diff", replace_tool.get("returns_raw") or "")
+        self.assertIn("shader_source_mismatch", replace_tool.get("returns_raw") or "")
+        self.assertNotIn("mock_applied", replace_tool.get("returns_raw") or "")
 
         debug_tool = tools["rd.shader.debug_start"]
         self.assertIn("resolved_context", debug_tool.get("returns_raw") or "")

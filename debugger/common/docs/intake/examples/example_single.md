@@ -1,4 +1,4 @@
-﻿# ???Single
+# 单设备 Single
 
 ```text
 § SESSION
