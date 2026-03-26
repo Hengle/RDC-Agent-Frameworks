@@ -41,4 +41,5 @@
 运行时工作区固定为平台根目录下的 `workspace/`
 - native hooks 会阻断未通过 gate 的结案；同时仍要求生成 `artifacts/run_compliance.yaml` 作为统一合规裁决。
 - `staged_handoff` 在当前平台上是 hub-and-spoke 多轮接力，不是单 agent 串行切换。
+- local ?? `multi_context_orchestrated`??? specialist ???????? context????? context ?????? `rdc-debugger` ???
 - local 与 remote 都统一采用 `single_runtime_owner`。

@@ -177,6 +177,7 @@ class RepoBaselineValidationTests(unittest.TestCase):
             self.assertIn("artifacts/runtime_topology.yaml", text)
             self.assertIn("capture import + case/run bootstrap", text)
             self.assertIn("artifacts/run_compliance.yaml", text)
+            self.assertIn("multi_context_orchestrated", text)
 
     def test_platform_capabilities_declare_mode_support_and_enforcement(self) -> None:
         capabilities = json.loads(
@@ -196,7 +197,7 @@ class RepoBaselineValidationTests(unittest.TestCase):
             self.assertIn(row.get("peer_communication"), {"direct", "via_main_agent", "none"})
             self.assertIn(row.get("agent_description_mode"), {"independent_files", "spawn_instruction_only"})
             self.assertIn(row.get("dispatch_topology"), {"mesh", "hub_and_spoke", "workflow_serial"})
-            self.assertIn(row.get("local_live_runtime_policy"), {"multi_context_multi_owner", "single_runtime_owner"})
+            self.assertIn(row.get("local_live_runtime_policy"), {"multi_context_multi_owner", "multi_context_orchestrated", "single_runtime_owner"})
             self.assertEqual(row.get("remote_live_runtime_policy"), "single_runtime_owner")
 
     def test_claude_code_docs_declare_mode_matrix_and_runtime_topology(self) -> None:
@@ -217,6 +218,7 @@ class RepoBaselineValidationTests(unittest.TestCase):
             self.assertIn("staged_handoff", text)
             self.assertIn("puppet_sub_agents", text)
             self.assertIn("hub-and-spoke", text)
+            self.assertIn("multi_context_orchestrated", text)
             self.assertNotIn("concurrent_team", text)
 
     def test_workflow_stage_platform_docs_describe_spawn_instruction_only(self) -> None:

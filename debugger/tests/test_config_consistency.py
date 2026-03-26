@@ -91,6 +91,10 @@ class ConfigConsistencyTests(unittest.TestCase):
         self.assertNotIn("orchestration_role", compliance_entry)
         self.assertEqual(capabilities["platforms"]["cursor"]["coordination_mode"], "staged_handoff")
         self.assertEqual(capabilities["platforms"]["cursor"]["sub_agent_mode"], "puppet_sub_agents")
+        self.assertEqual(capabilities["platforms"]["cursor"]["local_live_runtime_policy"], "multi_context_orchestrated")
+        self.assertEqual(capabilities["platforms"]["codex"]["local_live_runtime_policy"], "multi_context_orchestrated")
+        self.assertEqual(capabilities["platforms"]["copilot-cli"]["local_live_runtime_policy"], "multi_context_orchestrated")
+        self.assertEqual(capabilities["platforms"]["copilot-ide"]["local_live_runtime_policy"], "multi_context_orchestrated")
         self.assertEqual(capabilities["platforms"]["claude-code"]["sub_agent_mode"], "team_agents")
         self.assertEqual(capabilities["platforms"]["manus"]["agent_description_mode"], "spawn_instruction_only")
 

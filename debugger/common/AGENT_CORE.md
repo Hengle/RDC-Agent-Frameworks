@@ -223,7 +223,7 @@
 
 - `concurrent_team` 允许并行分派，但每条 live 调试链路必须独占一个 `context/daemon`
 - `staged_handoff` 不是单 agent 串行；它是主 agent 为通信与裁决中枢的多 specialist 多轮接力
-- `staged_handoff` 下由 specialist 先提交 brief / evidence request，再由 runtime owner 执行 live tool 链
+- `staged_handoff` 下由 specialist 先提交 brief / evidence request，再由主 agent 重组后分派到对应 context；live tool 链在 local 可由多个 specialist 各持独立 context 执行，但不得绕过主 agent 做 peer coordination
 - 对 `staged_handoff` 平台，`dispatch` 与任何 live `tool_execution` 都必须晚于 `intake_gate` pass；specialist 必须把 handoff 结果写回 `runs/<run_id>/notes/**` 或 `capture_refs.yaml`
 - `workflow_stage` 只允许阶段化串行推进，不模拟真实的 team-agent 并发 handoff
 - `single_runtime_owner` 不等于 `single_agent_flow`
@@ -387,7 +387,7 @@
 - `entry_gate.yaml.status` 必须为 `passed`
 - `session_evidence.yaml` 根对象必须包含完整 `causal_anchor`
 - `session_evidence.yaml` 必须包含 `reference_contract` 摘要与 `fix_verification` 摘要
-- `runtime_topology.yaml` 必须显式记录 `entry_mode`、`backend`、`sub_agent_mode`、`peer_communication`、`dispatch_topology`、`runtime_parallelism_ceiling`、`applied_live_runtime_policy`、`contexts`、`owners`
+- `runtime_topology.yaml` 必须显式记录 `entry_mode`、`backend`、`sub_agent_mode`、`peer_communication`、`dispatch_topology`、`runtime_parallelism_ceiling`、`applied_live_runtime_policy`、`context_bindings`、`owners`
 - `action_chain` 中所有 `dispatch`、`tool_execution`、`artifact_write`、`quality_check` 都必须携带 `entry_mode`、`backend`、`context_id`、`runtime_owner`、`baton_ref`
 - `fix_verification.yaml` 必须同时包含：
   - `structural_verification`
@@ -423,3 +423,4 @@
 - `common/agents/*.md`
 - `common/skills/rdc-debugger/SKILL.md`
 - `common/skills/*/SKILL.md`
+

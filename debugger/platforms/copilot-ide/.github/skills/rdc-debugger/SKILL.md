@@ -41,7 +41,7 @@ metadata:
 - 进入任何平台真相相关工作前，必须先校验 common/config/platform_adapter.json
 - local_support / remote_support / enforcement_layer / coordination_mode 统一以 common/config/platform_capabilities.json 的当前平台定义为准。
 - 当前平台的 `sub_agent_mode = puppet_sub_agents`，`peer_communication = via_main_agent`，`agent_description_mode = independent_files`。
-- local live policy = `single_runtime_owner`；remote live policy = `single_runtime_owner`。
+- local live policy = `multi_context_orchestrated`；remote live policy = `single_runtime_owner`。
 
 未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。
 

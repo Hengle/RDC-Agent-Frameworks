@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Run-level intake gate for debugger workspace cases."""
 
 from __future__ import annotations
@@ -376,6 +376,9 @@ def run_intake_gate(root: Path, run_root: Path) -> dict[str, Any]:
                 "context_id": str((run_data.get("runtime") or {}).get("context_id") or run_data.get("context_id") or "default"),
                 "runtime_owner": str((run_data.get("runtime") or {}).get("runtime_owner") or run_data.get("runtime_owner") or "rdc-debugger"),
                 "baton_ref": "",
+                "context_binding_id": "",
+                "capture_ref": "",
+                "canonical_anchor_ref": "",
             },
         },
     )
@@ -399,3 +402,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

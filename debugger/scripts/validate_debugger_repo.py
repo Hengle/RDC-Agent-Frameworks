@@ -224,6 +224,8 @@ def _doc_contract_findings(root: Path) -> list[str]:
         findings.append("platform-capability-matrix.md must expose entry mode columns")
     if "Sub-Agent Mode" not in matrix or "Peer Communication" not in matrix or "Dispatch Topology" not in matrix:
         findings.append("platform-capability-matrix.md must expose agentic capability columns")
+    if "multi_context_orchestrated" not in matrix:
+        findings.append("platform-capability-matrix.md must expose multi_context_orchestrated local policy")
     if "| Claude Code |" in matrix and "CLI, MCP" not in matrix:
         findings.append("platform-capability-matrix.md must show CLI, MCP entry coverage")
     if "| Manus |" in matrix and "MCP only" not in matrix:
@@ -234,6 +236,8 @@ def _doc_contract_findings(root: Path) -> list[str]:
         findings.append("platform-capability-model.md must distinguish sub agents from team agents")
     if "staged_handoff" not in model_doc or "hub-and-spoke" not in model_doc:
         findings.append("platform-capability-model.md must define staged_handoff as hub-and-spoke handoff")
+    if "multi_context_orchestrated" not in model_doc:
+        findings.append("platform-capability-model.md must document multi_context_orchestrated for staged_handoff local")
     if "serial_only" not in model_doc or "single_runtime_owner" not in model_doc:
         findings.append("platform-capability-model.md must describe formal remote support levels and single_runtime_owner")
     if "并行 case 也必须拆成独立 `context/daemon`" not in runtime_doc:
@@ -435,7 +439,7 @@ def _compliance_findings(root: Path) -> list[str]:
             findings.append(f"{key}: invalid agent_description_mode")
         if dispatch_topology not in {"mesh", "hub_and_spoke", "workflow_serial"}:
             findings.append(f"{key}: invalid dispatch_topology")
-        if local_live_runtime_policy not in {"multi_context_multi_owner", "single_runtime_owner"}:
+        if local_live_runtime_policy not in {"multi_context_multi_owner", "multi_context_orchestrated", "single_runtime_owner"}:
             findings.append(f"{key}: invalid local_live_runtime_policy")
         if remote_live_runtime_policy != "single_runtime_owner":
             findings.append(f"{key}: remote_live_runtime_policy must be single_runtime_owner")
@@ -453,8 +457,8 @@ def _compliance_findings(root: Path) -> list[str]:
         elif actual_mode == "staged_handoff":
             if sub_agent_mode != "puppet_sub_agents" or peer_communication != "via_main_agent" or dispatch_topology != "hub_and_spoke":
                 findings.append(f"{key}: staged_handoff requires puppet_sub_agents + via_main_agent + hub_and_spoke")
-            if local_live_runtime_policy != "single_runtime_owner":
-                findings.append(f"{key}: staged_handoff requires single_runtime_owner local policy")
+            if local_live_runtime_policy != "multi_context_orchestrated":
+                findings.append(f"{key}: staged_handoff requires multi_context_orchestrated local policy")
         elif actual_mode == "workflow_stage":
             if sub_agent_mode != "instruction_only_sub_agents" or peer_communication != "none" or dispatch_topology != "workflow_serial":
                 findings.append(f"{key}: workflow_stage requires instruction_only_sub_agents + none + workflow_serial")

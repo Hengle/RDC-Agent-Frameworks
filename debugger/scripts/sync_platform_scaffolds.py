@@ -297,6 +297,21 @@ def main_skill_wrapper_text(ctx: dict[str, Any], platform_key: str) -> str:
     agent_description_mode = str(platform_row.get("agent_description_mode") or "").strip()
     local_live_runtime_policy = str(platform_row.get("local_live_runtime_policy") or "").strip()
     remote_live_runtime_policy = str(platform_row.get("remote_live_runtime_policy") or "").strip()
+    policy_notes: list[str] = []
+    if local_live_runtime_policy == "multi_context_orchestrated":
+        policy_notes.extend([
+            "- ????? local `staged_handoff` ???? specialist ?????? context?",
+            "- ?? context ?????????????????????? brief ??? `rdc-debugger` ???",
+            "- remote ???? `single_runtime_owner`?",
+        ])
+    elif local_live_runtime_policy == "multi_context_multi_owner":
+        policy_notes.extend([
+            "- ????? local `concurrent_team` ?? team agents ????????? live investigator ???? context?",
+            "- remote ???? `single_runtime_owner`?",
+        ])
+    else:
+        policy_notes.append("- ????? local / remote ??? `single_runtime_owner`??? agent ???? live runtime?")
+    policy_block = "\n".join(policy_notes)
     return f"""---
 name: {public_entry_skill}
 description: Public main skill for the RenderDoc/RDC GPU debugger framework. Use when the user wants defect diagnosis, root-cause analysis, regression explanation, or fix verification for a GPU rendering issue from one or more `.rdc` captures.

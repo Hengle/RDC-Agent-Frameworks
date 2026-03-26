@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Audit whether a debugger run complies with the hard-cut knowledge/hooks contract."""
 
 from __future__ import annotations
@@ -242,7 +242,7 @@ def _event_payload_contract_issues(events: list[dict[str, Any]], *, expected_ent
             continue
         payload = _event_payload(event)
         event_id = str(event.get("event_id", "")).strip() or "?"
-        for field in ("entry_mode", "backend", "context_id", "runtime_owner", "baton_ref"):
+        for field in ("entry_mode", "backend", "context_id", "runtime_owner", "baton_ref", "context_binding_id", "capture_ref", "canonical_anchor_ref"):
             if field not in payload:
                 issues.append(f"[event {event_id}] payload.{field} must be present for {event_type}")
         entry_mode = str(payload.get("entry_mode") or "").strip()
@@ -261,11 +261,41 @@ def _runtime_baton_issues(events: list[dict[str, Any]], run_root: Path) -> list[
         tool_name = str(payload.get("tool_name") or "").strip()
         baton_ref = str(payload.get("baton_ref") or "").strip()
         event_id = str(event.get("event_id", "")).strip() or "?"
+        source_context_id = str(payload.get("source_context_id") or "").strip()
+        target_context_id = str(payload.get("context_id") or "").strip()
         if baton_ref and _resolve_runtime_baton_ref(run_root, baton_ref) is None:
             issues.append(f"[event {event_id}] baton_ref does not resolve to runs/<run_id>/artifacts/runtime_batons/**")
         if tool_name in {"rd.session.resume", "rd.session.rehydrate_runtime_baton"} and not baton_ref:
             issues.append(f"[event {event_id}] {tool_name} must declare payload.baton_ref")
+        if source_context_id and target_context_id and source_context_id != target_context_id and not baton_ref:
+            issues.append(f"[event {event_id}] cross-context live transfer must declare payload.baton_ref")
     return issues
+
+
+def _context_binding_projection(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        locator = item.get("session_locator") if isinstance(item.get("session_locator"), dict) else {}
+        rows.append(
+            {
+                "context_binding_id": str(item.get("context_binding_id") or "").strip(),
+                "context_id": str(item.get("context_id") or "").strip(),
+                "owner_agent": str(item.get("owner_agent") or "").strip(),
+                "capture_ref": str(item.get("capture_ref") or "").strip(),
+                "canonical_anchor_ref": str(item.get("canonical_anchor_ref") or "").strip(),
+                "task_scope": str(item.get("task_scope") or "").strip(),
+                "status": str(item.get("status") or "").strip(),
+                "session_locator": {
+                    "session_id": str(locator.get("session_id") or "").strip(),
+                    "frame_index": str(locator.get("frame_index") or "").strip(),
+                    "active_event_id": str(locator.get("active_event_id") or "").strip(),
+                    "rdc_path": str(locator.get("rdc_path") or "").strip(),
+                },
+            }
+        )
+    return sorted(rows, key=lambda item: (item["context_id"], item["owner_agent"], item["context_binding_id"]))
 
 
 def _runtime_topology_issues(
@@ -314,6 +344,20 @@ def _runtime_topology_issues(
     if backend == "remote" or applied_live_runtime_policy == "single_runtime_owner":
         if len(owner_set) > 1:
             issues.append("single-owner runs must keep a single runtime_owner across all tool_execution events")
+    elif applied_live_runtime_policy == "multi_context_orchestrated":
+        specialist_events = [event for event in tool_events if str(event.get("agent_id", "")).strip() in ACTION_SPECIALISTS]
+        distinct_specialists = {str(event.get("agent_id", "")).strip() for event in specialist_events}
+        context_to_agents: dict[str, set[str]] = {}
+        for event in specialist_events:
+            ctx = _event_payload_str(event, "context_id")
+            agent_id = str(event.get("agent_id", "")).strip()
+            if not ctx or not agent_id:
+                continue
+            context_to_agents.setdefault(ctx, set()).add(agent_id)
+        if any(len(agent_ids) > 1 for agent_ids in context_to_agents.values()):
+            issues.append("multi_context_orchestrated runs must place distinct live specialists on distinct context_id values")
+        if len(distinct_specialists) > 1 and len({ctx for ctx in context_to_agents}) < len(distinct_specialists):
+            issues.append("multi_context_orchestrated runs must place distinct live specialists on distinct context_id values")
     elif coordination_mode == "concurrent_team" and applied_live_runtime_policy == "multi_context_multi_owner":
         specialist_events = [event for event in tool_events if str(event.get("agent_id", "")).strip() in ACTION_SPECIALISTS]
         distinct_specialists = {str(event.get("agent_id", "")).strip() for event in specialist_events}
@@ -1219,6 +1263,12 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
         ):
             if str(runtime_topology_data.get(field, "")).strip() != str(computed_runtime_topology.get(field, "")).strip():
                 runtime_topology_issues.append(f"runtime_topology.{field} must match the recomputed topology")
+        actual_bindings = _context_binding_projection(list(runtime_topology_data.get("context_bindings") or []))
+        expected_bindings = _context_binding_projection(list(computed_runtime_topology.get("context_bindings") or []))
+        if not actual_bindings:
+            runtime_topology_issues.append("runtime_topology.context_bindings must not be empty")
+        elif json.dumps(actual_bindings, ensure_ascii=False, sort_keys=True) != json.dumps(expected_bindings, ensure_ascii=False, sort_keys=True):
+            runtime_topology_issues.append("runtime_topology.context_bindings must match the recomputed topology")
     if str(computed_runtime_topology.get("status", "")).strip() != "passed":
         runtime_topology_issues.append("recomputed runtime_topology fails for the audited run state")
     _check(
@@ -1312,7 +1362,7 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
         checks,
         "action_chain_runtime_payload",
         not payload_contract_issues,
-        "dispatch/tool_execution/artifact_write/quality_check payloads must carry entry_mode/backend/context_id/runtime_owner/baton_ref",
+        "dispatch/tool_execution/artifact_write/quality_check payloads must carry entry_mode/backend/context_id/runtime_owner/baton_ref/context_binding_id/capture_ref/canonical_anchor_ref",
         path=action_chain if action_chain.is_file() else None,
         refs=payload_contract_issues[:8] or None,
     )
@@ -1454,3 +1504,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

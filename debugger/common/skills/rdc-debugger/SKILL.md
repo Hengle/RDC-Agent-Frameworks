@@ -290,8 +290,8 @@ Hard rules:
 - 输出路径固定为 `../workspace/cases/<case_id>/runs/<run_id>/artifacts/intake_gate.yaml`
 - 同一 run 的 `action_chain.jsonl` 必须追加 `quality_check` 事件，`payload.validator = intake_gate`
 - `dispatch`、`tool_execution`、`artifact_write`、`quality_check` 的 payload 统一带上 `entry_mode`、`backend`、`context_id`、`runtime_owner`、`baton_ref`
-- `single_runtime_owner` 不等于单 agent 串行；`staged_handoff` 仍允许主 agent 编排下的多 specialist、多轮 brief、多轮 redispatch
-- `staged_handoff` 的权威拓扑是 `hub_and_spoke`：specialist 之间不直连，所有依赖与裁决都经 `rdc-debugger` 重组
+- `single_runtime_owner` 不等于单 agent 串行；`staged_handoff` 在 remote 仍是单 owner，但在 local 可以是主 agent 编排下的 `multi_context_orchestrated`
+- `staged_handoff` 的权威拓扑是 `hub_and_spoke`：specialist 之间不直连，所有依赖与裁决都经 `rdc-debugger` 重组；local 下每个 live specialist 可绑定独立 context
 - remote 与 `staged_handoff` / `workflow_stage` 统一采用单 owner live runtime；跨 agent / 跨轮次 live handoff 必须落成 `artifacts/runtime_batons/<baton_id>.yaml`
 - 以下任一缺失都必须 hard fail：
   - `case_input.yaml`
@@ -345,3 +345,4 @@ Hard rules:
 - 不把 `rdc-debugger` 当 public main skill 的替身
 - 不把 screenshot、日志或口头描述当成 `.rdc` 的替代品
 - 不在没有 `hypothesis_board` 的情况下伪造 run 级进度
+

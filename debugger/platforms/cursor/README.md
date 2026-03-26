@@ -37,4 +37,5 @@
 - 当前平台的 `coordination_mode = staged_handoff`，`sub_agent_mode = puppet_sub_agents`。
 - Cursor 有多个 sub agent，但它们不是 `team_agents`；所有依赖、冲突与下一轮 brief 都经主 agent 中转。
 - `staged_handoff` 在当前平台上是 hub-and-spoke 多轮接力，不是单 agent 串行切换。
+- local ?? `multi_context_orchestrated`?Cursor ???? specialist ?????? context??????????????? brief ????? agent ???
 - local 与 remote 都统一采用 `single_runtime_owner`；Cursor 不把 Tools 的 local multi-context ceiling 直接提升成 platform-level concurrent team。

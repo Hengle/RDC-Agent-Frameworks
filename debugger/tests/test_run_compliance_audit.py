@@ -69,14 +69,21 @@ def _rt_payload(
     context_id: str = "ctx-default",
     runtime_owner: str = "rdc-debugger",
     baton_ref: str = "",
+    context_binding_id: str | None = None,
+    capture_ref: str = "capture:anomalous",
+    canonical_anchor_ref: str = "event:523",
     **extra: object,
 ) -> dict[str, object]:
+    binding_id = context_binding_id or f"ctxbind-{context_id}"
     return {
         "entry_mode": entry_mode,
         "backend": backend,
         "context_id": context_id,
         "runtime_owner": runtime_owner,
         "baton_ref": baton_ref,
+        "context_binding_id": binding_id,
+        "capture_ref": capture_ref,
+        "canonical_anchor_ref": canonical_anchor_ref,
         **extra,
     }
 
@@ -944,7 +951,237 @@ class RunComplianceAuditTests(unittest.TestCase):
         self.assertEqual(artifact["peer_communication"], "via_main_agent")
         self.assertEqual(artifact["dispatch_topology"], "hub_and_spoke")
         self.assertEqual(artifact["runtime_parallelism_ceiling"], "multi_context_multi_owner")
-        self.assertEqual(artifact["applied_live_runtime_policy"], "single_runtime_owner")
+        self.assertEqual(artifact["applied_live_runtime_policy"], "multi_context_orchestrated")
+        self.assertTrue(artifact["context_bindings"])
+        pixel_binding = next(item for item in artifact["context_bindings"] if item["context_id"] == "ctx-pixel")
+        self.assertEqual(pixel_binding["owner_agent"], "pixel_forensics_agent")
+        self.assertEqual(pixel_binding["capture_ref"], "capture:anomalous")
+        self.assertEqual(pixel_binding["canonical_anchor_ref"], "event:523")
+        self.assertTrue(pixel_binding["session_locator"]["rdc_path"].endswith("broken.rdc"))
+
+    def test_staged_handoff_local_allows_distinct_specialist_contexts(self) -> None:
+        root = self._temp_root()
+        _seed_base(root)
+        _seed_common_session(root, "sess_fixture_001", "run_01")
+        run_root = _seed_run(root, "case_001", "run_01", "codex", "staged_handoff")
+
+        action_chain = root / "common" / "knowledge" / "library" / "sessions" / "sess_fixture_001" / "action_chain.jsonl"
+        events = [json.loads(line) for line in action_chain.read_text(encoding="utf-8").splitlines() if line.strip()]
+        events.append(
+            {
+                "schema_version": "2",
+                "event_id": "evt-0011-dispatch-shader",
+                "ts_ms": 1772537603000,
+                "run_id": "run_01",
+                "session_id": "sess_fixture_001",
+                "agent_id": "rdc-debugger",
+                "event_type": "dispatch",
+                "status": "sent",
+                "duration_ms": 10,
+                "refs": ["evt-0004-specialist-artifact"],
+                "payload": _rt_payload(
+                    context_id="ctx-orchestrator",
+                    runtime_owner="rdc-debugger",
+                    target_agent="shader_ir_agent",
+                    objective="inspect shader precision path",
+                    task_scope="shader precision path",
+                ),
+            }
+        )
+        events.append(
+            {
+                "schema_version": "2",
+                "event_id": "evt-0012-shader-tool",
+                "ts_ms": 1772537603200,
+                "run_id": "run_01",
+                "session_id": "sess_fixture_001",
+                "agent_id": "shader_ir_agent",
+                "event_type": "tool_execution",
+                "status": "ok",
+                "duration_ms": 90,
+                "refs": ["evt-0011-dispatch-shader"],
+                "payload": _rt_payload(
+                    context_id="ctx-shader",
+                    runtime_owner="shader_ir_agent",
+                    tool_name="rd.shader.debug_start",
+                    transport="daemon",
+                    capture_ref="capture:baseline",
+                    canonical_anchor_ref="event:640",
+                    task_scope="shader debug",
+                ),
+            }
+        )
+        events.append(
+            {
+                "schema_version": "2",
+                "event_id": "evt-0013-shader-artifact",
+                "ts_ms": 1772537603400,
+                "run_id": "run_01",
+                "session_id": "sess_fixture_001",
+                "agent_id": "shader_ir_agent",
+                "event_type": "artifact_write",
+                "status": "written",
+                "duration_ms": 12,
+                "refs": ["evt-0012-shader-tool"],
+                "payload": _rt_payload(
+                    context_id="ctx-shader",
+                    runtime_owner="shader_ir_agent",
+                    path=f"workspace/cases/{run_root.parent.parent.name}/runs/{run_root.name}/notes/shader_ir.md",
+                    artifact_role="specialist_handoff",
+                    capture_ref="capture:baseline",
+                    canonical_anchor_ref="event:640",
+                    task_scope="shader handoff",
+                ),
+            }
+        )
+        _write(action_chain, "\n".join(json.dumps(event, ensure_ascii=False) for event in events) + "\n")
+        _seed_runtime_topology(root, run_root, platform="codex")
+
+        proc = _run_audit(root, "codex", run_root)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        artifact = yaml.safe_load((run_root / "artifacts" / "run_compliance.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(artifact["status"], "passed")
+
+    def test_staged_handoff_local_reused_context_for_distinct_specialists_fails(self) -> None:
+        root = self._temp_root()
+        _seed_base(root)
+        _seed_common_session(root, "sess_fixture_001", "run_01")
+        run_root = _seed_run(root, "case_001", "run_01", "codex", "staged_handoff")
+
+        action_chain = root / "common" / "knowledge" / "library" / "sessions" / "sess_fixture_001" / "action_chain.jsonl"
+        events = [json.loads(line) for line in action_chain.read_text(encoding="utf-8").splitlines() if line.strip()]
+        events.append(
+            {
+                "schema_version": "2",
+                "event_id": "evt-0011-dispatch-shader",
+                "ts_ms": 1772537603000,
+                "run_id": "run_01",
+                "session_id": "sess_fixture_001",
+                "agent_id": "rdc-debugger",
+                "event_type": "dispatch",
+                "status": "sent",
+                "duration_ms": 10,
+                "refs": ["evt-0004-specialist-artifact"],
+                "payload": _rt_payload(
+                    context_id="ctx-orchestrator",
+                    runtime_owner="rdc-debugger",
+                    target_agent="shader_ir_agent",
+                    objective="inspect shader precision path",
+                    task_scope="shader precision path",
+                ),
+            }
+        )
+        events.append(
+            {
+                "schema_version": "2",
+                "event_id": "evt-0012-shader-tool",
+                "ts_ms": 1772537603200,
+                "run_id": "run_01",
+                "session_id": "sess_fixture_001",
+                "agent_id": "shader_ir_agent",
+                "event_type": "tool_execution",
+                "status": "ok",
+                "duration_ms": 90,
+                "refs": ["evt-0011-dispatch-shader"],
+                "payload": _rt_payload(
+                    context_id="ctx-pixel",
+                    runtime_owner="shader_ir_agent",
+                    tool_name="rd.shader.debug_start",
+                    transport="daemon",
+                    context_binding_id="ctxbind-ctx-pixel-shader",
+                    capture_ref="capture:baseline",
+                    canonical_anchor_ref="event:640",
+                    task_scope="shader debug",
+                ),
+            }
+        )
+        _write(action_chain, "\n".join(json.dumps(event, ensure_ascii=False) for event in events) + "\n")
+        _seed_runtime_topology(root, run_root, platform="codex")
+
+        proc = _run_audit(root, "codex", run_root)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        artifact = yaml.safe_load((run_root / "artifacts" / "run_compliance.yaml").read_text(encoding="utf-8"))
+        failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
+        self.assertIn("runtime_owner_topology", failing)
+
+    def test_staged_handoff_specialist_cannot_dispatch_specialist(self) -> None:
+        root = self._temp_root()
+        _seed_base(root)
+        _seed_common_session(root, "sess_fixture_001", "run_01")
+        run_root = _seed_run(root, "case_001", "run_01", "codex", "staged_handoff")
+
+        action_chain = root / "common" / "knowledge" / "library" / "sessions" / "sess_fixture_001" / "action_chain.jsonl"
+        events = [json.loads(line) for line in action_chain.read_text(encoding="utf-8").splitlines() if line.strip()]
+        events.append(
+            {
+                "schema_version": "2",
+                "event_id": "evt-0011-bad-specialist-dispatch",
+                "ts_ms": 1772537603000,
+                "run_id": "run_01",
+                "session_id": "sess_fixture_001",
+                "agent_id": "pixel_forensics_agent",
+                "event_type": "dispatch",
+                "status": "sent",
+                "duration_ms": 5,
+                "refs": ["evt-0003-tool"],
+                "payload": _rt_payload(
+                    context_id="ctx-pixel",
+                    runtime_owner="pixel_forensics_agent",
+                    target_agent="shader_ir_agent",
+                    objective="illegal peer dispatch",
+                    task_scope="illegal peer dispatch",
+                ),
+            }
+        )
+        _write(action_chain, "\n".join(json.dumps(event, ensure_ascii=False) for event in events) + "\n")
+        _seed_runtime_topology(root, run_root, platform="codex")
+
+        proc = _run_audit(root, "codex", run_root)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        artifact = yaml.safe_load((run_root / "artifacts" / "run_compliance.yaml").read_text(encoding="utf-8"))
+        failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
+        self.assertIn("runtime_owner_topology", failing)
+
+    def test_cross_context_transfer_without_baton_fails(self) -> None:
+        root = self._temp_root()
+        _seed_base(root)
+        _seed_common_session(root, "sess_fixture_001", "run_01")
+        run_root = _seed_run(root, "case_001", "run_01", "codex", "staged_handoff")
+
+        action_chain = root / "common" / "knowledge" / "library" / "sessions" / "sess_fixture_001" / "action_chain.jsonl"
+        events = [json.loads(line) for line in action_chain.read_text(encoding="utf-8").splitlines() if line.strip()]
+        events.append(
+            {
+                "schema_version": "2",
+                "event_id": "evt-0011-cross-context-transfer",
+                "ts_ms": 1772537603000,
+                "run_id": "run_01",
+                "session_id": "sess_fixture_001",
+                "agent_id": "shader_ir_agent",
+                "event_type": "tool_execution",
+                "status": "ok",
+                "duration_ms": 70,
+                "refs": ["evt-0002-dispatch"],
+                "payload": _rt_payload(
+                    context_id="ctx-shader",
+                    runtime_owner="shader_ir_agent",
+                    tool_name="rd.session.resume",
+                    source_context_id="ctx-pixel",
+                    baton_ref="",
+                    capture_ref="capture:baseline",
+                    canonical_anchor_ref="event:640",
+                    task_scope="cross-context resume",
+                ),
+            }
+        )
+        _write(action_chain, "\n".join(json.dumps(event, ensure_ascii=False) for event in events) + "\n")
+        _seed_runtime_topology(root, run_root, platform="codex")
+
+        proc = _run_audit(root, "codex", run_root)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        artifact = yaml.safe_load((run_root / "artifacts" / "run_compliance.yaml").read_text(encoding="utf-8"))
+        failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
+        self.assertIn("runtime_baton_contract", failing)
 
     def test_remote_run_requires_single_runtime_owner(self) -> None:
         root = self._temp_root()
@@ -1172,6 +1409,7 @@ class RunComplianceAuditTests(unittest.TestCase):
             + "\n",
         )
         _write(run_root_2 / "reports" / "visual_report.html", "<html><body><p>session_id = sess_fixture_002</p><p>event 523</p></body></html>\n")
+        _seed_runtime_topology(root, run_root_2, platform="code-buddy")
         proc_2 = _run_audit(root, "code-buddy", run_root_2)
         self.assertEqual(proc_2.returncode, 0, proc_2.stdout + proc_2.stderr)
 

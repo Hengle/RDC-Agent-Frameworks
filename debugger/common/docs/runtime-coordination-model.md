@@ -1,6 +1,6 @@
-# RenderDoc/RDC Debugger Runtime Coordination Model（运行时协作模型）
+﻿# RenderDoc/RDC Debugger Runtime Coordination Model（运行时协作模型）
 
-本文件只定义 debugger framework 如何消费 Tools 的 runtime ceiling，并把它落成可执行、可审计的协作合同。
+本文只定义 debugger framework 如何消费 Tools 的 runtime ceiling，并把它落成可执行、可审计的协作合同。
 
 ## 1. 先区分三层概念
 
@@ -36,12 +36,13 @@
 - specialist 先提交 brief、evidence request、下一轮 probe 目标。
 - 主 agent 负责重组证据、解决冲突、决定 redispatch。
 - specialist 之间不直连，所有依赖都经主 agent 中转。
+- local 下允许 `multi_context_orchestrated`：多个 specialist 可各持独立 context，但不能绕过主 agent 做 peer coordination。
 
 ### `concurrent_team`
 
 - specialist 可以直接通信。
 - 只有 team-agents 宿主才允许进入这一档。
-- local 下可以利用 multi-context runtime ceiling。
+- local 下可以利用 `multi_context_multi_owner`。
 
 ## 4. Local / Remote live policy
 
@@ -50,14 +51,15 @@
 - `remote_coordination_mode = single_runtime_owner`
 - `remote` 一律只允许一个 live runtime owner
 - `workflow_stage` 一律采用 `single_runtime_owner`
-- `staged_handoff` 一律采用 `single_runtime_owner`
+- `staged_handoff remote` 一律采用 `single_runtime_owner`
+- `staged_handoff local` 采用 `multi_context_orchestrated`
 - 只有 `local + concurrent_team` 才允许 `multi_context_multi_owner`
 
 换句话说：
 
 - `single_runtime_owner != single_agent_flow`
 - `staged_handoff` 仍然允许多 specialist、多轮 handoff、多轮裁决
-- 它只是把 live 执行权限收敛到单 owner
+- 它只是把 peer coordination 收敛到主 agent，把 remote live ownership 收敛到单 owner
 
 ## 5. Runtime baton 合同
 
@@ -65,6 +67,7 @@
 
 - 必须使用 `runtime_baton`
 - `rd.session.resume` / `rd.session.rehydrate_runtime_baton` 必须声明 `baton_ref`
+- 对 `multi_context_orchestrated`，跨 context 的 live 续接、焦点转交或 owner 变更都必须有 baton
 - baton 只承载 live 恢复所需事实，不改变 remote 单 owner 规则
 
 ## 6. Framework 对 Tools runtime ceiling 的消费方式
@@ -78,7 +81,7 @@ Frameworks 负责再根据平台能力裁决最终政策：
 
 - `team_agents + concurrent_team + local`
   - 才能把 ceiling 用成 `multi_context_multi_owner`
-- `puppet_sub_agents + staged_handoff`
-  - 只能形成 hub-and-spoke 多轮 handoff
+- `puppet_sub_agents + staged_handoff + local`
+  - 收敛成 `multi_context_orchestrated`
 - `instruction_only_sub_agents + workflow_stage`
   - 只能形成阶段化串行流
