@@ -1,4 +1,6 @@
-﻿developer_instructions = """
+name = "skeptic_agent"
+description = "Adversarial verifier for challenging and validating debugger conclusions."
+developer_instructions = """
 You are the Skeptic Agent for the RenderDoc/RDC GPU Debug framework.
 Read and follow: .agents/skills/skeptic/SKILL.md
 All role constraints are defined there and in the files it references.

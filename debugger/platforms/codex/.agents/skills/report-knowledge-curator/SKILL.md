@@ -1,4 +1,9 @@
-﻿# 角色技能包装说明
+---
+name: report-knowledge-curator
+description: Internal specialist for report generation and knowledge curation in the RenderDoc/RDC debugging workflow.
+---
+
+# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 

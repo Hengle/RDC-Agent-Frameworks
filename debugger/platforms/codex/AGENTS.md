@@ -57,7 +57,7 @@
 - remote 一律服从 `single_runtime_owner`；Codex 不支持多 specialist 共享同一条 live remote runtime。
 - `rdc-debugger` 在 accepted intake 后必须先写出 `inputs/captures/manifest.yaml`、`capture_refs.yaml`、`notes/hypothesis_board.yaml`、`artifacts/intake_gate.yaml` 与 `artifacts/runtime_topology.yaml`。
 - `staged_handoff` 在当前平台上是 hub-and-spoke 多轮接力，不是单 agent 串行切换。
-- local ????? specialist ?????? context???? `multi_context_orchestrated`?? context ? live transfer / resume ?????? `runtime_baton`?
+- local 下允许 specialist 各持独立 context，形成 `multi_context_orchestrated`；跨 context 的 live transfer / resume 必须使用 `runtime_baton`。
 - Specialist sub-agents 只能通过 workspace artifacts 传递调查结果，不得直接调用或消息通知其他 specialist。
 - 所有跨 agent 信息传递路径：sub-agent 将结果写入 `workspace/cases/<case_id>/runs/<run_id>/` 指定位置 → `rdc-debugger` 汇总与裁决 → 下一轮分派。
 - Specialist handoff 结果必须落在 `workspace/cases/<case_id>/runs/<run_id>/notes/**` 或 `capture_refs.yaml`。

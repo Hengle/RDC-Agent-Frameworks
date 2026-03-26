@@ -4,4 +4,4 @@ interface:
   default_prompt: "Use $rdc-debugger to enter the RenderDoc/RDC GPU debugging workflow for this workspace."
 
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

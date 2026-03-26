@@ -1,4 +1,9 @@
-﻿# 角色技能包装说明
+---
+name: shader-ir
+description: Internal specialist for shader source and IR investigation in the RenderDoc/RDC debugging workflow.
+---
+
+# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 

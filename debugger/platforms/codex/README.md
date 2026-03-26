@@ -59,7 +59,7 @@ Codex sub-agent 现已正式可用。本平台采用 `staged_handoff` coordinati
 - `rdc-debugger` 在 accepted intake 后必须先写出 `inputs/captures/manifest.yaml`、`capture_refs.yaml`、`notes/hypothesis_board.yaml`、`artifacts/intake_gate.yaml` 与 `artifacts/runtime_topology.yaml`，然后才允许 `staged_handoff`。
 - **Sub-agents 之间不具备直接通信能力**，所有依赖、冲突与下一轮 brief 都经 `rdc-debugger` 中转。
 - `staged_handoff` 在当前平台上是 hub-and-spoke 多轮接力，不是单 agent 串行切换。
-- local `staged_handoff` ??? agent ???? `multi_context_orchestrated`?specialist ???????? context?????? `rdc-debugger` ? peer coordination?
+- 在 local `staged_handoff` 下允许 `multi_context_orchestrated`：多个 specialist 可各持独立 context，但不能绕过 `rdc-debugger` 做 peer coordination。
 - 标准分派顺序：`rdc-debugger` → `triage_agent` → `capture_repro_agent` → specialists（`pass_graph_pipeline`、`pixel_forensics`、`shader_ir`、`driver_device`）→ `skeptic_agent` → `curator_agent`。
 - 每个 specialist 将结果写入 `workspace/cases/<case_id>/runs/<run_id>/notes/**` 或 `capture_refs.yaml` 后返回，`rdc-debugger` 读取后继续分派。
 - Specialist 不得直接分派其他 specialist。

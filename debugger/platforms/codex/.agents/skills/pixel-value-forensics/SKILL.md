@@ -1,4 +1,9 @@
-﻿# 角色技能包装说明
+---
+name: pixel-value-forensics
+description: Internal specialist for pixel-value and framebuffer forensics in the RenderDoc/RDC debugging workflow.
+---
+
+# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 

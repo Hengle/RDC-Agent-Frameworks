@@ -1,4 +1,9 @@
-﻿# 角色技能包装说明
+---
+name: capture-repro
+description: Internal specialist for capture normalization, reproduction, and anchor setup in the RenderDoc/RDC debugging workflow.
+---
+
+# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 

@@ -1,0 +1,14 @@
+name = "rdc-debugger"
+description = "Public entry agent for the RenderDoc/RDC GPU debugging workflow."
+developer_instructions = """
+You are the RDC Debugger public main skill for the RenderDoc/RDC GPU Debug framework.
+Read and follow: .agents/skills/rdc-debugger/SKILL.md
+This is the public entry role, not an internal-only specialist.
+All role constraints are defined there and in the files it references.
+"""
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+model_verbosity = "medium"
+
+[windows]
+sandbox = "elevated"

@@ -1,4 +1,4 @@
-﻿model = "gpt-5.4"
+model = "gpt-5.4"
 model_reasoning_effort = "high"
 model_verbosity = "medium"
 
@@ -31,3 +31,5 @@ config_file = ".codex/agents/skeptic_agent.toml"
 
 [agents.curator_agent]
 config_file = ".codex/agents/curator_agent.toml"
+[agents."rdc-debugger"]
+config_file = ".codex/agents/rdc-debugger.toml"
