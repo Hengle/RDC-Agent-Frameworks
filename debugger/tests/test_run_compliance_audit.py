@@ -440,7 +440,15 @@ def _seed_intake_gate(root: Path, run_root: Path) -> None:
     module.run_intake_gate(root, run_root)
 
 
-def _seed_entry_gate(root: Path, run_root: Path, *, platform: str, entry_mode: str = "cli", backend: str = "local") -> None:
+def _seed_entry_gate(
+    root: Path,
+    run_root: Path,
+    *,
+    platform: str,
+    entry_mode: str = "cli",
+    backend: str = "local",
+    single_agent_by_user: bool = False,
+) -> None:
     module = _load_module(ENTRY_GATE_SCRIPT, f"entry_gate_module_{run_root.name}_{platform}")
     case_root = run_root.parent.parent
     capture_paths = [
@@ -454,8 +462,9 @@ def _seed_entry_gate(root: Path, run_root: Path, *, platform: str, entry_mode: s
         entry_mode=entry_mode,
         backend=backend,
         capture_paths=capture_paths,
-        mcp_configured=entry_mode == "cli",
+        mcp_configured=entry_mode == "mcp",
         remote_transport="adb_android" if backend == "remote" else "",
+        single_agent_requested=single_agent_by_user,
     )
 
 
@@ -473,9 +482,11 @@ def _seed_run(
     *,
     knowledge_context: dict | None = None,
     intent_gate_override: dict | None = None,
+    single_agent_by_user: bool = False,
 ) -> Path:
     case_root = root / "workspace" / "cases" / case_id
     run_root = case_root / "runs" / run_id
+    entry_mode = "mcp" if platform in {"claude-desktop", "manus"} else "cli"
     _write(case_root / "case.yaml", f"case_id: {case_id}\ncurrent_run: {run_id}\nreference_contract_ref: ../workspace/cases/{case_id}/case_input.yaml#reference_contract\n")
     case_input = {
         "schema_version": "1",
@@ -555,11 +566,13 @@ def _seed_run(
         "session_id": "sess_fixture_001",
         "capture_file_id": "capf_fixture_001",
         "runtime": {
-            "entry_mode": "cli",
+            "entry_mode": entry_mode,
             "backend": "local",
             "context_id": "ctx-orchestrator",
             "runtime_owner": "rdc-debugger",
             "coordination_mode": coordination_mode,
+            "orchestration_mode": "single_agent_by_user" if single_agent_by_user else "multi_agent",
+            "single_agent_reason": "user_requested" if single_agent_by_user else "",
         },
     }
     if knowledge_context is not None:
@@ -677,10 +690,17 @@ def _seed_run(
         + "\n",
     )
     _write(run_root / "reports" / "visual_report.html", "<html><body><p>session_id = sess_fixture_001</p><p>event 523</p></body></html>\n")
-    _seed_entry_gate(root, run_root, platform=platform)
+    _seed_entry_gate(root, run_root, platform=platform, entry_mode=entry_mode, single_agent_by_user=single_agent_by_user)
     _seed_intake_gate(root, run_root)
     action_chain = root / "common" / "knowledge" / "library" / "sessions" / "sess_fixture_001" / "action_chain.jsonl"
     if action_chain.is_file():
+        events = [json.loads(line) for line in action_chain.read_text(encoding="utf-8").splitlines() if line.strip()]
+        for event in events:
+            payload = event.get("payload")
+            if isinstance(payload, dict) and str(event.get("event_type", "")).strip() in {"dispatch", "tool_execution", "artifact_write", "quality_check"}:
+                payload["entry_mode"] = entry_mode
+                payload["backend"] = "local"
+        _write(action_chain, "\n".join(json.dumps(event, ensure_ascii=False) for event in events) + "\n")
         _seed_runtime_topology(root, run_root, platform=platform)
     return run_root
 
@@ -950,8 +970,16 @@ class RunComplianceAuditTests(unittest.TestCase):
         self.assertEqual(artifact["sub_agent_mode"], "puppet_sub_agents")
         self.assertEqual(artifact["peer_communication"], "via_main_agent")
         self.assertEqual(artifact["dispatch_topology"], "hub_and_spoke")
+        self.assertEqual(artifact["specialist_dispatch_requirement"], "required")
+        self.assertEqual(artifact["host_delegation_policy"], "platform_managed")
+        self.assertEqual(artifact["host_delegation_fallback"], "none")
+        self.assertEqual(artifact["orchestration_mode"], "multi_agent")
+        self.assertEqual(artifact["single_agent_reason"], "")
         self.assertEqual(artifact["runtime_parallelism_ceiling"], "multi_context_multi_owner")
         self.assertEqual(artifact["applied_live_runtime_policy"], "multi_context_orchestrated")
+        self.assertEqual(artifact["delegation_status"], "native_dispatch")
+        self.assertEqual(artifact["fallback_execution_mode"], "wrapper")
+        self.assertEqual(artifact["degraded_reasons"], [])
         self.assertTrue(artifact["context_bindings"])
         pixel_binding = next(item for item in artifact["context_bindings"] if item["context_id"] == "ctx-pixel")
         self.assertEqual(pixel_binding["owner_agent"], "pixel_forensics_agent")
@@ -1142,6 +1170,60 @@ class RunComplianceAuditTests(unittest.TestCase):
         failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
         self.assertIn("runtime_owner_topology", failing)
 
+    def test_runtime_topology_records_single_agent_by_user_fields(self) -> None:
+        root = self._temp_root()
+        _seed_base(root)
+        _seed_common_session(root, "sess_fixture_001", "run_01")
+        run_root = _seed_run(root, "case_001", "run_01", "codex", "staged_handoff", single_agent_by_user=True)
+        topology = yaml.safe_load((run_root / "artifacts" / "runtime_topology.yaml").read_text(encoding="utf-8"))
+        entry_gate = yaml.safe_load((run_root.parent.parent / "artifacts" / "entry_gate.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(entry_gate["orchestration_mode"], "single_agent_by_user")
+        self.assertEqual(entry_gate["single_agent_reason"], "user_requested")
+        self.assertEqual(topology["orchestration_mode"], "single_agent_by_user")
+        self.assertEqual(topology["single_agent_reason"], "user_requested")
+        self.assertEqual(topology["delegation_status"], "single_agent_by_user")
+
+    def test_single_agent_mode_with_specialist_events_fails(self) -> None:
+        root = self._temp_root()
+        _seed_base(root)
+        _seed_common_session(root, "sess_fixture_001", "run_01")
+        run_root = _seed_run(root, "case_001", "run_01", "codex", "staged_handoff", single_agent_by_user=True)
+
+        proc = _run_audit(root, "codex", run_root)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        artifact = yaml.safe_load((run_root / "artifacts" / "run_compliance.yaml").read_text(encoding="utf-8"))
+        failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
+        self.assertIn("delegation_execution_contract", failing)
+
+    def test_specialist_feedback_timeout_blocker_fails(self) -> None:
+        root = self._temp_root()
+        _seed_base(root)
+        _seed_common_session(root, "sess_fixture_001", "run_01")
+        run_root = _seed_run(root, "case_001", "run_01", "codex", "staged_handoff")
+
+        board = yaml.safe_load((run_root / "notes" / "hypothesis_board.yaml").read_text(encoding="utf-8"))
+        board["hypothesis_board"]["blocking_issues"] = ["BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT"]
+        _write(run_root / "notes" / "hypothesis_board.yaml", yaml.safe_dump(board, sort_keys=False, allow_unicode=True))
+
+        proc = _run_audit(root, "codex", run_root)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        artifact = yaml.safe_load((run_root / "artifacts" / "run_compliance.yaml").read_text(encoding="utf-8"))
+        failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
+        self.assertIn("hypothesis_board_blockers", failing)
+
+    def test_missing_visual_report_html_fails(self) -> None:
+        root = self._temp_root()
+        _seed_base(root)
+        _seed_common_session(root, "sess_fixture_001", "run_01")
+        run_root = _seed_run(root, "case_001", "run_01", "codex", "staged_handoff")
+        (run_root / "reports" / "visual_report.html").unlink()
+
+        proc = _run_audit(root, "codex", run_root)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        artifact = yaml.safe_load((run_root / "artifacts" / "run_compliance.yaml").read_text(encoding="utf-8"))
+        failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
+        self.assertIn("visual_report_html", failing)
+
     def test_cross_context_transfer_without_baton_fails(self) -> None:
         root = self._temp_root()
         _seed_base(root)
@@ -1229,7 +1311,7 @@ class RunComplianceAuditTests(unittest.TestCase):
         failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
         self.assertIn("runtime_owner_topology", failing)
 
-    def test_workflow_stage_cannot_masquerade_as_multi_specialist_network(self) -> None:
+    def test_workflow_stage_allows_serial_instruction_only_specialists(self) -> None:
         root = self._temp_root()
         _seed_base(root)
         _seed_common_session(root, "sess_fixture_001", "run_01")
@@ -1248,7 +1330,7 @@ class RunComplianceAuditTests(unittest.TestCase):
                 "status": "ok",
                 "duration_ms": 0,
                 "refs": [],
-                "payload": _rt_payload(target_agent="shader_ir_agent", summary="extra workflow specialist"),
+                "payload": _rt_payload(entry_mode="mcp", target_agent="shader_ir_agent", summary="extra workflow specialist"),
             }
         )
         events.append(
@@ -1264,6 +1346,7 @@ class RunComplianceAuditTests(unittest.TestCase):
                 "duration_ms": 40,
                 "refs": ["evt-0012-second-workflow-specialist"],
                 "payload": _rt_payload(
+                    entry_mode="mcp",
                     path=f"workspace/cases/{run_root.parent.parent.name}/runs/{run_root.name}/notes/shader_ir.md",
                     summary="shader note",
                 ),
@@ -1273,10 +1356,9 @@ class RunComplianceAuditTests(unittest.TestCase):
         _seed_runtime_topology(root, run_root, platform="manus")
 
         proc = _run_audit(root, "manus", run_root)
-        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         artifact = yaml.safe_load((run_root / "artifacts" / "run_compliance.yaml").read_text(encoding="utf-8"))
-        failing = {item["id"] for item in artifact["checks"] if item["result"] == "fail"}
-        self.assertIn("runtime_owner_topology", failing)
+        self.assertEqual(artifact["status"], "passed")
 
     def test_resume_without_baton_ref_fails(self) -> None:
         root = self._temp_root()

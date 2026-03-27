@@ -7,8 +7,8 @@
 - 当前宿主不支持独立 custom agent 描述文件与 native hooks，但当前模板仍提供 wrapper skills 来统一入口语义。
 - 当前平台只允许通过 `MCP` 进入平台真相，不允许尝试 `CLI`。
 - 任务开始时，Agent 必须向用户说明当前采用的是 `MCP`，并先完成 MCP preflight。
-- 用户提供可导入的 `.rdc` 后，只能按 `workflow_stage` 串行推进；若需要并发 live owners、per-agent model control 或更高阶 remote 多轮会诊能力，必须切回更高能力平台。
-- 当前平台的 `sub_agent_mode = instruction_only_sub_agents`；若需要子 agent，只能由主 agent 在实例化时注入 instruction。
+- 用户提供可导入的 `.rdc` 后，按 `workflow_stage` 串行 specialist 流推进；当前平台支持 instruction-only sub agents，但不支持实时 team-agent handoff。
+- 当前平台的 `sub_agent_mode = instruction_only_sub_agents`；如需子 agent，只能由主 agent 在实例化时注入 instruction，而不是依赖独立 agent 描述文件。
 - 当前模板默认不预注册 MCP；启用时应显式填充 `claude_desktop_config.opt-in.json` 的示例配置。
 - 当前平台的 `local_support` / `remote_support` / `enforcement_layer` 以 `common/config/platform_capabilities.json` 中 `claude-desktop` 行为准。
 
@@ -32,7 +32,7 @@
 - 未提供可导入的 `.rdc` 时，Agent 必须以 `BLOCKED_MISSING_CAPTURE` 直接阻断，不得初始化 case/run 或继续 triage、investigation、planning。
 - `workspace/` 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。
 - 维护者若重跑 scaffold，必须继续产出 platform-local `common/` 最小占位目录，不得回退到跨级引用。
-- 当前宿主按 `workflow_stage` 降级运行；最终仍必须生成 `artifacts/run_compliance.yaml` 才算合规结案。
-- 不得在该宿主上模拟实时 multi-agent handoff。
+- 当前宿主按 `workflow_stage` 串行运行；最终仍必须生成 `artifacts/run_compliance.yaml` 才算合规结案。
+- 可进行串行 specialist dispatch，但不得在该宿主上模拟实时 multi-agent handoff。
 - 不得把独立 specialist 描述文件误写成 Claude Desktop 宿主能力；该宿主只支持 spawn-time instruction。
 - 用户侧 capture intake 支持当前对话上传 `.rdc` 或提供宿主当前会话可访问的文件路径；平台模板只负责把导入后的 case/run 现场写入 `workspace/`。

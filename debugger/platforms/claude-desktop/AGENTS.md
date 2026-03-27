@@ -33,10 +33,10 @@
 - 除 `rdc-debugger` 之外，其他 specialist 默认都是 internal/debug-only，只能由 `rdc-debugger` 在框架内分派
 - 用户尚未提供可导入的 `.rdc` 时，必须以 `BLOCKED_MISSING_CAPTURE` 停止，不得初始化 case/run 或继续做 debug、investigation、tool planning
 - `claude-desktop` 的 `local_support` / `remote_support` / `enforcement_layer` 以 `common/config/platform_capabilities.json` 当前行与 `runtime_mode_truth.snapshot.json` 为准
-- 当前平台的 `sub_agent_mode = instruction_only_sub_agents`，只能在 spawn 时注入 instruction，不支持独立 agent 描述文件
+- 当前平台的 `sub_agent_mode = instruction_only_sub_agents`，支持 sub agent runtime，但只能在 spawn 时注入 instruction，不支持独立 agent 描述文件
 
 未先将 `debugger/common/` 整包覆盖到平台根 `common/`、且将 RDC-Agent-Tools 整包覆盖到平台根 `tools/` 之前，不允许在宿主中使用当前平台模板。
 
 运行时工作区固定为平台根目录下的 `workspace/`
-- 当前宿主按 `workflow_stage` 降级运行；最终仍必须生成 `artifacts/run_compliance.yaml` 才算合规结案。
-- 不得在该宿主上模拟实时 multi-agent handoff。
+- 当前宿主按 `workflow_stage` 串行运行；最终仍必须生成 `artifacts/run_compliance.yaml` 才算合规结案。
+- 可进行串行 specialist dispatch，但不得在该宿主上模拟实时 multi-agent handoff。

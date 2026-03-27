@@ -295,6 +295,9 @@ def main_skill_wrapper_text(ctx: dict[str, Any], platform_key: str) -> str:
     sub_agent_mode = str(platform_row.get("sub_agent_mode") or "").strip()
     peer_communication = str(platform_row.get("peer_communication") or "").strip()
     agent_description_mode = str(platform_row.get("agent_description_mode") or "").strip()
+    specialist_dispatch_requirement = str(platform_row.get("specialist_dispatch_requirement") or "").strip()
+    host_delegation_policy = str(platform_row.get("host_delegation_policy") or "").strip()
+    host_delegation_fallback = str(platform_row.get("host_delegation_fallback") or "").strip()
     local_live_runtime_policy = str(platform_row.get("local_live_runtime_policy") or "").strip()
     remote_live_runtime_policy = str(platform_row.get("remote_live_runtime_policy") or "").strip()
     policy_notes: list[str] = []
@@ -311,6 +314,12 @@ def main_skill_wrapper_text(ctx: dict[str, Any], platform_key: str) -> str:
         ])
     else:
         policy_notes.append("- ????? local / remote ??? `single_runtime_owner`??? agent ???? live runtime?")
+    if specialist_dispatch_requirement == "required":
+        policy_notes.extend([
+            "- 默认 `orchestration_mode = multi_agent`；当前平台要求先走 specialist dispatch。",
+            "- 只有用户显式要求不要 multi-agent context 时，才允许 `single_agent_by_user`，并且必须把 `single_agent_reason = user_requested` 落盘到 `entry_gate.yaml` 与 `runtime_topology.yaml`。",
+            "- specialist dispatch 后，主 agent 必须进入 `waiting_for_specialist_brief` 并持续汇总阶段回报；短时 silence 不得触发 orchestrator 抢活。",
+        ])
     policy_block = "\n".join(policy_notes)
     return f"""---
 name: {public_entry_skill}
@@ -355,6 +364,7 @@ metadata:
 - 进入任何平台真相相关工作前，必须先校验 common/config/platform_adapter.json
 - local_support / remote_support / enforcement_layer / coordination_mode 统一以 common/config/platform_capabilities.json 的当前平台定义为准。
 - 当前平台的 `sub_agent_mode = {sub_agent_mode}`，`peer_communication = {peer_communication}`，`agent_description_mode = {agent_description_mode}`。
+- 当前平台的 `specialist_dispatch_requirement = {specialist_dispatch_requirement}`，`host_delegation_policy = {host_delegation_policy}`，`host_delegation_fallback = {host_delegation_fallback}`。
 - local live policy = `{local_live_runtime_policy}`；remote live policy = `{remote_live_runtime_policy}`。
 
 未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。

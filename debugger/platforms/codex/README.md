@@ -60,6 +60,13 @@ Codex sub-agent 现已正式可用。本平台采用 `staged_handoff` coordinati
 - **Sub-agents 之间不具备直接通信能力**，所有依赖、冲突与下一轮 brief 都经 `rdc-debugger` 中转。
 - `staged_handoff` 在当前平台上是 hub-and-spoke 多轮接力，不是单 agent 串行切换。
 - 在 local `staged_handoff` 下允许 `multi_context_orchestrated`：多个 specialist 可各持独立 context，但不能绕过 `rdc-debugger` 做 peer coordination。
+- 当前平台固定声明 `specialist_dispatch_requirement = required`、`host_delegation_policy = platform_managed`、`host_delegation_fallback = none`。
+- 默认 `orchestration_mode = multi_agent`；只有用户显式要求不要 multi-agent context 时，才允许 `single_agent_by_user`。
+- `single_agent_by_user` 必须显式写入 `entry_gate.yaml` 与 `runtime_topology.yaml`，并由主 agent 先向用户说明当前不分派 specialist。
+- specialist dispatch 后，主 agent 必须先进入 `waiting_for_specialist_brief` 视图并持续汇总阶段回报；短时 silence 不得触发 orchestrator 抢活。
+- 超过框架预算仍未收到阶段回报时，应进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态，而不是 fallback 自执行。
+- direct RenderDoc Python fallback 只允许 local backend；若走直连路径，必须记录 `fallback_execution_mode=local_renderdoc_python` 与 `WRAPPER_DEGRADED_LOCAL_DIRECT`。
 - 标准分派顺序：`rdc-debugger` → `triage_agent` → `capture_repro_agent` → specialists（`pass_graph_pipeline`、`pixel_forensics`、`shader_ir`、`driver_device`）→ `skeptic_agent` → `curator_agent`。
 - 每个 specialist 将结果写入 `workspace/cases/<case_id>/runs/<run_id>/notes/**` 或 `capture_refs.yaml` 后返回，`rdc-debugger` 读取后继续分派。
 - Specialist 不得直接分派其他 specialist。
+- `curator_agent` 在 `multi_agent` 下仍是 finalization-required；`single_agent_by_user` 下由 `rdc-debugger` 自行输出最终报告，但必须显式记录该模式。

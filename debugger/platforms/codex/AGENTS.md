@@ -58,10 +58,17 @@
 - `rdc-debugger` 在 accepted intake 后必须先写出 `inputs/captures/manifest.yaml`、`capture_refs.yaml`、`notes/hypothesis_board.yaml`、`artifacts/intake_gate.yaml` 与 `artifacts/runtime_topology.yaml`。
 - `staged_handoff` 在当前平台上是 hub-and-spoke 多轮接力，不是单 agent 串行切换。
 - local 下允许 specialist 各持独立 context，形成 `multi_context_orchestrated`；跨 context 的 live transfer / resume 必须使用 `runtime_baton`。
+- 当前平台固定声明 `specialist_dispatch_requirement = required`、`host_delegation_policy = platform_managed`、`host_delegation_fallback = none`。
+- 默认 `orchestration_mode = multi_agent`；只有用户显式要求不要 multi-agent context 时，才允许 `single_agent_by_user`。
+- `single_agent_by_user` 必须显式记录 `single_agent_reason = user_requested`，且主 agent 必须先向用户说明当前不分派 specialist。
+- specialist dispatch 后，主 agent 必须进入 `waiting_for_specialist_brief` 并持续汇总阶段回报；短时 silence 不得触发 orchestrator 抢活。
+- 超过框架预算仍未收到阶段回报时，应进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态。
+- direct RenderDoc Python fallback 只允许 local backend；若走直连路径，必须记录 `fallback_execution_mode=local_renderdoc_python` 与 `WRAPPER_DEGRADED_LOCAL_DIRECT`。
 - Specialist sub-agents 只能通过 workspace artifacts 传递调查结果，不得直接调用或消息通知其他 specialist。
 - 所有跨 agent 信息传递路径：sub-agent 将结果写入 `workspace/cases/<case_id>/runs/<run_id>/` 指定位置 → `rdc-debugger` 汇总与裁决 → 下一轮分派。
 - Specialist handoff 结果必须落在 `workspace/cases/<case_id>/runs/<run_id>/notes/**` 或 `capture_refs.yaml`。
 - Specialist 不得直接分派其他 specialist，所有分派必须经由 `rdc-debugger`。
 - 标准分派顺序：`rdc-debugger` → `triage_agent` → `capture_repro_agent` → 专家 specialists（`pixel_forensics`、`pass_graph_pipeline`、`shader_ir`、`driver_device`）→ `skeptic_agent` → `curator_agent`。
+- `curator_agent` 在 `multi_agent` 下仍是 finalization-required；`single_agent_by_user` 下由 `rdc-debugger` 自行输出最终报告，但必须显式记录该模式。
 
 权威规范：参见 `common/docs/runtime-coordination-model.md` 中 `staged_handoff` 模式定义。

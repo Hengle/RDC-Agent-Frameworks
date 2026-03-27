@@ -48,6 +48,9 @@
                                          "peer_communication":  "direct",
                                          "agent_description_mode":  "independent_files",
                                          "dispatch_topology":  "mesh",
+                                         "specialist_dispatch_requirement":  "required",
+                                         "host_delegation_policy":  "platform_managed",
+                                         "host_delegation_fallback":  "native",
                                          "degradation_mode":  "none",
                                          "cli_discovery_policy":  "mcp-discovery-ok,cli-reference-required",
                                          "required_paths":  [
@@ -113,6 +116,9 @@
                                           "peer_communication":  "direct",
                                           "agent_description_mode":  "independent_files",
                                           "dispatch_topology":  "mesh",
+                                          "specialist_dispatch_requirement":  "required",
+                                          "host_delegation_policy":  "platform_managed",
+                                          "host_delegation_fallback":  "native",
                                           "degradation_mode":  "none",
                                           "cli_discovery_policy":  "mcp-discovery-ok,cli-reference-required",
                                           "required_paths":  [
@@ -177,6 +183,9 @@
                                           "peer_communication":  "via_main_agent",
                                           "agent_description_mode":  "independent_files",
                                           "dispatch_topology":  "hub_and_spoke",
+                                          "specialist_dispatch_requirement":  "required",
+                                          "host_delegation_policy":  "platform_managed",
+                                          "host_delegation_fallback":  "none",
                                           "degradation_mode":  "limited-handoffs",
                                           "cli_discovery_policy":  "cli-reference-required",
                                           "required_paths":  [
@@ -242,6 +251,9 @@
                                           "peer_communication":  "via_main_agent",
                                           "agent_description_mode":  "independent_files",
                                           "dispatch_topology":  "hub_and_spoke",
+                                          "specialist_dispatch_requirement":  "required",
+                                          "host_delegation_policy":  "platform_managed",
+                                          "host_delegation_fallback":  "none",
                                           "degradation_mode":  "no-native-hooks",
                                           "cli_discovery_policy":  "n/a",
                                           "required_paths":  [
@@ -296,7 +308,7 @@
                                                                                           "rendered":  "inherit"
                                                                                       },
                                                                   "handoffs":  {
-                                                                                   "supported":  false,
+                                                                                   "supported":  true,
                                                                                    "rendered":  "workflow-brief-only"
                                                                                }
                                                               },
@@ -305,6 +317,9 @@
                                              "peer_communication":  "none",
                                              "agent_description_mode":  "spawn_instruction_only",
                                              "dispatch_topology":  "workflow_serial",
+                                             "specialist_dispatch_requirement":  "required",
+                                             "host_delegation_policy":  "platform_managed",
+                                             "host_delegation_fallback":  "none",
                                              "degradation_mode":  "desktop-mcp-only",
                                              "cli_discovery_policy":  "mcp-discovery-ok",
                                              "required_paths":  [
@@ -358,7 +373,7 @@
                                                                                  "rendered":  "inherit"
                                                                              },
                                                          "handoffs":  {
-                                                                          "supported":  false,
+                                                                          "supported":  true,
                                                                           "rendered":  "workflow-level"
                                                                       }
                                                      },
@@ -367,6 +382,9 @@
                                     "peer_communication":  "none",
                                     "agent_description_mode":  "spawn_instruction_only",
                                     "dispatch_topology":  "workflow_serial",
+                                    "specialist_dispatch_requirement":  "required",
+                                    "host_delegation_policy":  "platform_managed",
+                                    "host_delegation_fallback":  "none",
                                     "degradation_mode":  "workflow-package",
                                     "cli_discovery_policy":  "n/a",
                                     "required_paths":  [
@@ -430,6 +448,9 @@
                                     "peer_communication":  "via_main_agent",
                                     "agent_description_mode":  "independent_files",
                                     "dispatch_topology":  "hub_and_spoke",
+                                    "specialist_dispatch_requirement":  "required",
+                                    "host_delegation_policy":  "platform_managed",
+                                    "host_delegation_fallback":  "none",
                                     "degradation_mode":  "cli-first-staged-handoff",
                                     "cli_discovery_policy":  "mcp-discovery-ok,cli-reference-required",
                                     "required_paths":  [
@@ -493,6 +514,9 @@
                                      "peer_communication":  "via_main_agent",
                                      "agent_description_mode":  "independent_files",
                                      "dispatch_topology":  "hub_and_spoke",
+                                     "specialist_dispatch_requirement":  "required",
+                                     "host_delegation_policy":  "platform_managed",
+                                     "host_delegation_fallback":  "none",
                                      "degradation_mode":  "limited-hooks",
                                      "cli_discovery_policy":  "mcp-discovery-ok,cli-reference-required",
                                      "required_paths":  [

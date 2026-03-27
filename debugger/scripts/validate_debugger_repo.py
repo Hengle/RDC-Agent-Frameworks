@@ -200,6 +200,8 @@ def _doc_contract_findings(root: Path) -> list[str]:
     intake_doc = (root / "common" / "docs" / "intake" / "README.md").read_text(encoding="utf-8-sig")
     main_skill = (root / "common" / "skills" / "rdc-debugger" / "SKILL.md").read_text(encoding="utf-8-sig")
     claude_code_readme = (root / "platforms" / "claude-code" / "README.md").read_text(encoding="utf-8-sig")
+    codex_readme = (root / "platforms" / "codex" / "README.md").read_text(encoding="utf-8-sig")
+    codex_agents = (root / "platforms" / "codex" / "AGENTS.md").read_text(encoding="utf-8-sig")
     manus_readme = (root / "platforms" / "manus" / "README.md").read_text(encoding="utf-8-sig")
     manus_entrypoints = (root / "platforms" / "manus" / "references" / "entrypoints.md").read_text(encoding="utf-8-sig")
     manus_workflow = (root / "platforms" / "manus" / "workflows" / "00_debug_workflow.md").read_text(encoding="utf-8-sig")
@@ -248,6 +250,10 @@ def _doc_contract_findings(root: Path) -> list[str]:
         findings.append("runtime-coordination-model.md must state that single_runtime_owner is not single_agent_flow")
     if "staged_handoff" not in runtime_doc or "多 specialist 多轮接力" not in runtime_doc:
         findings.append("runtime-coordination-model.md must define staged_handoff as multi-round specialist handoff")
+    if "delegation_status" not in runtime_doc or "orchestration_mode" not in runtime_doc:
+        findings.append("runtime-coordination-model.md must document orchestration_mode and delegation_status artifacts")
+    if "single_agent_by_user" not in runtime_doc or "BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT" not in runtime_doc:
+        findings.append("runtime-coordination-model.md must document single_agent_by_user and specialist feedback timeout semantics")
     if "并行 case 只能共享仓库，不得共享同一条 live `context`" not in workspace_doc:
         findings.append("workspace-layout.md must define case/context isolation")
     if "`rdc-debugger` 是唯一 framework classifier" not in core_doc:
@@ -268,8 +274,15 @@ def _doc_contract_findings(root: Path) -> list[str]:
         findings.append("rdc-debugger skill must allow multi-round clarification before classification stabilizes")
     if "在当前对话上传" not in core_doc or "文件路径" not in core_doc:
         findings.append("AGENT_CORE.md must allow uploaded captures and accessible file paths")
+    if "single_agent_by_user" not in core_doc or "BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT" not in core_doc:
+        findings.append("AGENT_CORE.md must define explicit single-agent mode and specialist feedback timeout handling")
     if "统一走已配置的 MCP server" in claude_code_readme:
         findings.append("claude-code README must not declare MCP as the only default path")
+    for text in (codex_readme, codex_agents):
+        if "host_delegation_policy = platform_managed" not in text or "host_delegation_fallback = none" not in text:
+            findings.append("codex docs must declare platform-managed native specialist dispatch semantics")
+        if "single_agent_by_user" not in text or "BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT" not in text:
+            findings.append("codex docs must explain explicit single-agent mode and specialist feedback timeout semantics")
 
     legacy_capture_markers = (
         "当前对话提交至少一份 `.rdc`",
@@ -429,6 +442,9 @@ def _compliance_findings(root: Path) -> list[str]:
         peer_communication = str(platform_caps.get("peer_communication", "")).strip()
         agent_description_mode = str(platform_caps.get("agent_description_mode", "")).strip()
         dispatch_topology = str(platform_caps.get("dispatch_topology", "")).strip()
+        specialist_dispatch_requirement = str(platform_caps.get("specialist_dispatch_requirement", "")).strip()
+        host_delegation_policy = str(platform_caps.get("host_delegation_policy", "")).strip()
+        host_delegation_fallback = str(platform_caps.get("host_delegation_fallback", "")).strip()
         local_live_runtime_policy = str(platform_caps.get("local_live_runtime_policy", "")).strip()
         remote_live_runtime_policy = str(platform_caps.get("remote_live_runtime_policy", "")).strip()
         if sub_agent_mode not in {"team_agents", "puppet_sub_agents", "instruction_only_sub_agents"}:
@@ -439,6 +455,12 @@ def _compliance_findings(root: Path) -> list[str]:
             findings.append(f"{key}: invalid agent_description_mode")
         if dispatch_topology not in {"mesh", "hub_and_spoke", "workflow_serial"}:
             findings.append(f"{key}: invalid dispatch_topology")
+        if specialist_dispatch_requirement not in {"required"}:
+            findings.append(f"{key}: invalid specialist_dispatch_requirement")
+        if host_delegation_policy not in {"platform_managed"}:
+            findings.append(f"{key}: invalid host_delegation_policy")
+        if host_delegation_fallback not in {"native", "none"}:
+            findings.append(f"{key}: invalid host_delegation_fallback")
         if local_live_runtime_policy not in {"multi_context_multi_owner", "multi_context_orchestrated", "single_runtime_owner"}:
             findings.append(f"{key}: invalid local_live_runtime_policy")
         if remote_live_runtime_policy != "single_runtime_owner":
@@ -452,11 +474,15 @@ def _compliance_findings(root: Path) -> list[str]:
         if actual_mode == "concurrent_team":
             if sub_agent_mode != "team_agents" or peer_communication != "direct" or dispatch_topology != "mesh":
                 findings.append(f"{key}: concurrent_team requires team_agents + direct + mesh")
+            if specialist_dispatch_requirement != "required" or host_delegation_policy != "platform_managed" or host_delegation_fallback != "native":
+                findings.append(f"{key}: concurrent_team requires required/platform_managed/native delegation defaults")
             if local_live_runtime_policy != "multi_context_multi_owner":
                 findings.append(f"{key}: concurrent_team requires multi_context_multi_owner local policy")
         elif actual_mode == "staged_handoff":
             if sub_agent_mode != "puppet_sub_agents" or peer_communication != "via_main_agent" or dispatch_topology != "hub_and_spoke":
                 findings.append(f"{key}: staged_handoff requires puppet_sub_agents + via_main_agent + hub_and_spoke")
+            if specialist_dispatch_requirement != "required" or host_delegation_policy != "platform_managed" or host_delegation_fallback != "none":
+                findings.append(f"{key}: staged_handoff requires required/platform_managed/none delegation defaults")
             if local_live_runtime_policy != "multi_context_orchestrated":
                 findings.append(f"{key}: staged_handoff requires multi_context_orchestrated local policy")
         elif actual_mode == "workflow_stage":
@@ -464,6 +490,8 @@ def _compliance_findings(root: Path) -> list[str]:
                 findings.append(f"{key}: workflow_stage requires instruction_only_sub_agents + none + workflow_serial")
             if agent_description_mode != "spawn_instruction_only":
                 findings.append(f"{key}: workflow_stage requires spawn_instruction_only agent descriptions")
+            if specialist_dispatch_requirement != "required" or host_delegation_policy != "platform_managed" or host_delegation_fallback != "none":
+                findings.append(f"{key}: workflow_stage requires required/platform_managed/none delegation defaults")
 
         enforcement_mode = str(rules.get("enforcement_mode", "")).strip()
         hooks_supported = _surface_supported(platform_caps, "hooks")

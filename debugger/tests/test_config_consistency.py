@@ -96,6 +96,11 @@ class ConfigConsistencyTests(unittest.TestCase):
         self.assertEqual(capabilities["platforms"]["copilot-cli"]["local_live_runtime_policy"], "multi_context_orchestrated")
         self.assertEqual(capabilities["platforms"]["copilot-ide"]["local_live_runtime_policy"], "multi_context_orchestrated")
         self.assertEqual(capabilities["platforms"]["claude-code"]["sub_agent_mode"], "team_agents")
+        self.assertEqual(capabilities["platforms"]["code-buddy"]["sub_agent_mode"], "team_agents")
+        self.assertEqual(capabilities["platforms"]["claude-desktop"]["specialist_dispatch_requirement"], "required")
+        self.assertEqual(capabilities["platforms"]["manus"]["specialist_dispatch_requirement"], "required")
+        self.assertEqual(capabilities["platforms"]["codex"]["host_delegation_policy"], "platform_managed")
+        self.assertEqual(capabilities["platforms"]["codex"]["host_delegation_fallback"], "none")
         self.assertEqual(capabilities["platforms"]["manus"]["agent_description_mode"], "spawn_instruction_only")
 
     def test_validate_tool_contract_reader_reports_invalid_adapter_json(self) -> None:

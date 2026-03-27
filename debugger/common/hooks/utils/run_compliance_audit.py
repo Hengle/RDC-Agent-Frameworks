@@ -38,7 +38,12 @@ from hypothesis_board_validator import validate_hypothesis_board  # noqa: E402
 from entry_gate import build_entry_gate_payload  # noqa: E402
 from intake_gate import build_intake_gate_payload  # noqa: E402
 from intake_validator import validate_case_input  # noqa: E402
-from runtime_topology import build_runtime_topology_payload  # noqa: E402
+from runtime_topology import (  # noqa: E402
+    DEGRADED_REASONS,
+    DELEGATION_STATUSES,
+    FALLBACK_EXECUTION_MODES,
+    build_runtime_topology_payload,
+)
 
 
 ACTION_SPECIALISTS = {
@@ -216,6 +221,97 @@ def _event_payload_str(event: dict[str, Any], key: str) -> str:
     return str(_event_payload(event).get(key) or "").strip()
 
 
+def _event_payload_list(event: dict[str, Any], key: str) -> list[str]:
+    value = _event_payload(event).get(key)
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
+
+
+def _normalized_reason_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        items = [str(item).strip() for item in value if str(item).strip()]
+    elif isinstance(value, str) and value.strip():
+        items = [value.strip()]
+    else:
+        items = []
+    return sorted({item for item in items if item})
+
+
+def _has_passed_intake_gate(events: list[dict[str, Any]]) -> bool:
+    for event in events:
+        if str(event.get("event_type", "")).strip() != "quality_check":
+            continue
+        if str(event.get("status", "")).strip() != "pass":
+            continue
+        if _event_validator(event) == "intake_gate":
+            return True
+    return False
+
+
+def _delegation_execution_issues(
+    events: list[dict[str, Any]],
+    *,
+    backend: str,
+    topology_data: dict[str, Any],
+) -> tuple[list[str], list[str]]:
+    issues: list[str] = []
+    degraded_reasons = set(_normalized_reason_list((topology_data or {}).get("degraded_reasons")))
+    delegation_status = str((topology_data or {}).get("delegation_status") or "").strip()
+    fallback_execution_mode = str((topology_data or {}).get("fallback_execution_mode") or "").strip()
+    orchestration_mode = str((topology_data or {}).get("orchestration_mode") or "").strip()
+    single_agent_reason = str((topology_data or {}).get("single_agent_reason") or "").strip()
+
+    if delegation_status and delegation_status not in DELEGATION_STATUSES:
+        issues.append(f"runtime_topology.delegation_status must be one of {sorted(DELEGATION_STATUSES)}")
+    if fallback_execution_mode and fallback_execution_mode not in FALLBACK_EXECUTION_MODES:
+        issues.append(f"runtime_topology.fallback_execution_mode must be one of {sorted(FALLBACK_EXECUTION_MODES)}")
+    invalid_reasons = [item for item in degraded_reasons if item not in DEGRADED_REASONS]
+    if invalid_reasons:
+        issues.append(f"runtime_topology.degraded_reasons contains invalid values: {', '.join(invalid_reasons)}")
+
+    local_direct = fallback_execution_mode == "local_renderdoc_python" or any(
+        _event_payload_str(event, "fallback_execution_mode") == "local_renderdoc_python" for event in events
+    )
+    dispatch_events = [
+        event
+        for event in events
+        if str(event.get("event_type", "")).strip() == "dispatch"
+        and str(event.get("agent_id", "")).strip() == "rdc-debugger"
+        and _event_payload_str(event, "target_agent") in ACTION_SPECIALISTS
+    ]
+    specialist_events = [
+        event
+        for event in events
+        if str(event.get("agent_id", "")).strip() in ACTION_SPECIALISTS | {"skeptic_agent", "curator_agent"}
+        and str(event.get("event_type", "")).strip() in {"tool_execution", "artifact_write", "quality_check", "counterfactual_reviewed", "conflict_resolved"}
+    ]
+
+    if local_direct:
+        degraded_reasons.add("WRAPPER_DEGRADED_LOCAL_DIRECT")
+        if backend != "local":
+            issues.append("local_renderdoc_python fallback is only allowed for local backend")
+
+    if orchestration_mode not in {"multi_agent", "single_agent_by_user"}:
+        issues.append("runtime_topology.orchestration_mode must be multi_agent or single_agent_by_user")
+    elif orchestration_mode == "single_agent_by_user":
+        if single_agent_reason != "user_requested":
+            issues.append("single_agent_by_user requires single_agent_reason=user_requested")
+        if dispatch_events:
+            issues.append("single_agent_by_user runs must not dispatch specialist agents")
+        if specialist_events:
+            issues.append("single_agent_by_user runs must not emit specialist-owned execution or reporting events")
+        if delegation_status != "single_agent_by_user":
+            issues.append("single_agent_by_user runs must record delegation_status=single_agent_by_user")
+    else:
+        if delegation_status == "single_agent_by_user":
+            issues.append("multi_agent runs must not record delegation_status=single_agent_by_user")
+
+    return sorted(set(issues)), sorted(degraded_reasons)
+
+
 def _resolve_runtime_baton_ref(run_root: Path, ref: str) -> Path | None:
     text = str(ref or "").strip()
     if not text:
@@ -327,20 +423,6 @@ def _runtime_topology_issues(
         }
         if invalid_dispatchers:
             issues.append("staged_handoff runs must keep specialist dispatch in rdc-debugger hub-and-spoke flow")
-    if coordination_mode == "workflow_stage":
-        workflow_specialists = {
-            str(event.get("agent_id", "")).strip()
-            for event in events
-            if str(event.get("event_type", "")).strip() in {"tool_execution", "artifact_write"}
-            and str(event.get("agent_id", "")).strip() in ACTION_SPECIALISTS
-        }
-        workflow_specialists.update(
-            str(_event_payload(event).get("target_agent") or "").strip()
-            for event in specialist_dispatches
-        )
-        workflow_specialists.discard("")
-        if len(workflow_specialists) > 1:
-            issues.append("workflow_stage runs must not present a stable multi-specialist network")
     if backend == "remote" or applied_live_runtime_policy == "single_runtime_owner":
         if len(owner_set) > 1:
             issues.append("single-owner runs must keep a single runtime_owner across all tool_execution events")
@@ -1254,15 +1336,26 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
         if str(runtime_topology_data.get("backend", "")).strip() != str(computed_runtime_topology.get("backend", "")).strip():
             runtime_topology_issues.append("runtime_topology.backend must match the recomputed topology")
         for field in (
+            "orchestration_mode",
+            "single_agent_reason",
             "sub_agent_mode",
             "peer_communication",
             "agent_description_mode",
             "dispatch_topology",
+            "specialist_dispatch_requirement",
+            "host_delegation_policy",
+            "host_delegation_fallback",
             "runtime_parallelism_ceiling",
             "applied_live_runtime_policy",
+            "delegation_status",
+            "fallback_execution_mode",
         ):
             if str(runtime_topology_data.get(field, "")).strip() != str(computed_runtime_topology.get(field, "")).strip():
                 runtime_topology_issues.append(f"runtime_topology.{field} must match the recomputed topology")
+        actual_degraded_reasons = _normalized_reason_list(runtime_topology_data.get("degraded_reasons"))
+        expected_degraded_reasons = _normalized_reason_list(computed_runtime_topology.get("degraded_reasons"))
+        if actual_degraded_reasons != expected_degraded_reasons:
+            runtime_topology_issues.append("runtime_topology.degraded_reasons must match the recomputed topology")
         actual_bindings = _context_binding_projection(list(runtime_topology_data.get("context_bindings") or []))
         expected_bindings = _context_binding_projection(list(computed_runtime_topology.get("context_bindings") or []))
         if not actual_bindings:
@@ -1278,6 +1371,18 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
         "runtime_topology.yaml must exist and describe the run topology for this action chain",
         path=runtime_topology if runtime_topology.is_file() else None,
         refs=runtime_topology_issues[:8] or None,
+    )
+    board_root = hypothesis_board_data.get("hypothesis_board") if isinstance(hypothesis_board_data, dict) else {}
+    blocking_issue_refs = []
+    if isinstance(board_root, dict):
+        blocking_issue_refs = [str(item).strip() for item in (board_root.get("blocking_issues") or []) if str(item).strip()]
+    _check(
+        checks,
+        "hypothesis_board_blockers",
+        not blocking_issue_refs,
+        "hypothesis_board.yaml must not carry unresolved blocking_issues at finalization",
+        path=hypothesis_board if hypothesis_board.is_file() else None,
+        refs=blocking_issue_refs[:8] or None,
     )
 
     fix_verification_issues = _fix_verification_issues(fix_verification_data) if fix_verification.is_file() else ["fix_verification missing"]
@@ -1315,6 +1420,10 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
     topology_entry_mode = str((runtime_topology_data or {}).get("entry_mode") or (computed_runtime_topology or {}).get("entry_mode") or "").strip()
     topology_backend = str((runtime_topology_data or {}).get("backend") or (computed_runtime_topology or {}).get("backend") or "").strip()
     topology_live_policy = str((runtime_topology_data or {}).get("applied_live_runtime_policy") or (computed_runtime_topology or {}).get("applied_live_runtime_policy") or "").strip()
+    orchestration_mode = str((runtime_topology_data or {}).get("orchestration_mode") or (computed_runtime_topology or {}).get("orchestration_mode") or "multi_agent").strip()
+    topology_contract = runtime_topology_data if isinstance(runtime_topology_data, dict) and runtime_topology_data else computed_runtime_topology
+    degraded_reasons = set(_normalized_reason_list((computed_runtime_topology or {}).get("degraded_reasons")))
+    degraded_reasons.update(_normalized_reason_list((runtime_topology_data or {}).get("degraded_reasons")))
     dispatch_ok = any(str(e.get("event_type", "")).strip() == "dispatch" and str(e.get("agent_id", "")).strip() == "rdc-debugger" for e in events)
     live_tool_ok = any(str(e.get("event_type", "")).strip() == "tool_execution" for e in events)
     specialist_tool_ok = any(str(e.get("event_type", "")).strip() == "tool_execution" and str(e.get("agent_id", "")).strip() in ACTION_SPECIALISTS for e in events)
@@ -1326,16 +1435,35 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
         backend=topology_backend or "local",
         applied_live_runtime_policy=topology_live_policy or "single_runtime_owner",
     )
+    degraded_execution_issues, normalized_degraded_reasons = _delegation_execution_issues(
+        events,
+        backend=topology_backend or "local",
+        topology_data=topology_contract if isinstance(topology_contract, dict) else {},
+    )
+    degraded_reasons.update(normalized_degraded_reasons)
     runtime_baton_issues = _runtime_baton_issues(events, run_root)
     specialist_handoff_issues = _dispatched_specialist_handoff_issues(events, run_root)
     skeptic_ok = any(str(e.get("agent_id", "")).strip() == "skeptic_agent" and str(e.get("event_type", "")).strip() in {"conflict_resolved", "counterfactual_reviewed", "quality_check"} for e in events)
-    curator_ok = any(
+    native_curator_ok = any(
         str(e.get("agent_id", "")).strip() == "curator_agent"
         and str(e.get("event_type", "")).strip() == "artifact_write"
         and _path_ref_matches(_event_path(e), report_md)
         for e in events
     )
-    _check(checks, "action_chain_dispatch", dispatch_ok, "action_chain must contain a dispatch event from rdc-debugger", path=action_chain if action_chain.is_file() else None)
+    single_agent_report_ok = any(
+        str(e.get("agent_id", "")).strip() == "rdc-debugger"
+        and str(e.get("event_type", "")).strip() == "artifact_write"
+        and _path_ref_matches(_event_path(e), report_md)
+        for e in events
+    )
+    curator_ok = native_curator_ok if orchestration_mode != "single_agent_by_user" else single_agent_report_ok
+    _check(
+        checks,
+        "action_chain_dispatch",
+        dispatch_ok if orchestration_mode != "single_agent_by_user" else True,
+        "multi_agent runs must contain a dispatch event from rdc-debugger",
+        path=action_chain if action_chain.is_file() else None,
+    )
     _check(
         checks,
         "action_chain_live_execution",
@@ -1346,8 +1474,8 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
     _check(
         checks,
         "action_chain_specialist",
-        specialist_tool_ok if expected_coordination == "concurrent_team" and (topology_backend or "local") == "local" else True,
-        "concurrent_team local runs must contain at least one specialist-owned tool_execution",
+        specialist_tool_ok if orchestration_mode != "single_agent_by_user" and expected_coordination == "concurrent_team" and (topology_backend or "local") == "local" else True,
+        "multi_agent concurrent_team local runs must contain at least one specialist-owned tool_execution",
         path=action_chain if action_chain.is_file() else None,
     )
     _check(
@@ -1376,6 +1504,14 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
     )
     _check(
         checks,
+        "delegation_execution_contract",
+        not degraded_execution_issues,
+        "delegation mode and direct-runtime fallback semantics must match the platform contract",
+        path=runtime_topology if runtime_topology.is_file() else action_chain if action_chain.is_file() else None,
+        refs=degraded_execution_issues[:8] or None,
+    )
+    _check(
+        checks,
         "runtime_baton_contract",
         not runtime_baton_issues,
         "runtime baton refs must resolve and live resume operations must declare baton_ref",
@@ -1385,13 +1521,25 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
     _check(
         checks,
         "staged_handoff_artifacts",
-        not specialist_handoff_issues,
+        not specialist_handoff_issues if orchestration_mode != "single_agent_by_user" else True,
         "each dispatched specialist must leave a handoff artifact in runs/<run_id>/notes/** or capture_refs.yaml",
         path=action_chain if action_chain.is_file() else None,
         refs=specialist_handoff_issues[:8] or None,
     )
-    _check(checks, "action_chain_skeptic", skeptic_ok, "action_chain must contain skeptic review activity", path=action_chain if action_chain.is_file() else None)
-    _check(checks, "action_chain_curator", curator_ok, "action_chain must contain curator report artifact_write activity", path=action_chain if action_chain.is_file() else None)
+    _check(
+        checks,
+        "action_chain_skeptic",
+        skeptic_ok if orchestration_mode != "single_agent_by_user" else True,
+        "multi_agent runs must contain skeptic review activity",
+        path=action_chain if action_chain.is_file() else None,
+    )
+    _check(
+        checks,
+        "action_chain_curator",
+        curator_ok,
+        "multi_agent runs require curator_agent report artifact_write; single_agent_by_user runs require rdc-debugger report artifact_write",
+        path=action_chain if action_chain.is_file() else None,
+    )
 
     report_text = "\n".join(_text(path) for path in (report_md, visual_report) if path.is_file())
     report_session_ids = _extract_matches(report_text, SESSION_RE)
@@ -1423,6 +1571,7 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
         "generated_at": _now_iso(),
         "status": "passed" if all(item["result"] == "pass" for item in checks) else "failed",
         "session_id": session_id or "",
+        "degraded_reasons": sorted(reason for reason in degraded_reasons if reason in DEGRADED_REASONS),
         "checks": checks,
         "summary": {
             "passed": sum(1 for item in checks if item["result"] == "pass"),
@@ -1492,6 +1641,12 @@ def main() -> int:
                 "context_id": str(((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("contexts") or ["default"])[0]),
                 "runtime_owner": str(((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("owners") or ["rdc-debugger"])[0]),
                 "baton_ref": "",
+                "context_binding_id": str((((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("context_bindings") or [{}])[0].get("context_binding_id") or "ctxbind-default")),
+                "capture_ref": str((((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("context_bindings") or [{}])[0].get("capture_ref") or "")),
+                "canonical_anchor_ref": str((((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("context_bindings") or [{}])[0].get("canonical_anchor_ref") or "")),
+                "delegation_status": str((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("delegation_status", "none")).strip() if (run_root / "artifacts" / "runtime_topology.yaml").is_file() else "none",
+                "fallback_execution_mode": str((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("fallback_execution_mode", "wrapper")).strip() if (run_root / "artifacts" / "runtime_topology.yaml").is_file() else "wrapper",
+                "degraded_reasons": list((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("degraded_reasons") or []),
             },
         },
     )

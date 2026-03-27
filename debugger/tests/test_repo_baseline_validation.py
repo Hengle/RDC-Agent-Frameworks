@@ -178,6 +178,10 @@ class RepoBaselineValidationTests(unittest.TestCase):
             self.assertIn("capture import + case/run bootstrap", text)
             self.assertIn("artifacts/run_compliance.yaml", text)
             self.assertIn("multi_context_orchestrated", text)
+            self.assertIn("host_delegation_policy = platform_managed", text)
+            self.assertIn("host_delegation_fallback = none", text)
+            self.assertIn("single_agent_by_user", text)
+            self.assertIn("BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT", text)
 
     def test_platform_capabilities_declare_mode_support_and_enforcement(self) -> None:
         capabilities = json.loads(
@@ -197,8 +201,23 @@ class RepoBaselineValidationTests(unittest.TestCase):
             self.assertIn(row.get("peer_communication"), {"direct", "via_main_agent", "none"})
             self.assertIn(row.get("agent_description_mode"), {"independent_files", "spawn_instruction_only"})
             self.assertIn(row.get("dispatch_topology"), {"mesh", "hub_and_spoke", "workflow_serial"})
+            self.assertEqual(row.get("specialist_dispatch_requirement"), "required")
+            self.assertEqual(row.get("host_delegation_policy"), "platform_managed")
+            self.assertIn(row.get("host_delegation_fallback"), {"native", "none"})
             self.assertIn(row.get("local_live_runtime_policy"), {"multi_context_multi_owner", "multi_context_orchestrated", "single_runtime_owner"})
             self.assertEqual(row.get("remote_live_runtime_policy"), "single_runtime_owner")
+
+    def test_codex_skill_wrapper_declares_single_agent_mode_and_feedback_contract(self) -> None:
+        text = (DEBUGGER_ROOT / "platforms" / "codex" / ".agents" / "skills" / "rdc-debugger" / "SKILL.md").read_text(encoding="utf-8-sig")
+        for marker in (
+            "host_delegation_policy = platform_managed",
+            "host_delegation_fallback = none",
+            "single_agent_by_user",
+            "BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT",
+            "fallback_execution_mode=local_renderdoc_python",
+            "waiting_for_specialist_brief",
+        ):
+            self.assertIn(marker, text)
 
     def test_claude_code_docs_declare_mode_matrix_and_runtime_topology(self) -> None:
         readme = (DEBUGGER_ROOT / "platforms" / "claude-code" / "README.md").read_text(encoding="utf-8-sig")

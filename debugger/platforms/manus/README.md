@@ -7,9 +7,9 @@
 - 当前宿主按 workflow package 运行，协作上限仍是 `workflow_stage`。
 - 当前平台只允许 `MCP` 作为工具入口，不允许尝试 `CLI`。
 - 任务开始时，Agent 必须向用户说明当前采用的是 `MCP`，并先完成 MCP preflight。
-- 任务开始时，Agent 必须向用户说明当前采用的是 `workflow_stage` 串行流程，而不是 live team handoff。
+- 任务开始时，Agent 必须向用户说明当前采用的是 `workflow_stage` 串行 specialist 流，而不是 live team handoff。
 - 当前平台只允许消费已经准备好的共享文档、workspace 与 artifact contract；若 MCP server 未配置完成，必须直接阻断。
-- 当前宿主的 `sub_agent_mode = instruction_only_sub_agents`；如需子 agent，只能由主 agent 在实例化时注入 instruction。
+- 当前宿主的 `sub_agent_mode = instruction_only_sub_agents`；支持 sub agent runtime，但如需子 agent，只能由主 agent 在实例化时注入 instruction。
 - 当前宿主不支持独立 agent 描述文件、native hooks 与 per-agent model control，但当前模板仍提供 wrapper skills 来统一入口语义。
 - 当前模板默认不预注册 MCP；启用时必须按平台接线说明显式填入 opt-in MCP 配置。
 - 当前平台的 `local_support` / `remote_support` / `enforcement_layer` 以 `common/config/platform_capabilities.json` 中 `manus` 行为准。
@@ -34,7 +34,7 @@
 - 未提供可导入的 `.rdc` 时，Agent 必须以 `BLOCKED_MISSING_CAPTURE` 直接阻断，不得初始化 case/run 或继续 triage、investigation、planning。
 - `workspace/` 预生成空骨架；真实运行产物在平台使用阶段按 case/run 写入。
 - 维护者若重跑 scaffold，必须继续产出 platform-local `common/` 最小占位目录，不得回退到跨级引用。
-- 当前宿主按 `workflow_stage` 降级运行；最终仍必须生成 `artifacts/run_compliance.yaml` 才算合规结案。
-- 不得在该宿主上模拟实时 multi-agent handoff。
+- 当前宿主按 `workflow_stage` 串行运行；最终仍必须生成 `artifacts/run_compliance.yaml` 才算合规结案。
+- 可进行串行 specialist dispatch，但不得在该宿主上模拟实时 multi-agent handoff。
 - 不得把独立 specialist 描述文件误写成 Manus 宿主能力；该宿主只支持 spawn-time instruction。
 - 若任务需要更高阶 remote 多轮会诊、多 live owners 或 per-agent model routing，必须切回更高能力平台。

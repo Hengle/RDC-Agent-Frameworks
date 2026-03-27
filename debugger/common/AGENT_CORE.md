@@ -26,7 +26,28 @@
 - intake、规范化、分派、阶段推进与结案门槛
 - `case_input.yaml`、`reference_contract`、`fix_verification.yaml` 的合同
 - `causal_anchor`、workspace、artifact/gate 的硬约束
-- 多平台能力差异下的降级编排原则
+- 多平台能力差异下的 orchestration / progress 合同
+
+新的 orchestration SSOT 只允许落在以下 artifact/配置中：
+
+- `common/config/platform_capabilities.json`
+  - `specialist_dispatch_requirement`
+  - `host_delegation_policy`
+  - `host_delegation_fallback`
+- `../workspace/cases/<case_id>/artifacts/entry_gate.yaml`
+  - `orchestration_mode`
+  - `single_agent_reason`
+- `artifacts/runtime_topology.yaml`
+  - `orchestration_mode`
+  - `single_agent_reason`
+  - `delegation_status`
+  - `fallback_execution_mode`
+  - `degraded_reasons`
+- `runs/<run_id>/notes/hypothesis_board.yaml`
+  - `active_owner`
+  - `blocking_issues`
+  - `progress_summary`
+  - `next_actions`
 
 ## 2. Mandatory Intent Gate
 
@@ -225,9 +246,14 @@
 - `staged_handoff` 不是单 agent 串行；它是主 agent 为通信与裁决中枢的多 specialist 多轮接力
 - `staged_handoff` 下由 specialist 先提交 brief / evidence request，再由主 agent 重组后分派到对应 context；live tool 链在 local 可由多个 specialist 各持独立 context 执行，但不得绕过主 agent 做 peer coordination
 - 对 `staged_handoff` 平台，`dispatch` 与任何 live `tool_execution` 都必须晚于 `intake_gate` pass；specialist 必须把 handoff 结果写回 `runs/<run_id>/notes/**` 或 `capture_refs.yaml`
-- `workflow_stage` 只允许阶段化串行推进，不模拟真实的 team-agent 并发 handoff
+- `workflow_stage` 只允许阶段化串行推进；specialist 可按 instruction-only 方式串行实例化，但不模拟真实的 team-agent 并发 handoff
 - `single_runtime_owner` 不等于 `single_agent_flow`
-- remote case 一律服从 `single_runtime_owner`；不得因为 multi-agent 就共享 live remote runtime
+- remote case 一律服从 `single_runtime_owner`；可以 multi-agent coordination，但不得共享 live remote runtime
+- 默认 `orchestration_mode = multi_agent`；所有平台都应先走 specialist dispatch
+- 只有用户显式要求不要 multi-agent context 时，才允许 `orchestration_mode = single_agent_by_user`，并且必须把 `single_agent_reason = user_requested` 落盘到 `entry_gate.yaml` 与 `runtime_topology.yaml`
+- specialist dispatch 后，主 agent 必须进入等待 brief / 汇总 progress 的编排态，不得因短时 silence 自行抢活
+- 超过框架等待预算仍未收到阶段回报时，必须进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态，而不是 fallback 为 orchestrator 自执行
+- direct RenderDoc Python fallback 只允许 local backend；若发生，必须记录 `fallback_execution_mode=local_renderdoc_python` 与 `WRAPPER_DEGRADED_LOCAL_DIRECT`
 
 ## 8. Hard Contracts
 
@@ -364,6 +390,7 @@
 - `triage_agent`、`capture_repro_agent`、`pass_graph_pipeline_agent`、`pixel_forensics_agent`、`shader_ir_agent`、`driver_device_agent` 只允许写 `workspace_notes` 范围，并必须通过 `artifact_write` 把 handoff 结果落到 `runs/<run_id>/notes/**` 或 `capture_refs.yaml`
 - `skeptic_agent` 只允许写 `session_signoff`
 - `curator_agent` 负责 `workspace_reports`、`session_artifacts` 与 `knowledge_library`
+- `rdc-debugger` 只在 `single_agent_by_user` 下承担调查与最终报告写入；该模式必须显式记录为用户选择，不得伪装成 native specialist / curator dispatch
 
 ### 8.5 Artifact / Gate Contract
 
@@ -378,6 +405,15 @@
 - `../workspace/cases/<case_id>/inputs/captures/manifest.yaml`
 - `../workspace/cases/<case_id>/inputs/references/manifest.yaml`
 - `../workspace/cases/<case_id>/runs/<run_id>/capture_refs.yaml`
+- `../workspace/cases/<case_id>/runs/<run_id>/artifacts/runtime_topology.yaml`
+- `../workspace/cases/<case_id>/runs/<run_id>/artifacts/run_compliance.yaml`
+- `../workspace/cases/<case_id>/runs/<run_id>/reports/report.md`
+- `../workspace/cases/<case_id>/runs/<run_id>/reports/visual_report.html`
+
+结案约束：
+
+- `multi_agent` 下，`curator_agent` 仍是 finalization-required
+- `single_agent_by_user` 下，允许 `rdc-debugger` 输出最终报告，但 action chain 与 runtime topology 必须显式体现该模式
 - `../workspace/cases/<case_id>/runs/<run_id>/artifacts/intake_gate.yaml`
 - `../workspace/cases/<case_id>/runs/<run_id>/artifacts/runtime_topology.yaml`
 - `../workspace/cases/<case_id>/runs/<run_id>/artifacts/fix_verification.yaml`
@@ -387,7 +423,7 @@
 - `entry_gate.yaml.status` 必须为 `passed`
 - `session_evidence.yaml` 根对象必须包含完整 `causal_anchor`
 - `session_evidence.yaml` 必须包含 `reference_contract` 摘要与 `fix_verification` 摘要
-- `runtime_topology.yaml` 必须显式记录 `entry_mode`、`backend`、`sub_agent_mode`、`peer_communication`、`dispatch_topology`、`runtime_parallelism_ceiling`、`applied_live_runtime_policy`、`context_bindings`、`owners`
+- `runtime_topology.yaml` 必须显式记录 `entry_mode`、`backend`、`orchestration_mode`、`single_agent_reason`、`sub_agent_mode`、`peer_communication`、`dispatch_topology`、`runtime_parallelism_ceiling`、`applied_live_runtime_policy`、`context_bindings`、`owners`
 - `action_chain` 中所有 `dispatch`、`tool_execution`、`artifact_write`、`quality_check` 都必须携带 `entry_mode`、`backend`、`context_id`、`runtime_owner`、`baton_ref`
 - `fix_verification.yaml` 必须同时包含：
   - `structural_verification`

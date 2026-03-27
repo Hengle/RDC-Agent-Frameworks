@@ -122,6 +122,7 @@ def build_entry_gate_payload(
     capture_paths: list[str] | None = None,
     mcp_configured: bool = False,
     remote_transport: str = "",
+    single_agent_requested: bool = False,
 ) -> dict[str, Any]:
     platform_caps_path = root / "common" / "config" / "platform_capabilities.json"
     runtime_truth_path = root / "common" / "config" / "runtime_mode_truth.snapshot.json"
@@ -133,6 +134,8 @@ def build_entry_gate_payload(
     backend_norm = str(backend or "").strip().lower()
     capture_paths = [str(item or "").strip() for item in (capture_paths or []) if str(item or "").strip()]
     valid_captures, invalid_captures = _capture_candidates(capture_paths)
+    orchestration_mode = "single_agent_by_user" if single_agent_requested else "multi_agent"
+    single_agent_reason = "user_requested" if single_agent_requested else ""
     checks: list[dict[str, Any]] = []
 
     row = platforms.get(platform_key) if isinstance(platforms, dict) else None
@@ -211,6 +214,8 @@ def build_entry_gate_payload(
         "platform": platform_key,
         "entry_mode": entry_mode_norm,
         "backend": backend_norm,
+        "orchestration_mode": orchestration_mode,
+        "single_agent_reason": single_agent_reason,
         "mode_key": mode_key,
         "checks": checks,
         "blockers": blockers,
@@ -223,6 +228,7 @@ def build_entry_gate_payload(
             "valid_capture_paths": valid_captures,
             "mcp_configured": bool(mcp_configured),
             "remote_transport": str(remote_transport or "").strip(),
+            "single_agent_requested": bool(single_agent_requested),
         },
         "platform_contract": {
             "coordination_mode": str((row or {}).get("coordination_mode") or ""),
@@ -230,6 +236,9 @@ def build_entry_gate_payload(
             "peer_communication": str((row or {}).get("peer_communication") or ""),
             "agent_description_mode": str((row or {}).get("agent_description_mode") or ""),
             "dispatch_topology": str((row or {}).get("dispatch_topology") or ""),
+            "specialist_dispatch_requirement": str((row or {}).get("specialist_dispatch_requirement") or ""),
+            "host_delegation_policy": str((row or {}).get("host_delegation_policy") or ""),
+            "host_delegation_fallback": str((row or {}).get("host_delegation_fallback") or ""),
             "local_live_runtime_policy": str((row or {}).get("local_live_runtime_policy") or ""),
             "remote_live_runtime_policy": str((row or {}).get("remote_live_runtime_policy") or ""),
             "local_support": str((row or {}).get("local_support") or ""),
@@ -265,6 +274,7 @@ def run_entry_gate(
     capture_paths: list[str] | None = None,
     mcp_configured: bool = False,
     remote_transport: str = "",
+    single_agent_requested: bool = False,
 ) -> dict[str, Any]:
     payload = build_entry_gate_payload(
         root,
@@ -275,6 +285,7 @@ def run_entry_gate(
         capture_paths=capture_paths,
         mcp_configured=mcp_configured,
         remote_transport=remote_transport,
+        single_agent_requested=single_agent_requested,
     )
     _dump_yaml(case_root / "artifacts" / "entry_gate.yaml", payload)
     return payload
@@ -289,6 +300,7 @@ def main() -> int:
     parser.add_argument("--capture-path", action="append", default=[], help="accessible .rdc input path")
     parser.add_argument("--mcp-configured", action="store_true", help="mark MCP preflight as configured")
     parser.add_argument("--remote-transport", default="", help="remote transport hint")
+    parser.add_argument("--single-agent-by-user", action="store_true", help="record a user-requested single-agent mode")
     parser.add_argument("--root", type=Path, default=None, help="debugger root override")
     parser.add_argument("--strict", action="store_true", help="return non-zero on blocked")
     args = parser.parse_args()
@@ -302,6 +314,7 @@ def main() -> int:
         capture_paths=list(args.capture_path or []),
         mcp_configured=bool(args.mcp_configured),
         remote_transport=str(args.remote_transport or "").strip(),
+        single_agent_requested=bool(args.single_agent_by_user),
     )
     print(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False), end="")
     if args.strict and payload["status"] != "passed":

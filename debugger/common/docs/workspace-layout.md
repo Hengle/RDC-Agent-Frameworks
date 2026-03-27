@@ -73,6 +73,7 @@ workspace/
 - `.rdc` 是创建 case 的硬前置条件；未拿到 `.rdc` 前，不创建 `case_id`、`run_id`、`workspace_run_root`
 - `case_input.yaml` 只允许在 capture intake 成功后落盘
 - `entry_gate.yaml` 是 case 级平台/模式/preflight 唯一权威 gate artifact；未通过前不得进入 accepted intake
+- `entry_gate.yaml` 必须显式记录 `orchestration_mode`；若用户要求不要 multi-agent context，还必须记录 `single_agent_reason=user_requested`
 - `workspace/` 是 Agent 运行区，不要求用户手工把 `.rdc` 预放进 case 目录
 - `inputs/captures/` 只存导入后的 replayable `.rdc`
 - `inputs/captures/manifest.yaml` 是 capture 导入 provenance 的唯一 SSOT；至少记录 `capture_id`、`file_name`、`capture_role`、`source`、`import_mode`、`imported_at`、`sha256`，以及 `import_mode=path` 时的 `source_path`
@@ -81,6 +82,7 @@ workspace/
 - `fix_verification.yaml` 是 run 级修复验证唯一权威 artifact
 - `intake_gate.yaml` 是 run 级 intake 完整性的唯一权威 gate artifact；它必须先于任何 specialist dispatch / live `rd.*` 分析通过
 - `runtime_topology.yaml` 是 run 级 context/owner/backend/entry_mode 拓扑的唯一权威 artifact
+- `runtime_topology.yaml` 必须显式记录 `orchestration_mode`、`single_agent_reason` 与 `delegation_status`
 - `runtime_batons/` 是唯一合法的 live handoff baton artifact 目录
 - 第一层 gate artifacts 不复制到 `workspace/`；`run.yaml` 只记录引用
 - 并行 case 只能共享仓库，不得共享同一条 live `context`；每个并行 live case 都必须有独立 `context/daemon` 与独立 `runs/<run_id>/` 现场。

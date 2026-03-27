@@ -21,8 +21,10 @@ description: Public main skill for the RenderDoc/RDC GPU debugger framework. Use
 8. 在 accepted intake 后立即导入 capture、写入 `inputs/captures/manifest.yaml`、`capture_refs.yaml`，并生成 `artifacts/intake_gate.yaml`。
 9. 只有 `intake_gate.status = passed` 后，才允许 specialist 分派和任何 live `rd.*` 分析。
 10. 调查开始后必须写出 `artifacts/runtime_topology.yaml`，并保持 action chain payload 与它一致。
-11. 直接决定 specialist 分派、阶段推进与最终质量门。
-12. 在 case/run 已创建后，从 `hypothesis_board.yaml` 读取并持续回显当前 task/progress。
+11. 默认进入 `multi_agent` specialist dispatch；只有用户显式要求不要 multi-agent context 时，才允许 `single_agent_by_user`。
+12. specialist dispatch 后持续接收结构化阶段回报，并把它们回显到 `hypothesis_board.yaml`。
+13. 直接决定 specialist 分派、阶段推进与最终质量门。
+14. 在 case/run 已创建后，从 `hypothesis_board.yaml` 读取并持续回显当前 task/progress。
 
 ## Intent Gate 独占权
 
@@ -273,6 +275,9 @@ Hard rules:
 - run `artifacts/intake_gate.yaml` immediately after capture import + case/run bootstrap
 - write `artifacts/runtime_topology.yaml` before long-running investigation and keep it aligned with action chain payload metadata
 - do not emit specialist `dispatch` or call live `rd.*` tools before `intake_gate.status = passed`
+- default `orchestration_mode` is `multi_agent`
+- only explicit user intent may switch the run to `single_agent_by_user`
+- `single_agent_by_user` must also write `single_agent_reason = user_requested` into `entry_gate` / `runtime_topology`
 
 ### 4.2 Intake Gate Output
 
@@ -293,6 +298,7 @@ Hard rules:
 - `single_runtime_owner` 不等于单 agent 串行；`staged_handoff` 在 remote 仍是单 owner，但在 local 可以是主 agent 编排下的 `multi_context_orchestrated`
 - `staged_handoff` 的权威拓扑是 `hub_and_spoke`：specialist 之间不直连，所有依赖与裁决都经 `rdc-debugger` 重组；local 下每个 live specialist 可绑定独立 context
 - remote 与 `staged_handoff` / `workflow_stage` 统一采用单 owner live runtime；跨 agent / 跨轮次 live handoff 必须落成 `artifacts/runtime_batons/<baton_id>.yaml`
+- `remote` 支持 multi-agent coordination，但永远不支持 multi-owner live runtime
 - 以下任一缺失都必须 hard fail：
   - `case_input.yaml`
   - `inputs/captures/manifest.yaml`
@@ -332,6 +338,14 @@ Hard rules:
 - `intent_gate.confidence`
 - `intent_gate.rationale`
 
+specialist dispatch 后的最小 progress contract：
+
+- 主 agent 必须先把 run 状态表述为 `waiting_for_specialist_brief`
+- specialist 至少回填四类阶段状态：`accepted`、`current_task`、`blocking_issues`、`completed_handoff`
+- progress brief 至少包含：`active_owner`、`current_task`、`working_hypothesis`、`evidence_collected`、`blocking_issues`、`next_actions`、`status`
+- 首次 brief 应在 60 秒内出现；持续执行中超过 5 分钟无阶段更新时，应进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态
+- 短时 silence 只能被表述为等待/阻断，不能自动回退成 orchestrator 自执行
+
 如果还没有 `.rdc`，你只能在当前对话或主面板中显示临时状态，不能伪造 `hypothesis_board.yaml`。`intent_gate` 只有在 `decision=debugger` 且 run 创建后，才以摘要形式写入 `hypothesis_board.yaml`。
 
 ## 禁止行为
@@ -345,4 +359,6 @@ Hard rules:
 - 不把 `rdc-debugger` 当 public main skill 的替身
 - 不把 screenshot、日志或口头描述当成 `.rdc` 的替代品
 - 不在没有 `hypothesis_board` 的情况下伪造 run 级进度
+- 不在 `multi_agent` 模式下让 orchestrator 因短时 silence 直接接管 specialist live `rd.*`
+- 不把 `single_agent_by_user` 伪装成宿主降级或 fallback
 

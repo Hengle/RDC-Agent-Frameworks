@@ -1,8 +1,8 @@
-﻿# RenderDoc/RDC Debugger Runtime Coordination Model（运行时协作模型）
+# RenderDoc/RDC Debugger Runtime Coordination Model（运行时协作模型）
 
 本文只定义 debugger framework 如何消费 Tools 的 runtime ceiling，并把它落成可执行、可审计的协作合同。
 
-## 1. 先区分三层概念
+## 1. 先区分四层概念
 
 - `entry_mode`
   - `CLI` 或 `MCP`
@@ -10,6 +10,8 @@
   - `local` 或 `remote`
 - `coordination_mode`
   - `concurrent_team`、`staged_handoff`、`workflow_stage`
+- `orchestration_mode`
+  - `multi_agent`、`single_agent_by_user`
 
 它们不是同一维度。
 
@@ -26,7 +28,7 @@
 ### `workflow_stage`
 
 - 阶段化串行推进。
-- 可以有临时 worker，但不形成稳定 specialist 网络。
+- specialist 可被主 agent 串行实例化，但不形成稳定 specialist 网络。
 - 不模拟实时 team-agent handoff。
 
 ### `staged_handoff`
@@ -58,10 +60,66 @@
 换句话说：
 
 - `single_runtime_owner != single_agent_flow`
+- `remote` 可以支持 multi-agent coordination，但不允许 multi-owner live runtime
 - `staged_handoff` 仍然允许多 specialist、多轮 handoff、多轮裁决
 - 它只是把 peer coordination 收敛到主 agent，把 remote live ownership 收敛到单 owner
 
-## 5. Runtime baton 合同
+## 5. Orchestration Mode
+
+### `multi_agent`
+
+- 这是默认模式。
+- 所有平台默认都应通过 specialist dispatch 进入调查、验证、审查与报告链。
+- `rdc-debugger` 负责 orchestration，不直接以 orchestrator 身份执行 investigator live `rd.*`。
+
+### `single_agent_by_user`
+
+- 只有用户显式要求不要 multi-agent context 时才允许进入。
+- 这不是 degraded path。
+- 必须显式落盘到 `entry_gate.yaml` 与 `runtime_topology.yaml`：
+  - `orchestration_mode: single_agent_by_user`
+  - `single_agent_reason: user_requested`
+- `runtime_topology.yaml` 还必须同步记录：
+  - `delegation_status: single_agent_by_user`
+  - `fallback_execution_mode: wrapper | local_renderdoc_python`
+  - `degraded_reasons` 只用于 direct-runtime wrapper fallback，不再用于 surrogate specialist / curator
+- 进入该模式后，主 agent 必须先向用户说明不会分派 specialist。
+
+## 6. Delegation Patience / Progress Contract
+
+- specialist dispatch 后必须有结构化阶段回报，不能无限黑盒。
+- `rdc-debugger` 必须持续把这些回报汇总到用户可观察状态源，例如 `hypothesis_board.yaml`。
+- dispatch 成功后，主 agent 必须先把当前状态切到“等待 specialist 首次 brief”，不得因短时 silence 自行抢活。
+
+统一最小 progress brief 字段：
+
+- `active_owner`
+- `current_task`
+- `working_hypothesis`
+- `evidence_collected`
+- `blocking_issues`
+- `next_actions`
+- `status`
+
+统一阶段状态：
+
+- `accepted`
+- `current_task`
+- `blocking_issues`
+- `completed_handoff`
+
+统一等待预算：
+
+- 首次 brief：60 秒内应有阶段确认
+- 持续执行中：超过 5 分钟无阶段更新，进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态
+
+统一 reclaim 规则：
+
+- 短时 silence 不等于 dispatch 失败
+- specialist feedback timeout 只允许导致 block / 重新确认 / redispatch
+- 不允许因为 impatience 自动退回到 orchestrator 自执行
+
+## 7. Runtime Baton 合同
 
 跨 agent、跨轮次、跨重连传递 live 调查上下文时：
 
@@ -70,7 +128,7 @@
 - 对 `multi_context_orchestrated`，跨 context 的 live 续接、焦点转交或 owner 变更都必须有 baton
 - baton 只承载 live 恢复所需事实，不改变 remote 单 owner 规则
 
-## 6. Framework 对 Tools runtime ceiling 的消费方式
+## 8. Framework 对 Tools runtime ceiling 的消费方式
 
 Tools 只定义：
 
@@ -84,4 +142,10 @@ Frameworks 负责再根据平台能力裁决最终政策：
 - `puppet_sub_agents + staged_handoff + local`
   - 收敛成 `multi_context_orchestrated`
 - `instruction_only_sub_agents + workflow_stage`
-  - 只能形成阶段化串行流
+  - 形成串行 specialist 流，而不是无 specialist
+
+## 9. Finalization
+
+- `curator_agent` 在 `multi_agent` 下仍然是 finalization-required。
+- `single_agent_by_user` 下，主 agent 负责最终报告输出，但必须在 action chain 与 runtime topology 中显式体现该模式。
+- 不存在“宿主不允许起 curator，于是 surrogate curator 代写”的 shared contract。
