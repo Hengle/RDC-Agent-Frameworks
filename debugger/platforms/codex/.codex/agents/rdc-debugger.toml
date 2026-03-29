@@ -1,0 +1,16 @@
+name = "rdc-debugger"
+description = "Validator-driven public main entry for the RenderDoc/RDC GPU debugger workflow."
+developer_instructions = """
+You are the public rdc-debugger main agent for the RenderDoc/RDC GPU Debug framework.
+Read and follow: .agents/skills/rdc-debugger/SKILL.md
+Before every phase transition, run the matching `.codex/runtime_guard.py` command and treat any non-zero exit as a hard blocker.
+Required guard chain: preflight -> entry-gate -> intake-gate -> runtime-topology -> dispatch-readiness and specialist-feedback as needed -> final-audit.
+Do not dispatch specialists, do not run live `rd.*` analysis, and do not finalize when the current guard stage has not passed.
+All role constraints are defined there and in the files it references.
+"""
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+model_verbosity = "medium"
+
+[windows]
+sandbox = "elevated"

@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -14,8 +15,9 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 TEXT_EXTS = {".md", ".yaml", ".yml", ".json", ".jsonl", ".py", ".toml"}
-TOOL_RE = re.compile(r"rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+")
-CALL_RE = re.compile(r"(rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+)\s*\(([^)]*)\)")
+TOOL_PATTERN = r"(?<![A-Za-z0-9_\.])(?P<tool>rd\.[A-Za-z0-9_]+\.[A-Za-z0-9_\.]+)"
+TOOL_RE = re.compile(TOOL_PATTERN)
+CALL_RE = re.compile(TOOL_PATTERN + r"\s*\(([^)]*)\)")
 EXPECTED_TOOLS_ROOT = "tools"
 EXPECTED_RUNTIME_MODE = "worker_staged"
 BANNED_SNIPPETS = {
@@ -28,8 +30,18 @@ BANNED_SNIPPETS = {
 }
 
 
-def _root() -> Path:
-    return Path(__file__).resolve().parents[3]
+@dataclass
+class Findings:
+    unknown_tools: dict[str, set[str]] = field(default_factory=dict)
+    missing_prerequisite_examples: list[str] = field(default_factory=list)
+    banned_snippets: list[str] = field(default_factory=list)
+
+    def has_issues(self) -> bool:
+        return any([self.unknown_tools, self.missing_prerequisite_examples, self.banned_snippets])
+
+
+def _root(default: Path | None = None) -> Path:
+    return default.resolve() if default else Path(__file__).resolve().parents[3]
 
 
 def _read_json(path: Path) -> dict:
@@ -110,53 +122,83 @@ def _should_scan_banned_snippets(path: Path) -> bool:
     return True
 
 
-def main() -> int:
-    root = _root()
-    try:
-        known_tools, prerequisites = _load_catalog(root)
-    except Exception as exc:  # noqa: BLE001
-        print(str(exc), file=sys.stderr)
-        return 2
+def _tool_refs(text: str) -> set[str]:
+    return {match.group("tool") for match in TOOL_RE.finditer(text)}
 
-    unknown_rows: list[str] = []
-    session_rows: list[str] = []
-    banned_rows: list[str] = []
-    for path in _iter_files(root):
+
+def _looks_like_field_path(ref: str, known_tools: set[str]) -> bool:
+    return any(ref.startswith(tool + ".") for tool in known_tools)
+
+
+def validate_runtime_tool_contract(root: Path | None = None) -> Findings:
+    package_root = _root(root)
+    known_tools, prerequisites = _load_catalog(package_root)
+    findings = Findings()
+
+    for path in _iter_files(package_root):
         text = _read_text(path)
-        unknown = sorted({ref for ref in set(TOOL_RE.findall(text)) if ref not in known_tools})
+        unknown = sorted(
+            {
+                ref
+                for ref in _tool_refs(text)
+                if ref not in known_tools and not _looks_like_field_path(ref, known_tools)
+            }
+        )
         if unknown:
-            unknown_rows.append(f"{path}: {', '.join(unknown)}")
+            findings.unknown_tools[str(path)] = set(unknown)
         if _should_scan_banned_snippets(path):
             for snippet, reason in BANNED_SNIPPETS.items():
                 if snippet in text:
-                    banned_rows.append(f"{path}: banned snippet `{snippet}` ({reason})")
+                    findings.banned_snippets.append(f"{path}: banned snippet `{snippet}` ({reason})")
         for lineno, line in enumerate(text.splitlines(), start=1):
-            for tool, arg_text in CALL_RE.findall(line):
+            for match in CALL_RE.finditer(line):
+                tool = match.group("tool")
+                arg_text = match.group(2)
                 for prereq in prerequisites.get(tool, []):
                     required = prereq.get("requires", "")
                     when = prereq.get("when", "")
                     if when == "options.remote_id_present" and "remote_id" not in arg_text:
                         continue
                     if required == "session_id" and "session_id" not in arg_text:
-                        session_rows.append(f"{path}:{lineno}: {tool}(...) missing session_id prerequisite in example")
+                        findings.missing_prerequisite_examples.append(
+                            f"{path}:{lineno}: {tool}(...) missing session_id prerequisite in example"
+                        )
                     if required == "capture_file_id" and "capture_file_id" not in arg_text:
-                        session_rows.append(f"{path}:{lineno}: {tool}(...) missing capture_file_id prerequisite in example")
+                        findings.missing_prerequisite_examples.append(
+                            f"{path}:{lineno}: {tool}(...) missing capture_file_id prerequisite in example"
+                        )
                     if required == "remote_id" and ("remote_id" not in arg_text and "options.remote_id" not in arg_text):
-                        session_rows.append(f"{path}:{lineno}: {tool}(...) missing remote_id prerequisite in example")
+                        findings.missing_prerequisite_examples.append(
+                            f"{path}:{lineno}: {tool}(...) missing remote_id prerequisite in example"
+                        )
 
-    if unknown_rows or session_rows or banned_rows:
-        if unknown_rows:
-            print("[unknown rd.* references]")
-            for row in unknown_rows:
-                print(f" - {row}")
-        if session_rows:
-            print("[example calls missing prerequisites]")
-            for row in session_rows:
-                print(f" - {row}")
-        if banned_rows:
-            print("[banned legacy snippets]")
-            for row in banned_rows:
-                print(f" - {row}")
+    return findings
+
+
+def _print_findings(findings: Findings) -> None:
+    if findings.unknown_tools:
+        print("[unknown rd.* references]")
+        for file_path in sorted(findings.unknown_tools):
+            print(f" - {file_path}: {', '.join(sorted(findings.unknown_tools[file_path]))}")
+    if findings.missing_prerequisite_examples:
+        print("[example calls missing prerequisites]")
+        for row in findings.missing_prerequisite_examples:
+            print(f" - {row}")
+    if findings.banned_snippets:
+        print("[banned legacy snippets]")
+        for row in findings.banned_snippets:
+            print(f" - {row}")
+
+
+def main() -> int:
+    try:
+        findings = validate_runtime_tool_contract()
+    except Exception as exc:  # noqa: BLE001
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    if findings.has_issues():
+        _print_findings(findings)
         return 1
 
     print("runtime tool contract validation passed")

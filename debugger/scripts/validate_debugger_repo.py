@@ -283,6 +283,10 @@ def _doc_contract_findings(root: Path) -> list[str]:
             findings.append("codex docs must declare platform-managed native specialist dispatch semantics")
         if "single_agent_by_user" not in text or "BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT" not in text:
             findings.append("codex docs must explain explicit single-agent mode and specialist feedback timeout semantics")
+        if "runtime_owner + validator-driven gate loop + audit artifacts" not in text:
+            findings.append("codex docs must describe runtime_owner + validator-driven gate loop + audit artifacts enforcement")
+        if ".codex/runtime_guard.py" not in text:
+            findings.append("codex docs must reference the runtime_guard.py enforcement entrypoint")
 
     legacy_capture_markers = (
         "当前对话提交至少一份 `.rdc`",
@@ -495,12 +499,16 @@ def _compliance_findings(root: Path) -> list[str]:
 
         enforcement_mode = str(rules.get("enforcement_mode", "")).strip()
         hooks_supported = _surface_supported(platform_caps, "hooks")
+        if enforcement_mode not in {"native_hook_gate", "audit_only_gate", "workflow_audit_gate", "runtime_owner_gate_loop"}:
+            findings.append(f"{key}: invalid enforcement_mode")
         if enforcement_mode == "native_hook_gate" and not hooks_supported:
             findings.append(f"{key}: native_hook_gate requires hooks support")
         if enforcement_mode == "audit_only_gate" and hooks_supported:
             findings.append(f"{key}: audit_only_gate should not claim native hooks support")
         if enforcement_mode == "workflow_audit_gate" and actual_mode != "workflow_stage":
             findings.append(f"{key}: workflow_audit_gate requires workflow_stage coordination_mode")
+        if enforcement_mode == "runtime_owner_gate_loop" and str(platform_caps.get("enforcement_layer", "")).strip() != "runtime_owner":
+            findings.append(f"{key}: runtime_owner_gate_loop requires enforcement_layer=runtime_owner")
 
         for surface in rules.get("required_surfaces") or []:
             if not _surface_supported(platform_caps, str(surface)):

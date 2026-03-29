@@ -43,6 +43,13 @@ metadata:
 - 当前平台的 `sub_agent_mode = team_agents`，`peer_communication = direct`，`agent_description_mode = independent_files`。
 - 当前平台的 `specialist_dispatch_requirement = required`，`host_delegation_policy = platform_managed`，`host_delegation_fallback = native`。
 - local live policy = `multi_context_multi_owner`；remote live policy = `single_runtime_owner`。
+- 当前平台的执行约束补充：
+- 当前平台的 local `concurrent_team` 允许多个 team agents 各持独立 live context。
+- remote 仍统一服从 `single_runtime_owner`。
+- 默认 `orchestration_mode = multi_agent`；当前平台要求先走 specialist dispatch。
+- 只有用户显式要求不要 multi-agent context 时，才允许 `single_agent_by_user`，并且必须把 `single_agent_reason = user_requested` 落盘到 `entry_gate.yaml` 与 `runtime_topology.yaml`。
+- specialist dispatch 后，主 agent 必须进入 `waiting_for_specialist_brief` 并持续汇总阶段回报；短时 silence 不得触发 orchestrator 抢活。
+- 超过框架预算仍未收到阶段回报时，必须进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态，而不是让 orchestrator 抢做 specialist live investigation。
 
 
 未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。

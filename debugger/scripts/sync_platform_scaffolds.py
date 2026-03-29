@@ -319,26 +319,36 @@ def main_skill_wrapper_text(ctx: dict[str, Any], platform_key: str) -> str:
     policy_notes: list[str] = []
     if local_live_runtime_policy == "multi_context_orchestrated":
         policy_notes.extend([
-            "- ????? local `staged_handoff` ???? specialist ?????? context?",
-            "- ?? context ?????????????????????? brief ??? `rdc-debugger` ???",
-            "- remote ???? `single_runtime_owner`?",
+            "- 当前平台的 local `staged_handoff` 允许 specialist 各持独立 context，但所有协调、brief 重组与裁决都必须经 `rdc-debugger`。",
+            "- 跨 context live transfer / resume 只能通过 `runtime_baton`，不得直接跨 specialist 借用 live runtime。",
+            "- remote 一律服从 `single_runtime_owner`，不能把 local 的多 context 语义抬到 remote。",
         ])
     elif local_live_runtime_policy == "multi_context_multi_owner":
         policy_notes.extend([
-            "- ????? local `concurrent_team` ?? team agents ????????? live investigator ???? context?",
-            "- remote ???? `single_runtime_owner`?",
+            "- 当前平台的 local `concurrent_team` 允许多个 team agents 各持独立 live context。",
+            "- remote 仍统一服从 `single_runtime_owner`。",
         ])
     else:
-        policy_notes.append("- ????? local / remote ??? `single_runtime_owner`??? agent ???? live runtime?")
+        policy_notes.append("- 当前平台的 local / remote 都固定按 `single_runtime_owner` 推进 live runtime。")
     if specialist_dispatch_requirement == "required":
         policy_notes.extend([
             "- 默认 `orchestration_mode = multi_agent`；当前平台要求先走 specialist dispatch。",
             "- 只有用户显式要求不要 multi-agent context 时，才允许 `single_agent_by_user`，并且必须把 `single_agent_reason = user_requested` 落盘到 `entry_gate.yaml` 与 `runtime_topology.yaml`。",
             "- specialist dispatch 后，主 agent 必须进入 `waiting_for_specialist_brief` 并持续汇总阶段回报；短时 silence 不得触发 orchestrator 抢活。",
+            "- 超过框架预算仍未收到阶段回报时，必须进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态，而不是让 orchestrator 抢做 specialist live investigation。",
         ])
     policy_block = "\n".join(policy_notes)
     host_specific_notes = ""
-    if platform_key == "codex_plugin":
+    if platform_key == "codex":
+        host_specific_notes = """
+- OpenAI Codex 当前原生支持 `AGENTS.md` 分层与 `.codex/agents/*.toml` custom agents；当前模板继续使用这两类原生 surface。
+- OpenAI Codex Hooks 当前只对 Bash 提供 guardrail，不足以为本框架的 native `rd.*` / specialist dispatch 提供可靠 host-side enforcement；因此当前模板不引入 `.codex/hooks.json`。
+- 当前模板的强制执行链固定为：`.codex/runtime_guard.py preflight` → `entry-gate` → `intake-gate` → `runtime-topology` → `dispatch-readiness` / `specialist-feedback` → `final-audit`。
+- 任一 guard 子命令非零退出都必须立即阻断，不得继续 specialist dispatch、live `rd.*` 分析或 finalization。
+- direct RenderDoc Python fallback 只允许 local backend；若走直连路径，必须记录 `fallback_execution_mode=local_renderdoc_python` 与 `WRAPPER_DEGRADED_LOCAL_DIRECT`。
+- `runtime_guard.py` 只编排 shared validator / gate / audit；平台层不复制 shared schema 或第二套规则正文。
+"""
+    elif platform_key == "codex_plugin":
         host_specific_notes = """
 - 当前插件不依赖 `.codex/config.toml` 或 `.codex/agents/*.toml`。
 - specialist 角色以安装型 `skills/` 提供；当需要 specialist 时，`rdc-debugger` 必须显式要求 Codex 创建通用 sub-agent，并让每个 sub-agent 先加载对应的 `skills/<role>/SKILL.md`。
@@ -389,6 +399,8 @@ metadata:
 - 当前平台的 `sub_agent_mode = {sub_agent_mode}`，`peer_communication = {peer_communication}`，`agent_description_mode = {agent_description_mode}`。
 - 当前平台的 `specialist_dispatch_requirement = {specialist_dispatch_requirement}`，`host_delegation_policy = {host_delegation_policy}`，`host_delegation_fallback = {host_delegation_fallback}`。
 - local live policy = `{local_live_runtime_policy}`；remote live policy = `{remote_live_runtime_policy}`。
+- 当前平台的执行约束补充：
+{policy_block}
 {host_specific_notes}
 
 未先将顶层 `debugger/common/` 拷入当前平台根目录的 `common/` 之前，不允许在宿主中使用当前平台模板。
@@ -405,7 +417,13 @@ def role_skill_wrapper_text(ctx: dict[str, Any], platform_key: str, role: dict[s
     role_intro = "该角色默认是 internal/debug-only specialist。平台启动后不会自动进入该角色；只有用户手动召唤 `rdc-debugger` 并由它分派时，才进入当前 role。"
     title = "角色技能包装说明"
     dispatch_note = ""
-    if platform_key == "codex_plugin":
+    if platform_key == "codex":
+        dispatch_note = (
+            "\n\n当前平台的 role gate 由 `rdc-debugger` 通过 `.codex/runtime_guard.py` 统一执行。"
+            "\n没有 passed `artifacts/intake_gate.yaml`、passed `artifacts/runtime_topology.yaml` 与主 agent handoff 前，不得进入 live 调查。"
+            "\n当前 role 只读消费 gate 结果，不得重判 intent gate，不得直接分派其他 specialist。"
+        )
+    elif platform_key == "codex_plugin":
         role_name = Path(role["role_skill_path"]).parent.name
         dispatch_note = (
             f"\n\n当前平台不预注册 `.codex/agents` 自定义 agent；如需进入当前 role，`rdc-debugger` "
@@ -786,6 +804,8 @@ def sync_agent_and_role_configs(ctx: dict[str, Any], platform_key: str) -> None:
         role_root = package / role_config_dir
         if role_root.is_dir():
             desired_config_names = {f"{name}.toml" for name in desired_files}
+            if platform_key == "codex":
+                desired_config_names.add("rdc-debugger.toml")
             for child in role_root.iterdir():
                 if child.is_file() and child.name not in desired_config_names:
                     child.unlink()

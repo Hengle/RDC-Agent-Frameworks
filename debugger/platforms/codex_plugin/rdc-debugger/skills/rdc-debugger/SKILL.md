@@ -43,6 +43,14 @@ metadata:
 - 当前平台的 `sub_agent_mode = puppet_sub_agents`，`peer_communication = via_main_agent`，`agent_description_mode = skill_files`。
 - 当前平台的 `specialist_dispatch_requirement = required`，`host_delegation_policy = skill_managed`，`host_delegation_fallback = generic_subagents`。
 - local live policy = `multi_context_orchestrated`；remote live policy = `single_runtime_owner`。
+- 当前平台的执行约束补充：
+- 当前平台的 local `staged_handoff` 允许 specialist 各持独立 context，但所有协调、brief 重组与裁决都必须经 `rdc-debugger`。
+- 跨 context live transfer / resume 只能通过 `runtime_baton`，不得直接跨 specialist 借用 live runtime。
+- remote 一律服从 `single_runtime_owner`，不能把 local 的多 context 语义抬到 remote。
+- 默认 `orchestration_mode = multi_agent`；当前平台要求先走 specialist dispatch。
+- 只有用户显式要求不要 multi-agent context 时，才允许 `single_agent_by_user`，并且必须把 `single_agent_reason = user_requested` 落盘到 `entry_gate.yaml` 与 `runtime_topology.yaml`。
+- specialist dispatch 后，主 agent 必须进入 `waiting_for_specialist_brief` 并持续汇总阶段回报；短时 silence 不得触发 orchestrator 抢活。
+- 超过框架预算仍未收到阶段回报时，必须进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态，而不是让 orchestrator 抢做 specialist live investigation。
 
 - 当前插件不依赖 `.codex/config.toml` 或 `.codex/agents/*.toml`。
 - specialist 角色以安装型 `skills/` 提供；当需要 specialist 时，`rdc-debugger` 必须显式要求 Codex 创建通用 sub-agent，并让每个 sub-agent 先加载对应的 `skills/<role>/SKILL.md`。

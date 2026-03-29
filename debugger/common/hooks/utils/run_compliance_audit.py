@@ -124,6 +124,10 @@ def _load_action_chain(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def load_action_chain_events(path: Path) -> list[dict[str, Any]]:
+    return _load_action_chain(path)
+
+
 def _event_index(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {str(event.get("event_id", "")).strip(): event for event in events if str(event.get("event_id", "")).strip()}
 
@@ -472,6 +476,10 @@ def _specialist_handoff_path_ok(path_value: str, run_root: Path) -> bool:
     return False
 
 
+def specialist_handoff_path_ok(path_value: str, run_root: Path) -> bool:
+    return _specialist_handoff_path_ok(path_value, run_root)
+
+
 def _dispatched_specialist_handoff_issues(events: list[dict[str, Any]], run_root: Path) -> list[str]:
     issues: list[str] = []
     dispatched: dict[str, list[str]] = {}
@@ -519,6 +527,10 @@ def _intake_gate_order_issues(events: list[dict[str, Any]]) -> list[str]:
         if event_type in {"dispatch", "tool_execution"}:
             issues.append(f"{event_type} occurred before intake_gate pass: {str(event.get('event_id', '')).strip() or '?'}")
     return issues
+
+
+def intake_gate_order_issues(events: list[dict[str, Any]]) -> list[str]:
+    return _intake_gate_order_issues(events)
 
 
 def _fix_verification_issues(data: Any) -> list[str]:
@@ -683,6 +695,10 @@ def _workflow_stage_overreach_issues(events: list[dict[str, Any]], *, coordinati
                 f"[event {event_id}] rdc-debugger must not execute live tool {tool_name} during waiting_for_specialist_brief",
             )
     return issues
+
+
+def workflow_stage_overreach_issues(events: list[dict[str, Any]], *, coordination_mode: str) -> list[str]:
+    return _workflow_stage_overreach_issues(events, coordination_mode=coordination_mode)
 
 
 def _load_sops(root: Path) -> dict[str, dict[str, Any]]:
@@ -1779,6 +1795,54 @@ def run_audit(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
     }
 
 
+def write_run_audit_artifact(root: Path, run_root: Path, platform: str) -> dict[str, Any]:
+    payload = run_audit(root, run_root, platform)
+    action_chain_path = Path(payload["paths"]["action_chain"])
+    runtime_topology_path = run_root / "artifacts" / "runtime_topology.yaml"
+    runtime_topology_data = _read_yaml(runtime_topology_path) if runtime_topology_path.is_file() else {}
+    if not isinstance(runtime_topology_data, dict):
+        runtime_topology_data = {}
+    run_data = _read_yaml(run_root / "run.yaml") if (run_root / "run.yaml").is_file() else {}
+    if not isinstance(run_data, dict):
+        run_data = {}
+    context_bindings = list(runtime_topology_data.get("context_bindings") or [])
+    owners = list(runtime_topology_data.get("owners") or [])
+    contexts = list(runtime_topology_data.get("contexts") or [])
+    _append_event(
+        action_chain_path,
+        {
+            "schema_version": ACTION_CHAIN_SCHEMA,
+            "event_id": f"evt-audit-run-compliance-{payload['status']}",
+            "ts_ms": _now_ms(),
+            "run_id": str(run_data.get("run_id", "")).strip(),
+            "session_id": payload["session_id"],
+            "agent_id": "rdc-debugger",
+            "event_type": "quality_check",
+            "status": "pass" if payload["status"] == "passed" else "fail",
+            "duration_ms": 0,
+            "refs": [],
+            "payload": {
+                "validator": "run_compliance_audit",
+                "summary": f"run compliance audit {payload['status']}",
+                "path": _norm(run_root / "artifacts" / "run_compliance.yaml"),
+                "entry_mode": str(runtime_topology_data.get("entry_mode", "cli")).strip() or "cli",
+                "backend": str(runtime_topology_data.get("backend", "local")).strip() or "local",
+                "context_id": str((contexts or ["default"])[0]),
+                "runtime_owner": str((owners or ["rdc-debugger"])[0]),
+                "baton_ref": "",
+                "context_binding_id": str(((context_bindings or [{}])[0].get("context_binding_id") or "ctxbind-default")),
+                "capture_ref": str(((context_bindings or [{}])[0].get("capture_ref") or "")),
+                "canonical_anchor_ref": str(((context_bindings or [{}])[0].get("canonical_anchor_ref") or "")),
+                "delegation_status": str(runtime_topology_data.get("delegation_status", "none")).strip() or "none",
+                "fallback_execution_mode": str(runtime_topology_data.get("fallback_execution_mode", "wrapper")).strip() or "wrapper",
+                "degraded_reasons": list(runtime_topology_data.get("degraded_reasons") or []),
+            },
+        },
+    )
+    _dump_yaml(run_root / "artifacts" / "run_compliance.yaml", payload)
+    return payload
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit debugger run compliance")
     parser.add_argument("--platform", required=False, help="platform key")
@@ -1792,44 +1856,10 @@ def main() -> int:
     platform = args.platform or root.name
 
     try:
-        payload = run_audit(root, run_root, platform)
+        payload = write_run_audit_artifact(root, run_root, platform)
     except Exception as exc:  # noqa: BLE001
         print(str(exc), file=sys.stderr)
         return 2
-
-    action_chain_path = Path(payload["paths"]["action_chain"])
-    _append_event(
-        action_chain_path,
-        {
-            "schema_version": ACTION_CHAIN_SCHEMA,
-            "event_id": f"evt-audit-run-compliance-{payload['status']}",
-            "ts_ms": _now_ms(),
-            "run_id": str((_read_yaml(run_root / 'run.yaml') or {}).get('run_id', '')).strip() if (run_root / "run.yaml").is_file() else "",
-            "session_id": payload["session_id"],
-            "agent_id": "rdc-debugger",
-            "event_type": "quality_check",
-            "status": "pass" if payload["status"] == "passed" else "fail",
-            "duration_ms": 0,
-            "refs": [],
-            "payload": {
-                "validator": "run_compliance_audit",
-                "summary": f"run compliance audit {payload['status']}",
-                "path": _norm(run_root / "artifacts" / "run_compliance.yaml"),
-                "entry_mode": str((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("entry_mode", "cli")).strip() if (run_root / "artifacts" / "runtime_topology.yaml").is_file() else "cli",
-                "backend": str((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("backend", "local")).strip() if (run_root / "artifacts" / "runtime_topology.yaml").is_file() else "local",
-                "context_id": str(((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("contexts") or ["default"])[0]),
-                "runtime_owner": str(((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("owners") or ["rdc-debugger"])[0]),
-                "baton_ref": "",
-                "context_binding_id": str((((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("context_bindings") or [{}])[0].get("context_binding_id") or "ctxbind-default")),
-                "capture_ref": str((((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("context_bindings") or [{}])[0].get("capture_ref") or "")),
-                "canonical_anchor_ref": str((((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("context_bindings") or [{}])[0].get("canonical_anchor_ref") or "")),
-                "delegation_status": str((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("delegation_status", "none")).strip() if (run_root / "artifacts" / "runtime_topology.yaml").is_file() else "none",
-                "fallback_execution_mode": str((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("fallback_execution_mode", "wrapper")).strip() if (run_root / "artifacts" / "runtime_topology.yaml").is_file() else "wrapper",
-                "degraded_reasons": list((_read_yaml(run_root / "artifacts" / "runtime_topology.yaml") or {}).get("degraded_reasons") or []),
-            },
-        },
-    )
-    _dump_yaml(run_root / "artifacts" / "run_compliance.yaml", payload)
     print(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False), end="")
     if args.strict and payload["status"] != "passed":
         return 1

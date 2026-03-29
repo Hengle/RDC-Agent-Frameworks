@@ -457,6 +457,8 @@
                                                            "platforms/codex/README.md",
                                                            "platforms/codex/AGENTS.md",
                                                            "platforms/codex/.codex/config.toml",
+                                                           "platforms/codex/.codex/runtime_guard.py",
+                                                           "platforms/codex/.codex/agents/rdc-debugger.toml",
                                                            "platforms/codex/.agents/skills/rdc-debugger/SKILL.md"
                                                        ],
                                     "supported_entry_modes":  [

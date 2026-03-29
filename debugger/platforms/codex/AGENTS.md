@@ -37,14 +37,19 @@
 未先将 `debugger/common/` 整包覆盖到平台根 `common/`、且将 RDC-Agent-Tools 整包覆盖到平台根 `tools/` 之前，不允许在宿主中使用当前平台模板。
 
 运行时工作区固定为平台根目录下的 `workspace/`
-- 当前宿主没有 native hooks；Codex 的执行门禁固定为：
-  1. `intent_gate`
-  2. `artifacts/entry_gate.yaml`
-  3. binding/preflight + capture import + case/run bootstrap
-  4. `artifacts/intake_gate.yaml` pass
-  5. `artifacts/runtime_topology.yaml`
-  6. `staged_handoff`
-  7. `artifacts/run_compliance.yaml` pass
+- OpenAI Codex 当前原生支持 `AGENTS.md` 分层与 `.codex/agents/*.toml` custom agents；当前模板继续使用这两类 native surface。
+- OpenAI Codex Hooks 当前只对 Bash 提供 guardrail，不足以为本框架的 native `rd.*` / specialist dispatch 提供可靠 host-side enforcement；因此当前 workspace-native 路径不引入 `.codex/hooks.json`，也不把 Codex 记成 hooks-based 平台。
+- 当前平台的 enforcement 机制固定为 `runtime_owner + validator-driven gate loop + audit artifacts`，唯一主入口是 `.codex/runtime_guard.py`。
+- Codex 的执行门禁固定为：
+  1. `.codex/runtime_guard.py preflight`
+  2. `intent_gate`
+  3. `.codex/runtime_guard.py entry-gate` → `artifacts/entry_gate.yaml` pass
+  4. binding/preflight + capture import + case/run bootstrap
+  5. `.codex/runtime_guard.py intake-gate`
+  6. `.codex/runtime_guard.py runtime-topology` → `artifacts/runtime_topology.yaml` pass
+  7. `.codex/runtime_guard.py dispatch-readiness` / `.codex/runtime_guard.py specialist-feedback`
+  8. `staged_handoff`
+  9. `.codex/runtime_guard.py final-audit` → `artifacts/run_compliance.yaml` pass
 - 在 `artifacts/intake_gate.yaml` 通过前，不得执行 specialist dispatch 或 live `rd.*` 调试。
 
 ## Sub-Agent 协调约束

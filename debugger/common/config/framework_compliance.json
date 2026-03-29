@@ -145,7 +145,7 @@
         "mcp"
       ],
       "workflow_required": false,
-      "enforcement_mode": "audit_only_gate",
+      "enforcement_mode": "runtime_owner_gate_loop",
       "requires_run_compliance_artifact": true
     },
     "cursor": {

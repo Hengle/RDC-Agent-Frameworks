@@ -172,6 +172,9 @@ class RepoBaselineValidationTests(unittest.TestCase):
         agents = (DEBUGGER_ROOT / "platforms" / "codex" / "AGENTS.md").read_text(encoding="utf-8-sig")
 
         for text in (readme, agents):
+            self.assertIn(".codex/runtime_guard.py", text)
+            self.assertIn("runtime_owner + validator-driven gate loop + audit artifacts", text)
+            self.assertIn("不引入 `.codex/hooks.json`", text)
             self.assertIn("artifacts/entry_gate.yaml", text)
             self.assertIn("artifacts/intake_gate.yaml", text)
             self.assertIn("artifacts/runtime_topology.yaml", text)
@@ -210,12 +213,15 @@ class RepoBaselineValidationTests(unittest.TestCase):
     def test_codex_skill_wrapper_declares_single_agent_mode_and_feedback_contract(self) -> None:
         text = (DEBUGGER_ROOT / "platforms" / "codex" / ".agents" / "skills" / "rdc-debugger" / "SKILL.md").read_text(encoding="utf-8-sig")
         for marker in (
+            ".codex/runtime_guard.py",
             "host_delegation_policy = platform_managed",
             "host_delegation_fallback = none",
             "single_agent_by_user",
             "BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT",
             "fallback_execution_mode=local_renderdoc_python",
             "waiting_for_specialist_brief",
+            "dispatch-readiness",
+            "final-audit",
         ):
             self.assertIn(marker, text)
 
