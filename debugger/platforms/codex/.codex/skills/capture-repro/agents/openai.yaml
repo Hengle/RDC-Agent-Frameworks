@@ -1,0 +1,5 @@
+interface:
+  display_name: "capture-repro"
+  short_description: "Capture normalization and reproduction specialist"
+policy:
+  allow_implicit_invocation: false

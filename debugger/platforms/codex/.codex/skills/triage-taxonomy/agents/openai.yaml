@@ -1,0 +1,5 @@
+interface:
+  display_name: "triage-taxonomy"
+  short_description: "Triage and taxonomy specialist"
+policy:
+  allow_implicit_invocation: false

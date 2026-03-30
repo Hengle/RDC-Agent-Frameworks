@@ -1,0 +1,5 @@
+interface:
+  display_name: "shader-ir"
+  short_description: "Shader and IR investigation specialist"
+policy:
+  allow_implicit_invocation: false

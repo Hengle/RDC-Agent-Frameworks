@@ -1,0 +1,5 @@
+interface:
+  display_name: "skeptic"
+  short_description: "Skeptical validation specialist"
+policy:
+  allow_implicit_invocation: false

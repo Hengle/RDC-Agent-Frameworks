@@ -1,4 +1,11 @@
-﻿# 角色技能包装说明
+---
+name: triage-taxonomy
+description: Internal specialist skill for symptom structuring, taxonomy mapping, and investigation routing within the RenderDoc/RDC GPU debugger workflow. Use when `rdc-debugger` dispatches initial triage work.
+metadata:
+  short-description: Triage and taxonomy specialist
+---
+
+# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 
@@ -7,11 +14,15 @@
 先阅读：
 
 1. common/skills/rdc-debugger/SKILL.md
-2. common/skills/driver-device/SKILL.md
+2. common/skills/triage-taxonomy/SKILL.md
 3. common/config/platform_capabilities.json
 
 当前平台的 `coordination_mode = staged_handoff`，`sub_agent_mode = puppet_sub_agents`，`peer_communication = via_main_agent`。
 
+
+当前 role 负责读取用户 bug 描述、历史 BugCard/BugFull 与 active taxonomy / invariant / SOP，
+输出 `candidate_bug_refs`、`recommended_sop` 与 `recommended_investigation_paths` 这类方向建议给 `rdc-debugger`。
+当前 role 只提供 routing hints，不做根因裁决，不得直接继续 specialist orchestration。
 
 当前平台的 role gate 由 `rdc-debugger` 通过 `.codex/runtime_guard.py` 统一执行。
 没有 passed `artifacts/intake_gate.yaml`、passed `artifacts/runtime_topology.yaml` 与主 agent handoff 前，不得进入 live 调查。

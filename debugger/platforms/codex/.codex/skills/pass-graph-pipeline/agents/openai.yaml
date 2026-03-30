@@ -1,0 +1,5 @@
+interface:
+  display_name: "pass-graph-pipeline"
+  short_description: "Pass graph and pipeline specialist"
+policy:
+  allow_implicit_invocation: false

@@ -1,4 +1,11 @@
-﻿# 角色技能包装说明
+---
+name: pixel-value-forensics
+description: Internal specialist skill for pixel history, value tracing, and framebuffer forensics within the RenderDoc/RDC GPU debugger workflow. Use when `rdc-debugger` dispatches pixel-level evidence analysis.
+metadata:
+  short-description: Pixel value forensics specialist
+---
+
+# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 
@@ -7,7 +14,7 @@
 先阅读：
 
 1. common/skills/rdc-debugger/SKILL.md
-2. common/skills/shader-ir/SKILL.md
+2. common/skills/pixel-value-forensics/SKILL.md
 3. common/config/platform_capabilities.json
 
 当前平台的 `coordination_mode = staged_handoff`，`sub_agent_mode = puppet_sub_agents`，`peer_communication = via_main_agent`。

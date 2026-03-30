@@ -1,4 +1,11 @@
-﻿# 角色技能包装说明
+---
+name: skeptic
+description: Internal specialist skill for adversarial review and signoff within the RenderDoc/RDC GPU debugger workflow. Use when `rdc-debugger` dispatches skeptical validation of a proposed conclusion.
+metadata:
+  short-description: Skeptical validation specialist
+---
+
+# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 
@@ -7,7 +14,7 @@
 先阅读：
 
 1. common/skills/rdc-debugger/SKILL.md
-2. common/skills/capture-repro/SKILL.md
+2. common/skills/skeptic/SKILL.md
 3. common/config/platform_capabilities.json
 
 当前平台的 `coordination_mode = staged_handoff`，`sub_agent_mode = puppet_sub_agents`，`peer_communication = via_main_agent`。

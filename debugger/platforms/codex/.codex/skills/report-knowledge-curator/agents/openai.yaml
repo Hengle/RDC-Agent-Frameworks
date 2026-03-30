@@ -1,0 +1,5 @@
+interface:
+  display_name: "report-knowledge-curator"
+  short_description: "Report and knowledge curator specialist"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,5 @@
+interface:
+  display_name: "driver-device"
+  short_description: "Driver and device investigation specialist"
+policy:
+  allow_implicit_invocation: false

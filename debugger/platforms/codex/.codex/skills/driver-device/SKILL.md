@@ -1,4 +1,11 @@
-﻿# 角色技能包装说明
+---
+name: driver-device
+description: Internal specialist skill for driver, device, and backend-specific investigation within the RenderDoc/RDC GPU debugger workflow. Use when `rdc-debugger` dispatches hardware or driver causality analysis.
+metadata:
+  short-description: Driver and device investigation specialist
+---
+
+# 角色技能包装说明
 
 当前文件是 Codex 的 role skill 入口。
 
@@ -7,7 +14,7 @@
 先阅读：
 
 1. common/skills/rdc-debugger/SKILL.md
-2. common/skills/pixel-value-forensics/SKILL.md
+2. common/skills/driver-device/SKILL.md
 3. common/config/platform_capabilities.json
 
 当前平台的 `coordination_mode = staged_handoff`，`sub_agent_mode = puppet_sub_agents`，`peer_communication = via_main_agent`。

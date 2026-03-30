@@ -1,0 +1,5 @@
+interface:
+  display_name: "pixel-value-forensics"
+  short_description: "Pixel value forensics specialist"
+policy:
+  allow_implicit_invocation: false
