@@ -64,3 +64,83 @@ Execution 规则：
 - 临时 Python / PowerShell / shell wrapper 封装 live CLI 一律视为流程偏差
 - `waiting_for_specialist_brief`、`redispatch_pending`、`specialist_reinvestigation`、`skeptic_challenged` 期间，orchestrator 只能汇总与裁决，不能替 specialist 补证据
 - `primary_completion_question`、`requested_artifact` 等意图字段属于 plan 输入归一化，不属于 run 级 runtime 真相
+
+## Sub-Agent 委派强制规则 (MANDATORY DELEGATION)
+
+以下节点 **必须** 通过 sub-agent 执行，禁止主 Agent 直接执行：
+
+| 节点 | 委派目标 | 产出物 | 违规后果 |
+|------|----------|--------|----------|
+| `triage` | `triage_taxonomy_agent` | `triage_result.yaml` | 产出物无效，必须重新委派；记录 `PROCESS_DEVIATION_SKIPPED_TRIAGE` |
+| `specialist_investigation` | 各类 specialist agent (如 `shader_specialist`, `pipeline_specialist`, `resource_specialist`) | `brief.yaml`, `session_evidence.yaml` | 主 Agent 产出视为无效证据；记录 `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` |
+| `skeptic_review` | `skeptic_agent` | `challenge.yaml` 或 `signoff.yaml` | 缺少 skeptic 审计的 brief 不得进入 curator；记录 `PROCESS_DEVIATION_MISSING_SKEPTIC` |
+| `curator_finalize` | `curator_agent` | `curator_report.yaml`, `final_hypothesis.yaml` | 未经验证的结论不得输出给用户；记录 `PROCESS_DEVIATION_PREMATURE_VERDICT` |
+
+### 委派验证机制 (Delegation Verification)
+
+**委派前检查**：
+
+1. **Agent 可用性检查**
+   - 确认目标 sub-agent 在 `agent_registry.yaml` 中状态为 `available`
+   - 检查目标 agent 的 `capability_match` 与当前任务匹配度
+
+2. **输入完整性检查**
+   - 确认 `brief_input.yaml` 包含所有必需字段
+   - 确认 `ownership_lease.yaml` 已正确配置
+
+3. **上下文隔离检查**
+   - 确认主 Agent 上下文已正确序列化到 `delegation_context.yaml`
+   - 确认不包含任何 live runtime handle
+
+**委派后验证**：
+
+1. **产出物完整性验证**
+   - 检查产出物是否符合 `output_schema`
+   - 检查必填字段是否全部存在
+
+2. **来源真实性验证**
+   - 验证产出物中的 `from` 字段与委派目标一致
+   - 验证 `timestamp` 和 `agent_version` 有效性
+
+3. **内容合规性验证**
+   - 验证产出物不包含主 Agent 直接写入的痕迹
+   - 验证证据链完整性
+
+**验证失败处理**：
+
+| 失败类型 | 处理动作 | 记录位置 |
+|---------|---------|---------|
+| 产出物缺失 | 标记为 `DELEGATION_TIMEOUT` 或 `DELEGATION_FAILURE`，触发 redispatch | `action_chain.jsonl`, `hypothesis_board.yaml` |
+| 来源不一致 | 标记为 `PROCESS_DEVIATION_SPOOFED_OUTPUT`，强制进入 curator | `audit/security/` |
+| 内容不合规 | 退回 sub-agent 要求重新产出，记录 `OUTPUT_VALIDATION_FAILED` | `action_chain.jsonl` |
+
+### Phase Gate 定义
+
+**Phase 1: Plan / Intake Phase**
+
+| Gate | 检查项 | 通过条件 |
+|------|--------|---------|
+| `intent_gate` | 用户意图分类 | 产出 `intent_classification.yaml` |
+| `input_completeness` | 必需输入完整性 | 所有 `required_inputs` 已提供或标记为 `will_provide_later` |
+| `reference_contract` | 参考合约生成 | 产出 `reference_contract.yaml` |
+| `execution_readiness` | 执行准备度评估 | `strict_ready` 或 `fallback_only` |
+
+**Phase 2: Audited Execution Phase**
+
+| Gate | 检查项 | 通过条件 | 产出物 |
+|------|--------|---------|--------|
+| `entry_gate` | case/run 创建 | `case_id` 和 `run_id` 已分配 | `entry_gate.yaml` |
+| `intake_gate` | 输入最终确认 | 所有必需输入已固化 | `intake_gate.yaml` |
+| `triage_gate` | 分类完成 | `triage_result.yaml` 已验证 | `dispatch_recommendation.yaml` |
+| `dispatch_readiness` | specialist 委派准备 | `ownership_lease.yaml` 已配置 | `dispatch_approval.yaml` |
+| `specialist_feedback` | specialist 调查完成 | `brief.yaml` 已接收并通过 skeptic | `validated_brief.yaml` |
+| `skeptic_gate` | 怀疑者审计 | `challenge.yaml` 已解决或 `signoff.yaml` 已接收 | `skeptic_resolution.yaml` |
+| `curator_gate` | 策展人结案 | `curator_report.yaml` 已产出 | `final_hypothesis.yaml` |
+| `final_audit` | 最终审计 | 所有 artifact 完整性验证通过 | `run_compliance.yaml` |
+
+**Phase Gate 强制执行规则**：
+
+1. **顺序执行**：必须按 Gate 顺序依次通过，禁止跳过
+2. **产出物依赖**：前一 Gate 的产出物是后一 Gate 的必需输入
+3. **失败阻断**：任一 Gate 失败必须进入 `blocker` 状态，明确记录 `blocker_type` 和 `next_action`
+4. **重入检查**：从 blocker 恢复时必须重新通过当前 Gate，禁止直接跳到下一 Gate

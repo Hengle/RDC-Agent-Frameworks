@@ -213,7 +213,8 @@ def _freeze_blockers(run_root: Path) -> list[dict[str, Any]]:
     if not path.is_file():
         return []
     data = _read_yaml(path)
-    if not isinstance(data, dict) or str(data.get("status") or "").strip() == "frozen":
+    # 修正：只有当data是dict且status明确等于"frozen"时才返回blocker
+    if isinstance(data, dict) and str(data.get("status") or "").strip() == "frozen":
         return [{"code": "BLOCKED_FREEZE_STATE_ACTIVE", "reason": "run is frozen until deviation is resolved", "refs": [_norm(path)]}]
     return []
 
@@ -360,8 +361,45 @@ def validate_ownership_lease(run_root: Path, *, lease_ref: str, owner_agent_id: 
     return validate_lease(run_root, lease_ref=lease_ref, owner_agent_id=owner_agent_id, action_class=action_class, workflow_stage=workflow_stage)
 
 
+def check_execution_lock(run_root: Path, *, agent_id: str, workflow_stage: str = "") -> dict[str, Any]:
+    """检查当前workflow_stage是否处于锁定状态。
+
+    如果是锁定状态且agent是rdc-debugger，阻止tool_execution等操作。
+    返回锁定状态和阻断码。
+    """
+    # 定义需要锁定的workflow_stage列表
+    LOCKED_STAGES = {"waiting_for_specialist_brief"}
+
+    # 检查当前stage是否处于锁定状态
+    is_locked = workflow_stage in LOCKED_STAGES
+
+    # 只有rdc-debugger在锁定状态下会被阻止
+    if is_locked and agent_id == "rdc-debugger":
+        return {
+            "locked": True,
+            "blocking_code": "BLOCKED_EXECUTION_LOCK_ACTIVE",
+            "reason": f"workflow_stage '{workflow_stage}' is locked for rdc-debugger",
+            "workflow_stage": workflow_stage,
+        }
+
+    return {
+        "locked": False,
+        "blocking_code": None,
+        "reason": None,
+        "workflow_stage": workflow_stage,
+    }
+
+
 def run_dispatch_readiness(root: Path, run_root: Path, *, platform: str) -> dict[str, Any]:
     run_root = run_root.resolve()
+    # 修正：在现有检查之前添加execution_lock检查
+    runtime_session = load_runtime_session(run_root)
+    current_stage = str(runtime_session.get("workflow_stage") or "").strip()
+    owner_agent_id = str(runtime_session.get("active_owner_agent_id") or "rdc-debugger").strip() or "rdc-debugger"
+    lock_check = check_execution_lock(run_root, agent_id=owner_agent_id, workflow_stage=current_stage)
+    if lock_check.get("locked"):
+        blockers = [{"code": lock_check["blocking_code"], "reason": lock_check["reason"], "refs": [_norm(run_root)]}]
+        return _guard_payload(stage="dispatch_readiness", status="blocked", blockers=blockers, paths={"run_root": _norm(run_root)})
     freeze_blockers = _freeze_blockers(run_root)
     if freeze_blockers:
         return _guard_payload(stage="dispatch_readiness", status="blocked", blockers=freeze_blockers, paths={"run_root": _norm(run_root), "freeze_state": _norm(_freeze_state_path(run_root))})

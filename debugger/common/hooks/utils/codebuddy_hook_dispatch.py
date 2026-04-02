@@ -365,10 +365,19 @@ def _cmd_pretool_live(root: Path) -> int:
         return 0
     stdin_text = sys.stdin.read()
     tool_name = _extract_tool_name(stdin_text).strip().lower()
-    if tool_name in {"view", "read", "glob", "grep", "show_file", "fetch_copilot_cli_documentation"}:
-        return 0
+    # 修正：移除只读工具的直接放行（原第368行）
+    # 所有工具都需要经过完整的权限检查流程
     run_root = _run_root_from_env()
+    # 修正：run_root缺失时不应直接放行，应检查是否存在活跃session
     if run_root is None:
+        # 检查环境变量中是否有session相关信息
+        session_id = str(os.environ.get("DEBUGGER_SESSION_ID", "")).strip()
+        if session_id:
+            # 如果存在session但没有run_root，说明配置有问题
+            _emit_pretool_deny("Live tool blocked: run_root not found but session exists")
+            return 0
+        # 如果没有session和run_root，可能是初始化阶段，允许继续
+        # 但仍需要检查是否有必要的上下文
         return 0
     payload = run_dispatch_readiness(root, run_root, platform=root.name)
     if payload["status"] != "passed":
@@ -380,16 +389,25 @@ def _cmd_pretool_live(root: Path) -> int:
     owner_agent_id = str(os.environ.get("DEBUGGER_OWNER_AGENT", "")).strip()
     target_action = str(os.environ.get("DEBUGGER_TARGET_ACTION", "")).strip() or "broker_action"
     target_path = _extract_tool_output_file(stdin_text)
-    if token_ref and owner_agent_id:
-        token = validate_ownership_lease(
-            run_root,
-            lease_ref=token_ref,
-            owner_agent_id=owner_agent_id,
-            action_class=target_action,
-        )
-        if token["status"] != "passed":
-            _emit_pretool_deny(f"Live tool blocked: {token['blocking_code']}")
-            return 0
+    # 修正：lease验证变为强制性（非可选）
+    # 添加workflow_stage参数到validate_ownership_lease调用
+    workflow_stage = str(os.environ.get("DEBUGGER_WORKFLOW_STAGE", "")).strip() or "waiting_for_specialist_brief"
+    if not token_ref:
+        _emit_pretool_deny("Live tool blocked: missing ownership lease reference")
+        return 0
+    if not owner_agent_id:
+        _emit_pretool_deny("Live tool blocked: missing owner agent ID")
+        return 0
+    token = validate_ownership_lease(
+        run_root,
+        lease_ref=token_ref,
+        owner_agent_id=owner_agent_id,
+        action_class=target_action,
+        workflow_stage=workflow_stage,
+    )
+    if token["status"] != "passed":
+        _emit_pretool_deny(f"Live tool blocked: {token['blocking_code']}")
+        return 0
     return 0
 
 

@@ -46,7 +46,7 @@
   "platforms": {
     "claude-code": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "hooks", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "native-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true},
     "code-buddy": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "hooks", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "pseudo-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true},
-    "codex": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "pseudo-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true},
+    "codex": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "hooks", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "pseudo-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true},
     "copilot-cli": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "hooks", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "native-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true}
   }
 }

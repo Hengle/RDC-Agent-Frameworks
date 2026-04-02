@@ -62,7 +62,7 @@
             "command": "uv run --with pyyaml python common/hooks/utils/codebuddy_hook_dispatch.py write-skeptic",
             "description": "Validate skeptic signoff artifact format",
             "type": "command",
-            "on_failure": "warn"
+            "on_failure": "block"
           }
         ],
         "matcher": "Write"

@@ -1,4 +1,30 @@
 {
+    "SessionStart": [
+        {
+            "hooks": [
+                {
+                    "command": "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/common/hooks/utils/codebuddy_hook_dispatch.py\" session-start",
+                    "description": "Run shared harness preflight before debugger work starts",
+                    "type": "command",
+                    "on_failure": "block",
+                    "timeout": 30000
+                }
+            ]
+        }
+    ],
+    "PreToolUse": [
+        {
+            "hooks": [
+                {
+                    "command": "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/common/hooks/utils/codebuddy_hook_dispatch.py\" pretool-live",
+                    "description": "Validate dispatch readiness and capability token before live investigation",
+                    "type": "command",
+                    "on_failure": "block",
+                    "timeout": 30000
+                }
+            ]
+        }
+    ],
     "PostToolUse":  [
                         {
                             "hooks":  [
@@ -6,6 +32,7 @@
                                               "command":  "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/common/hooks/utils/codebuddy_hook_dispatch.py\" write-bugcard",
                                               "description":  "BugCard contract and schema validation",
                                               "type":  "command",
+                                              "on_failure": "block",
                                               "timeout":  30000
                                           }
                                       ],
@@ -17,6 +44,7 @@
                                               "command":  "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/common/hooks/utils/codebuddy_hook_dispatch.py\" write-skeptic",
                                               "description":  "Skeptic signoff artifact validation",
                                               "type":  "command",
+                                              "on_failure": "block",
                                               "timeout":  30000
                                           }
                                       ],
@@ -30,6 +58,7 @@
                                        "command":  "uv run --with pyyaml python \"${CODEBUDDY_PLUGIN_ROOT}/common/hooks/utils/codebuddy_hook_dispatch.py\" stop-gate",
                                        "description":  "Finalization gate: causal anchor + counterfactual + skeptic + session artifacts",
                                        "type":  "command",
+                                       "on_failure": "block",
                                        "timeout":  30000
                                    }
                                ]

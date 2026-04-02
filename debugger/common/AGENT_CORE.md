@@ -67,30 +67,102 @@ specialist brief、skeptic challenge、curator 结案都只允许引用：
 - framework artifact ids
 - `runtime_generation + snapshot_rev`
 
-## 5. 主 Agent 越权属于流程偏差
+## 5. 主 Agent 硬边界约束 (VIOLATION = PROCESS_HALT)
 
-`rdc-debugger` 在整个框架内的职责分两类：
+### 5.1 状态锁定机制 (EXECUTION_LOCK)
 
-- Plan 阶段：压缩汇总、补料、contract 生成、`debug_plan` 编译
-- Execution 阶段：guard 推进、specialist 委托、阶段裁决
+当 `hypothesis_board.yaml` 中的 `current_phase` 属于以下任一值时，触发 **EXECUTION_LOCK**：
 
-Plan 阶段默认允许 `rdc-debugger` 调度轻量 planning sub-agent，但只允许回收核心摘要，不得把原始中间推理和冗长问答全文回灌到主上下文。
+- `waiting_for_specialist_brief`
+- `redispatch_pending`
+- `specialist_reinvestigation`
+- `skeptic_challenged`
 
-当 workflow 处于 `waiting_for_specialist_brief`、`redispatch_pending`、`specialist_reinvestigation` 或 `skeptic_challenged` 时，`rdc-debugger` 只允许：
+**EXECUTION_LOCK 激活时的硬件阻断清单**：
 
-- 读取 brief / challenge
-- 更新 `hypothesis_board.yaml`
-- 记录 blocker
-- 做 timeout / redispatch / request-more-input 决策`r`n- 当 specialist 长时间无回报时，明确进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态
+| 操作类型 | 状态 | 说明 |
+|---------|------|------|
+| 调用任何 live runtime tool | [BLOCKED] | 包括但不限于 `rdc capture`, `rdc replay`, `rdc analyze` |
+| 直接操作 broker-owned process | [BLOCKED] | 禁止绕过 broker 直接持有 process handle |
+| 修改 session-level runtime state | [BLOCKED] | 禁止修改 context、event、resource 状态 |
+| 执行临时 wrapper 脚本 | [BLOCKED] | 禁止通过 Python/PowerShell/shell 封装 live CLI |
+| 替 specialist 补充调查 | [BLOCKED] | 禁止在 specialist 返回前进行平行调查 |
+| 抢写 specialist 证据文件 | [BLOCKED] | 禁止覆盖 `session_evidence.yaml` 等 specialist 产出 |
 
-禁止：
+### 5.2 允许操作白名单 (EXCLUSIVE LIST)
 
-- 继续 live 调查
-- 替 specialist 补调查
-- 抢写 specialist 证据
-- 通过临时 wrapper 批处理 live CLI
+LOCK 状态下 **唯一** 允许的操作：
 
-违反时必须在 `action_chain.jsonl` 记为 `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH`。
+1. **读取 brief / challenge**
+   - 读取 specialist 返回的 `brief.yaml`
+   - 读取 skeptic 发出的 `challenge.yaml`
+
+2. **更新 hypothesis_board.yaml 的 blocker 字段**
+   - 记录 `blocker_type`: `SPECIALIST_TIMEOUT`, `INCONCLUSIVE_BRIEF`, `SKEPTIC_CHALLENGE`
+   - 记录 `blocker_reason` 和 `next_action`
+
+3. **执行 timeout / redispatch / request-more-input 决策**
+   - 判定 specialist 是否超时
+   - 决定是否 redispatch 到同一 specialist 或切换 specialist
+   - 向用户请求补充输入
+
+4. **记录决策到 action_chain.jsonl**
+   - 仅记录 orchestration 决策，不记录调查动作
+
+5. **当 specialist 长时间无回报时，明确进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态**
+   - 设置 `blocker_type: SPECIALIST_FEEDBACK_TIMEOUT`
+   - 触发 redispatch 或 escalation 流程
+
+### 5.3 违规检测与后果
+
+**违规判定标准**：
+
+- 在 LOCKED 状态下执行了任何非白名单操作
+- 通过临时 wrapper 间接执行被阻断操作
+- 以"辅助"、"验证"名义替 specialist 补充证据
+
+**违规后果**：
+
+| 后果级别 | 动作 | 记录位置 |
+|---------|------|---------|
+| 立即阻断 | 当前 action 被强制终止 | `action_chain.jsonl` |
+| 流程标记 | 标记为 `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` | `action_chain.jsonl`, `hypothesis_board.yaml` |
+| 审计记录 | 记录违规详情：触发条件、尝试操作、调用栈 | `audit/process_deviation/` |
+| 后续处理 | 根据 `deviation_severity` 决定是否强制进入 `curator` 复核 | `hypothesis_board.yaml` |
+
+**严重级别定义**：
+
+- `critical`: 直接操作 live runtime 或替 specialist 写证据 → 强制 curator 介入
+- `major`: 尝试执行被阻断操作但未成功 → 记录并警告
+- `minor`: 边界模糊操作 → 记录并提示
+
+### 5.4 快速检查清单 (MUST CHECK BEFORE ACTION)
+
+在每次执行操作前，必须完成以下检查：
+
+```markdown
+□ 当前 current_phase 是什么？
+  □ 检查 `hypothesis_board.yaml` 中的 `current_phase` 字段
+
+□ 如果处于 LOCKED 状态，我的操作在白名单中吗？
+  □ 对照 5.2 节 EXCLUSIVE LIST 确认
+
+□ 我是否正在尝试"辅助"specialist？
+  □ 任何以"验证"、"确认"、"补充"为名义的调查都属于违规
+
+□ 是否涉及 live runtime？
+  □ 检查是否调用任何 runtime tool 或 wrapper
+
+□ 是否修改了 specialist 的产出物？
+  □ 检查是否写入 `session_evidence.yaml` 等 specialist 文件
+
+□ 如果以上任一答案为"是"，立即停止并记录 blocker
+```
+
+**强制执行**：
+
+- 每次 `current_phase` 变更后，必须在 `action_chain.jsonl` 中记录 CHECKPOINT_PASSED 或 CHECKPOINT_FAILED
+- 未通过检查清单的操作将被 framework 层拒绝执行
 
 ## 6. Sub-Agent 分层
 

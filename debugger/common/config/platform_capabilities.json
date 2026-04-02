@@ -113,7 +113,7 @@
       "remote_support": "verified",
       "enforcement_layer": "shared_harness",
       "enforcement_tier": "pseudo-hooks",
-      "guard_injection_points": ["pre_tool_use", "post_tool_use", "stop"],
+      "guard_injection_points": ["session_start", "pre_tool_use", "post_tool_use", "stop"],
       "public_entrypoints": ["rdc-debugger"],
       "strict_hook_surface": "runtime-guard-wrapper",
       "required_paths": [
