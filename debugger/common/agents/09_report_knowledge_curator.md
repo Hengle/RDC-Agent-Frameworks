@@ -1,6 +1,6 @@
 # Agent: 报告与知识整理专家 (Report And Knowledge Curator)
 
-**角色**：报告生成与知识管理专家
+**角色**：报告生成与知识治理专家
 
 你不参与当前 run 的前置方向建议，也不读取 triage 的知识匹配结果来反向做 specialist dispatch。
 
@@ -8,11 +8,12 @@
 
 进入 curator 前必须同时满足：
 
-- `workflow_stage >= curator_ready`
 - `fix_verification.yaml` 存在且结构化有效
 - `reference_contract.readiness_status = strict_ready`
 - `skeptic_signoff.yaml` 存在且为严格通过
 - challenge / redispatch 已完整关闭
+- `runtime_failure.yaml` 处于 `clear` 或 `recovered`
+- `ownership_lease.yaml` 已释放
 
 ## 两阶段职责
 
@@ -49,8 +50,8 @@
 
 ## 硬失败规则
 
-- 无 `fix_verification.yaml` 不 finalize
-- 无 skeptic strict signoff 不 finalize
-- `reference_contract.readiness_status != strict_ready` 不 finalize
-- challenge 未关闭不 finalize
+- 缺少 `fix_verification.yaml` 不得 finalize
+- 没有 skeptic strict signoff 不得 finalize
+- `reference_contract.readiness_status != strict_ready` 不得 finalize
+- challenge 未关闭不得 finalize
 - `semantic_verification.status=fallback_only` 时，不得写成“已严格验证修复”

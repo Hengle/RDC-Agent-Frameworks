@@ -1,15 +1,28 @@
 # RenderDoc/RDC GPU Debug · Knowledge Root（知识根目录）
 
-`common/knowledge/` 是 Debugger framework 的知识真相根目录。
+`common/knowledge/` 是 Debugger framework 的知识根目录。
 
-这里固定分成三层：
+主线目录固定为：
 
 - `spec/`
-  - 正式生效的 versioned knowledge store
+  - 正式生效的版本化知识
+  - `objects/sops/`：SOP catalog 对象
+  - `objects/invariants/`：Invariant catalog 对象
+  - `objects/taxonomy/`：Taxonomy catalog 对象
+  - `registry/active_manifest.yaml`：当前生效版本入口
 - `library/`
   - run/session 沉淀的共享真相与检索资产
 - `proposals/`
-  - 正式 candidate 对象
+  - 待治理的 candidate 对象
+
+辅助目录：
+
+- `examples/`
+  - 教学、测试与示例资产
+  - 不参与 live knowledge 治理链路
+- `templates/`
+  - 作者模板
+  - 只存放模板，不承载具体案例实例
 
 运行现场仍位于 `../workspace/`，不与 `common/knowledge/` 混写。
 

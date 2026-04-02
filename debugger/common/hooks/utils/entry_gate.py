@@ -24,7 +24,7 @@ except ModuleNotFoundError:
     raise SystemExit(2)
 
 
-ENTRY_GATE_SCHEMA = "1"
+ENTRY_GATE_SCHEMA = "2"
 
 
 def _debugger_root(default: Path | None = None) -> Path:
@@ -94,9 +94,11 @@ def _blockers_from_checks(checks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         check_id = str(item.get("id") or "")
         if check_id == "capture_inputs":
             code = "BLOCKED_MISSING_CAPTURE"
+        elif check_id == "fix_reference_status":
+            code = "BLOCKED_MISSING_FIX_REFERENCE"
         elif check_id in {"mcp_preflight"}:
             code = "BLOCKED_ENTRY_PREFLIGHT"
-        elif check_id in {"platform_known", "entry_mode_allowed", "backend_allowed", "platform_mode_support", "runtime_mode_truth"}:
+        elif check_id in {"platform_known", "entry_mode_allowed", "backend_allowed", "platform_mode_support", "runtime_mode_truth", "platform_contract"}:
             code = "BLOCKED_PLATFORM_MODE_UNSUPPORTED"
         elif check_id == "remote_prerequisites":
             code = "BLOCKED_REMOTE_PREREQUISITE"
@@ -122,20 +124,18 @@ def build_entry_gate_payload(
     capture_paths: list[str] | None = None,
     mcp_configured: bool = False,
     remote_transport: str = "",
-    single_agent_requested: bool = False,
+    fix_reference_status: str = "strict_ready",
 ) -> dict[str, Any]:
     platform_caps_path = root / "common" / "config" / "platform_capabilities.json"
     runtime_truth_path = root / "common" / "config" / "runtime_mode_truth.snapshot.json"
     platform_caps = _read_json(platform_caps_path)
     runtime_truth = _read_json(runtime_truth_path) if runtime_truth_path.is_file() else {"modes": {}}
-    platforms = (platform_caps.get("platforms") or {})
+    platforms = platform_caps.get("platforms") or {}
     platform_key = str(platform or "").strip()
     entry_mode_norm = str(entry_mode or "").strip().lower()
     backend_norm = str(backend or "").strip().lower()
     capture_paths = [str(item or "").strip() for item in (capture_paths or []) if str(item or "").strip()]
     valid_captures, invalid_captures = _capture_candidates(capture_paths)
-    orchestration_mode = "single_agent_by_user" if single_agent_requested else "multi_agent"
-    single_agent_reason = "user_requested" if single_agent_requested else ""
     checks: list[dict[str, Any]] = []
 
     row = platforms.get(platform_key) if isinstance(platforms, dict) else None
@@ -167,23 +167,27 @@ def build_entry_gate_payload(
         refs=[support_value] if support_value else None,
         path=platform_caps_path,
     )
+    _check(
+        checks,
+        "platform_contract",
+        str((row or {}).get("coordination_mode") or "") == "staged_handoff"
+        and str((row or {}).get("orchestration_mode") or "") == "multi_agent"
+        and str((row or {}).get("live_runtime_policy") or "") == "single_runtime_single_context",
+        "platform contract must be staged_handoff + multi_agent + single_runtime_single_context",
+        path=platform_caps_path,
+    )
     mode_key = _mode_key(entry_mode_norm, backend_norm)
     mode_truth = ((runtime_truth.get("modes") or {}).get(mode_key) or {}) if isinstance(runtime_truth, dict) else {}
     _check(
         checks,
         "runtime_mode_truth",
-        isinstance(mode_truth, dict) and bool(mode_truth),
-        f"runtime mode truth must define {mode_key}",
+        isinstance(mode_truth, dict) and bool(mode_truth) and str(mode_truth.get("runtime_parallelism_ceiling") or "") == "single_runtime_single_context",
+        f"runtime mode truth must define {mode_key} with single_runtime_single_context ceiling",
         refs=[mode_key],
         path=runtime_truth_path if runtime_truth_path.is_file() else None,
     )
     if entry_mode_norm == "mcp":
-        _check(
-            checks,
-            "mcp_preflight",
-            bool(mcp_configured),
-            "MCP entry requires platform MCP server to be configured",
-        )
+        _check(checks, "mcp_preflight", bool(mcp_configured), "MCP entry requires platform MCP server to be configured")
     else:
         _check(checks, "mcp_preflight", True, "CLI entry selected; MCP preflight not required")
     _check(
@@ -192,6 +196,13 @@ def build_entry_gate_payload(
         bool(valid_captures),
         "at least one accessible .rdc input path must be provided before accepted intake",
         refs=(valid_captures + invalid_captures)[:8] or None,
+    )
+    _check(
+        checks,
+        "fix_reference_status",
+        str(fix_reference_status or "").strip() == "strict_ready",
+        "fix reference must be strict_ready before accepted intake",
+        refs=[str(fix_reference_status or "").strip()] if str(fix_reference_status or "").strip() else None,
     )
     if backend_norm == "remote":
         _check(
@@ -206,18 +217,6 @@ def build_entry_gate_payload(
 
     blockers = _blockers_from_checks(checks)
     status = "passed" if not blockers else "blocked"
-    remote_prerequisite_gate = {
-        "status": (
-            "not_applicable"
-            if backend_norm != "remote"
-            else ("passed" if not any(item["id"] == "remote_prerequisites" and item["result"] == "fail" for item in checks) else "blocked")
-        ),
-        "blocking_codes": [
-            item["code"]
-            for item in blockers
-            if str(item.get("code") or "").strip() == "BLOCKED_REMOTE_PREREQUISITE"
-        ],
-    }
     return {
         "schema_version": ENTRY_GATE_SCHEMA,
         "generated_by": "entry_gate",
@@ -227,8 +226,9 @@ def build_entry_gate_payload(
         "platform": platform_key,
         "entry_mode": entry_mode_norm,
         "backend": backend_norm,
-        "orchestration_mode": orchestration_mode,
-        "single_agent_reason": single_agent_reason,
+        "coordination_mode": "staged_handoff",
+        "orchestration_mode": "multi_agent",
+        "live_runtime_policy": "single_runtime_single_context",
         "mode_key": mode_key,
         "checks": checks,
         "blockers": blockers,
@@ -241,22 +241,16 @@ def build_entry_gate_payload(
             "valid_capture_paths": valid_captures,
             "mcp_configured": bool(mcp_configured),
             "remote_transport": str(remote_transport or "").strip(),
-            "single_agent_requested": bool(single_agent_requested),
+            "fix_reference_status": str(fix_reference_status or "").strip(),
         },
         "platform_contract": {
-            "coordination_mode": str((row or {}).get("coordination_mode") or ""),
-            "sub_agent_mode": str((row or {}).get("sub_agent_mode") or ""),
-            "peer_communication": str((row or {}).get("peer_communication") or ""),
-            "agent_description_mode": str((row or {}).get("agent_description_mode") or ""),
-            "dispatch_topology": str((row or {}).get("dispatch_topology") or ""),
+            "coordination_mode": "staged_handoff",
+            "orchestration_mode": "multi_agent",
+            "live_runtime_policy": "single_runtime_single_context",
             "specialist_dispatch_requirement": str((row or {}).get("specialist_dispatch_requirement") or ""),
             "host_delegation_policy": str((row or {}).get("host_delegation_policy") or ""),
-            "host_delegation_fallback": str((row or {}).get("host_delegation_fallback") or ""),
-            "local_live_runtime_policy": str((row or {}).get("local_live_runtime_policy") or ""),
-            "remote_live_runtime_policy": str((row or {}).get("remote_live_runtime_policy") or ""),
-            "local_support": str((row or {}).get("local_support") or ""),
-            "remote_support": str((row or {}).get("remote_support") or ""),
-            "enforcement_layer": str((row or {}).get("enforcement_layer") or ""),
+            "hook_ssot": str((row or {}).get("hook_ssot") or "shared_harness"),
+            "enforcement_layer": str((row or {}).get("enforcement_layer") or "shared_harness"),
         },
         "runtime_mode_truth": {
             "mode_key": mode_key,
@@ -264,7 +258,6 @@ def build_entry_gate_payload(
             "runtime_parallelism_ceiling": str((mode_truth or {}).get("runtime_parallelism_ceiling") or ""),
             "host_coordination_gate": str((mode_truth or {}).get("host_coordination_gate") or ""),
         },
-        "remote_prerequisite_gate": remote_prerequisite_gate,
         "paths": {
             "case_root": _norm(case_root),
             "platform_capabilities": _norm(platform_caps_path),
@@ -288,7 +281,7 @@ def run_entry_gate(
     capture_paths: list[str] | None = None,
     mcp_configured: bool = False,
     remote_transport: str = "",
-    single_agent_requested: bool = False,
+    fix_reference_status: str = "strict_ready",
 ) -> dict[str, Any]:
     payload = build_entry_gate_payload(
         root,
@@ -299,7 +292,7 @@ def run_entry_gate(
         capture_paths=capture_paths,
         mcp_configured=mcp_configured,
         remote_transport=remote_transport,
-        single_agent_requested=single_agent_requested,
+        fix_reference_status=fix_reference_status,
     )
     _dump_yaml(case_root / "artifacts" / "entry_gate.yaml", payload)
     return payload
@@ -314,7 +307,7 @@ def main() -> int:
     parser.add_argument("--capture-path", action="append", default=[], help="accessible .rdc input path")
     parser.add_argument("--mcp-configured", action="store_true", help="mark MCP preflight as configured")
     parser.add_argument("--remote-transport", default="", help="remote transport hint")
-    parser.add_argument("--single-agent-by-user", action="store_true", help="record a user-requested single-agent mode")
+    parser.add_argument("--fix-reference-status", default="strict_ready")
     parser.add_argument("--root", type=Path, default=None, help="debugger root override")
     parser.add_argument("--strict", action="store_true", help="return non-zero on blocked")
     args = parser.parse_args()
@@ -328,7 +321,7 @@ def main() -> int:
         capture_paths=list(args.capture_path or []),
         mcp_configured=bool(args.mcp_configured),
         remote_transport=str(args.remote_transport or "").strip(),
-        single_agent_requested=bool(args.single_agent_by_user),
+        fix_reference_status=str(args.fix_reference_status or "").strip(),
     )
     print(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False), end="")
     if args.strict and payload["status"] != "passed":

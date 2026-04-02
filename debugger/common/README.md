@@ -17,7 +17,7 @@
 
 - `common/` + package-local `tools/` 是唯一执行内核；`platforms/*` 只承载宿主 adapter 壳。
 - 平台 README / AGENTS / hooks / skills / agents 可以描述宿主接入方式，但不能把目标合同、prompt 规则或 wrapper 行为写成宿主原生 enforcement。
-- 严格执行必须依赖 shared harness、runtime lock、freeze state、artifact gate、finalization receipt 等硬控制面，而不是文案提醒。
+- 严格执行必须依赖 shared harness、runtime broker、ownership lease、freeze state、artifact gate、finalization receipt 等硬控制面，而不是文案提醒。
 - `platform_capabilities.json` 是目标合同，不直接代表当前 strict 完成度。
 - `adapter_readiness.json` 是当前 adapter 状态出口；只有它和验证结果一起才能支撑 strict readiness 宣称。
 

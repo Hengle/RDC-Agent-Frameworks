@@ -42,7 +42,7 @@ UTILS_ROOT = Path(__file__).resolve().parent
 if str(UTILS_ROOT) not in sys.path:
     sys.path.insert(0, str(UTILS_ROOT))
 
-from harness_guard import run_dispatch_readiness, run_preflight, validate_capability_token  # noqa: E402
+from harness_guard import run_dispatch_readiness, run_preflight, validate_ownership_lease  # noqa: E402
 
 
 def _normalize_path_text(value: str) -> str:
@@ -375,19 +375,17 @@ def _cmd_pretool_live(root: Path) -> int:
         blockers = ", ".join(payload.get("blocking_codes") or ["unknown"])
         _emit_pretool_deny(f"Live tool blocked: {blockers}")
         return 0
-    token_ref = str(os.environ.get("DEBUGGER_CAPABILITY_TOKEN", "")).strip()
+    token_ref = str(os.environ.get("DEBUGGER_OWNERSHIP_LEASE", "")).strip()
     agent_id = str(os.environ.get("DEBUGGER_AGENT_ID", "")).strip()
-    runtime_owner = str(os.environ.get("DEBUGGER_RUNTIME_OWNER", "")).strip()
-    target_action = str(os.environ.get("DEBUGGER_TARGET_ACTION", "")).strip() or "live_investigation"
+    owner_agent_id = str(os.environ.get("DEBUGGER_OWNER_AGENT", "")).strip()
+    target_action = str(os.environ.get("DEBUGGER_TARGET_ACTION", "")).strip() or "broker_action"
     target_path = _extract_tool_output_file(stdin_text)
-    if token_ref and agent_id and runtime_owner:
-        token = validate_capability_token(
+    if token_ref and owner_agent_id:
+        token = validate_ownership_lease(
             run_root,
-            token_ref=token_ref,
-            agent_id=agent_id,
-            runtime_owner=runtime_owner,
-            action=target_action,
-            target_path=target_path,
+            lease_ref=token_ref,
+            owner_agent_id=owner_agent_id,
+            action_class=target_action,
         )
         if token["status"] != "passed":
             _emit_pretool_deny(f"Live tool blocked: {token['blocking_code']}")
@@ -400,18 +398,16 @@ def _cmd_posttool_artifact(root: Path) -> int:
     if run_root is None:
         return 0
     file_path = _extract_tool_output_file(sys.stdin.read())
-    token_ref = str(os.environ.get("DEBUGGER_CAPABILITY_TOKEN", "")).strip()
+    token_ref = str(os.environ.get("DEBUGGER_OWNERSHIP_LEASE", "")).strip()
     agent_id = str(os.environ.get("DEBUGGER_AGENT_ID", "")).strip()
-    runtime_owner = str(os.environ.get("DEBUGGER_RUNTIME_OWNER", "")).strip()
-    target_action = str(os.environ.get("DEBUGGER_TARGET_ACTION", "")).strip() or "write_note"
-    if token_ref and agent_id and runtime_owner and file_path:
-        token = validate_capability_token(
+    owner_agent_id = str(os.environ.get("DEBUGGER_OWNER_AGENT", "")).strip()
+    target_action = str(os.environ.get("DEBUGGER_TARGET_ACTION", "")).strip() or "artifact_write"
+    if token_ref and owner_agent_id and file_path:
+        token = validate_ownership_lease(
             run_root,
-            token_ref=token_ref,
-            agent_id=agent_id,
-            runtime_owner=runtime_owner,
-            action=target_action,
-            target_path=file_path,
+            lease_ref=token_ref,
+            owner_agent_id=owner_agent_id,
+            action_class=target_action,
         )
         if token["status"] != "passed":
             _emit_block(f"Artifact write blocked: {token['blocking_code']}")

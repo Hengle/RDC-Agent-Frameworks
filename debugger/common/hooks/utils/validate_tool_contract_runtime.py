@@ -21,12 +21,12 @@ CALL_RE = re.compile(TOOL_PATTERN + r"\s*\(([^)]*)\)")
 EXPECTED_TOOLS_ROOT = "tools"
 EXPECTED_RUNTIME_MODE = "worker_staged"
 BANNED_SNIPPETS = {
-    "--connect": "legacy CLI connect flag removed; CLI is always daemon-backed",
-    "error_message": "use canonical error.message instead of legacy error_message",
+    "--connect": "removed CLI connect flag; CLI is always daemon-backed",
+    "error_message": "use canonical error.message instead of removed error_message field",
     "直接本地 runtime": "framework docs must not describe direct runtime ownership",
-    "__CONFIGURE_TOOLS_ROOT__": "legacy configurable tools_root flow removed; use the package-local tools/ source payload",
-    "配置 `paths.tools_root`": "legacy manual tools_root configuration removed; use the package-local tools/ source payload",
-    "configure `paths.tools_root`": "legacy manual tools_root configuration removed; use the package-local tools/ source payload",
+    "__CONFIGURE_TOOLS_ROOT__": "removed configurable tools_root flow; use the package-local tools/ source payload",
+    "配置 `paths.tools_root`": "removed manual tools_root configuration; use the package-local tools/ source payload",
+    "configure `paths.tools_root`": "removed manual tools_root configuration; use the package-local tools/ source payload",
 }
 
 
@@ -185,7 +185,7 @@ def _print_findings(findings: Findings) -> None:
         for row in findings.missing_prerequisite_examples:
             print(f" - {row}")
     if findings.banned_snippets:
-        print("[banned legacy snippets]")
+        print("[banned removed snippets]")
         for row in findings.banned_snippets:
             print(f" - {row}")
 

@@ -41,7 +41,7 @@ class BugCardValidatorTests(unittest.TestCase):
     def test_verification_object_passes(self) -> None:
         self.assertEqual(validate_bugcard(_base_bugcard()), [])
 
-    def test_legacy_fix_verification_data_rejected(self) -> None:
+    def test_removed_fix_verification_data_rejected(self) -> None:
         data = _base_bugcard()
         data["fix_verification_data"] = {"pixel_before": {}, "pixel_after": {}}
         errors = validate_bugcard(data)

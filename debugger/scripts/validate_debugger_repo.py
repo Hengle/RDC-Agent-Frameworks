@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Repository-level debugger validator."""
 
 from __future__ import annotations
@@ -217,7 +217,7 @@ def _doc_contract_findings(root: Path) -> list[str]:
         if marker not in curator_skill:
             findings.append(f"curator skill missing marker: {marker}")
     for text in (codex_readme, codex_agents):
-        for marker in (".codex/runtime_guard.py", "artifacts/entry_gate.yaml", "artifacts/intake_gate.yaml", "artifacts/runtime_topology.yaml"):
+        for marker in (".codex/runtime_guard.py", "artifacts/entry_gate.yaml", "artifacts/intake_gate.yaml", "artifacts/runtime_session.yaml", "artifacts/runtime_snapshot.yaml", "artifacts/ownership_lease.yaml", "artifacts/runtime_failure.yaml"):
             if marker not in text:
                 findings.append(f"codex docs missing marker: {marker}")
     return findings
@@ -348,7 +348,7 @@ def _compliance_findings(root: Path) -> list[str]:
         host_delegation_fallback = str(platform_caps.get("host_delegation_fallback", "")).strip()
         local_live_runtime_policy = str(platform_caps.get("local_live_runtime_policy", "")).strip()
         remote_live_runtime_policy = str(platform_caps.get("remote_live_runtime_policy", "")).strip()
-        if sub_agent_mode not in {"team_agents", "puppet_sub_agents", "instruction_only_sub_agents"}:
+        if sub_agent_mode not in {"puppet_sub_agents", "puppet_sub_agents", "instruction_only_sub_agents"}:
             findings.append(f"{key}: invalid sub_agent_mode")
         if peer_communication not in {"direct", "via_main_agent", "none"}:
             findings.append(f"{key}: invalid peer_communication")
@@ -362,7 +362,7 @@ def _compliance_findings(root: Path) -> list[str]:
             findings.append(f"{key}: invalid host_delegation_policy")
         if host_delegation_fallback not in {"native", "none"}:
             findings.append(f"{key}: invalid host_delegation_fallback")
-        if local_live_runtime_policy not in {"multi_context_multi_owner", "multi_context_orchestrated", "single_runtime_owner"}:
+        if local_live_runtime_policy not in {"single_runtime_single_context", "single_runtime_single_context", "single_runtime_owner"}:
             findings.append(f"{key}: invalid local_live_runtime_policy")
         if remote_live_runtime_policy != "single_runtime_owner":
             findings.append(f"{key}: remote_live_runtime_policy must be single_runtime_owner")
@@ -372,20 +372,20 @@ def _compliance_findings(root: Path) -> list[str]:
         if expected_mode != actual_mode:
             findings.append(f"{key}: coordination_mode mismatch ({expected_mode} != {actual_mode})")
 
-        if actual_mode == "concurrent_team":
-            if sub_agent_mode != "team_agents" or peer_communication != "direct" or dispatch_topology != "mesh":
-                findings.append(f"{key}: concurrent_team requires team_agents + direct + mesh")
+        if actual_mode == "staged_handoff":
+            if sub_agent_mode != "puppet_sub_agents" or peer_communication != "direct" or dispatch_topology != "mesh":
+                findings.append(f"{key}: staged_handoff requires puppet_sub_agents + direct + mesh")
             if specialist_dispatch_requirement != "required" or host_delegation_policy != "platform_managed":
-                findings.append(f"{key}: concurrent_team requires required/platform_managed delegation defaults")
-            if local_live_runtime_policy != "multi_context_multi_owner":
-                findings.append(f"{key}: concurrent_team requires multi_context_multi_owner local policy")
+                findings.append(f"{key}: staged_handoff requires required/platform_managed delegation defaults")
+            if local_live_runtime_policy != "single_runtime_single_context":
+                findings.append(f"{key}: staged_handoff requires single_runtime_single_context local policy")
         elif actual_mode == "staged_handoff":
             if sub_agent_mode != "puppet_sub_agents" or peer_communication != "via_main_agent" or dispatch_topology != "hub_and_spoke":
                 findings.append(f"{key}: staged_handoff requires puppet_sub_agents + via_main_agent + hub_and_spoke")
             if specialist_dispatch_requirement != "required" or host_delegation_policy != "platform_managed":
                 findings.append(f"{key}: staged_handoff requires required/platform_managed delegation defaults")
-            if local_live_runtime_policy != "multi_context_orchestrated":
-                findings.append(f"{key}: staged_handoff requires multi_context_orchestrated local policy")
+            if local_live_runtime_policy != "single_runtime_single_context":
+                findings.append(f"{key}: staged_handoff requires single_runtime_single_context local policy")
         elif actual_mode == "workflow_stage":
             if sub_agent_mode != "instruction_only_sub_agents" or peer_communication != "none" or dispatch_topology != "workflow_serial":
                 findings.append(f"{key}: workflow_stage requires instruction_only_sub_agents + none + workflow_serial")
@@ -471,7 +471,7 @@ def _spec_store_findings(root: Path) -> list[str]:
 
     for path in forbidden:
         if path.exists():
-            findings.append(f"legacy spec path must not exist: {path}")
+            findings.append(f"obsolete spec path must not exist: {path}")
 
     if findings:
         return findings

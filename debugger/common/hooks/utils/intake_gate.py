@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Run-level intake gate for debugger workspace cases."""
 
 from __future__ import annotations
@@ -374,12 +374,12 @@ def run_intake_gate(root: Path, run_root: Path) -> dict[str, Any]:
                 "path": _norm(output_path),
                 "entry_mode": str(entry_gate.get("entry_mode") or (run_data.get("debug") or {}).get("entry_mode") or "cli"),
                 "backend": str(entry_gate.get("backend") or (run_data.get("runtime") or {}).get("backend") or "local"),
-                "context_id": str((run_data.get("runtime") or {}).get("context_id") or run_data.get("context_id") or "default"),
-                "runtime_owner": str((run_data.get("runtime") or {}).get("runtime_owner") or run_data.get("runtime_owner") or "rdc-debugger"),
-                "baton_ref": "",
-                "context_binding_id": "",
-                "capture_ref": "",
-                "canonical_anchor_ref": "",
+                "runtime_generation": int(((run_data.get("runtime") or {}).get("runtime_generation") or 1)),
+                "snapshot_rev": 0,
+                "owner_agent_id": "rdc-debugger",
+                "lease_epoch": 0,
+                "continuity_status": "fresh_start",
+                "action_request_id": f"ar-intake-gate-{str(payload.get('run_id') or 'unknown')}",
             },
         },
     )

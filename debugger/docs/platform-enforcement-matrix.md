@@ -2,11 +2,12 @@
 
 本文是 `debugger/` 唯一权威的 platform enforcement 入口。
 
-目标不是描述“平台大概能做什么”，而是明确：哪些宿主可以把 guard 接到 native lifecycle hooks，哪些只能通过 wrapper / rules / workflow 伪装成 hooks，哪些必须完全退化成 `no-hooks` 的 external harness。
+目标不是描述“平台大概能做什么”，而是明确：哪些宿主可以把 guard 接到 native lifecycle hooks，哪些只能通过 wrapper / rules / workflow 伪装成 hooks，哪些只能退化成 external harness。
 
 ## 统一原则
 
-- 共享 harness 状态机是唯一真相源：`preflight -> entry_gate -> accept_intake -> runtime_topology -> dispatch_readiness -> specialist_feedback -> final_audit -> user_verdict`。
+- 共享 harness 状态机是唯一真相源：`preflight -> entry_gate -> accept_intake -> dispatch_readiness -> dispatch_specialist -> specialist_feedback -> final_audit -> user_verdict`。
+- `accept_intake` 内部负责 `capture import -> case/run bootstrap -> intake_gate -> broker startup`，并产出 `runtime_session.yaml`、`runtime_snapshot.yaml`、`ownership_lease.yaml`、`runtime_failure.yaml`。
 - 平台原生 hooks 只负责拦截和触发共享 guard，不承载业务规则。
 - `rdc-debugger` 是所有平台唯一 public entrypoint；其他 specialist 默认 internal-only。
 - 没有 `artifacts/run_compliance.yaml(status=passed)`，任何平台都不得宣布结案。
@@ -20,11 +21,6 @@
 | `copilot-cli` | `native-hooks` | `session_start` / `pre_tool_use` / `post_tool_use` / `stop` | `rdc-debugger` | 原生 hooks 只调共享 harness。 |
 | `codex` | `pseudo-hooks` | `pre_tool_use` / `post_tool_use` / `stop` | `rdc-debugger` | 正式 enforcement 是 `runtime_guard` wrapper，不把 Bash guardrail 写成通用 hooks。 |
 | `code-buddy` | `pseudo-hooks` | `session_start` / `pre_tool_use` / `post_tool_use` / `stop` | `rdc-debugger` | 由 wrapper-dispatched pseudo-hooks 处理，不宣称宿主原生 lifecycle truth。 |
-| `cursor` | `pseudo-hooks` | `post_tool_use` / `stop` | `rdc-debugger` | `.cursor/rules/rdc-debugger.mdc` / `hooks.json` 只是 wrapper 触发面。 |
-| `copilot-ide` | `pseudo-hooks` | `post_tool_use` / `stop` | `rdc-debugger` | 依赖 instructions / skills / MCP + shared harness。 |
-| `claude-desktop` | `no-hooks` | `stop` | `rdc-debugger` | 依赖 workflow / audit，不模拟 native hooks。 |
-| `manus` | `no-hooks` | `stop` | `rdc-debugger` | 依赖 workflow / audit，不模拟 native hooks。 |
-| `codex_plugin` | `no-hooks` | `stop` | `rdc-debugger` | 插件只提供入口，不提供宿主级严格 hooks。 |
 
 ## 平台行为要求
 
@@ -38,16 +34,9 @@
 
 - 不得把 wrapper、rules、Bash guardrail 或 IDE 规则系统写成 native lifecycle hooks。
 - 所有关键跃迁仍然必须走共享 harness：`accept_intake`、`dispatch_specialist`、`final_audit`、`render_user_verdict`。
-- 如果宿主不能可靠阻断 direct tool use，就应该进一步退化成 single-entry harness。
+- 不得伪造独立 runtime 所有权；所有 live runtime 访问都要经过 broker-owned session + ownership lease。
 
 ### `no-hooks`
 
 - 不尝试伪造 host-side strict interception。
-- 只允许通过 shared harness + final audit 控制流程收口。
-- workflow 串行平台不得模拟实时 multi-agent handoff 或 peer-to-peer specialist coordination。
-
-## 文档治理
-
-- `common/config/platform_capabilities.json` 和 `common/config/framework_compliance.json` 必须与本文一致。
-- 平台 README、rules、hooks README、entrypoints 指南只能引用本文，不得再发明第二套 enforcement 口径。
-- 如果未来平台能力发生变化，必须先改本文，再改平台模板；不允许先在单个平台 README 里偷跑新口径。
+- 只允许通过 workflow gate + audit + broker-owned runtime artifacts 维持最小可信链路。

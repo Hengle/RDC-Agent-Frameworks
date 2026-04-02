@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "entry_model": {
     "public_entry_skill": "rdc-debugger",
     "panel_state_source": "workspace/cases/<case_id>/runs/<run_id>/notes/hypothesis_board.yaml"
@@ -15,7 +15,10 @@
       "run.yaml",
       "capture_refs.yaml",
       "artifacts/intake_gate.yaml",
-      "artifacts/runtime_topology.yaml",
+      "artifacts/runtime_session.yaml",
+      "artifacts/runtime_snapshot.yaml",
+      "artifacts/ownership_lease.yaml",
+      "artifacts/runtime_failure.yaml",
       "notes/hypothesis_board.yaml",
       "reports/report.md",
       "reports/visual_report.html"
@@ -30,111 +33,12 @@
     ],
     "run_compliance_artifact": "artifacts/run_compliance.yaml",
     "freeze_state_artifact": "artifacts/freeze_state.yaml",
-    "finalization_receipt_artifact": "artifacts/finalization_receipt.yaml",
-    "write_scope_paths": {
-      "workspace_control": [
-        "workspace/cases/<case_id>/case.yaml",
-        "workspace/cases/<case_id>/artifacts/entry_gate.yaml",
-        "workspace/cases/<case_id>/case_input.yaml",
-        "workspace/cases/<case_id>/inputs/captures/manifest.yaml",
-        "workspace/cases/<case_id>/inputs/references/manifest.yaml",
-        "workspace/cases/<case_id>/runs/<run_id>/run.yaml",
-        "workspace/cases/<case_id>/runs/<run_id>/capture_refs.yaml",
-        "workspace/cases/<case_id>/runs/<run_id>/notes/hypothesis_board.yaml"
-      ],
-      "workspace_notes": [
-        "workspace/cases/<case_id>/runs/<run_id>/artifacts/",
-        "workspace/cases/<case_id>/runs/<run_id>/notes/",
-        "workspace/cases/<case_id>/runs/<run_id>/screenshots/"
-      ],
-      "session_signoff": [
-        "common/knowledge/library/sessions/<session_id>/skeptic_signoff.yaml"
-      ],
-      "workspace_reports": [
-        "workspace/cases/<case_id>/runs/<run_id>/reports/report.md",
-        "workspace/cases/<case_id>/runs/<run_id>/reports/visual_report.html"
-      ],
-      "session_artifacts": [
-        "common/knowledge/library/sessions/.current_session",
-        "common/knowledge/library/sessions/<session_id>/session_evidence.yaml",
-        "common/knowledge/library/sessions/<session_id>/action_chain.jsonl"
-      ],
-      "knowledge_library": [
-        "common/knowledge/library/bugcards/",
-        "common/knowledge/library/bugfull/",
-        "common/knowledge/library/bugcard_index.yaml",
-        "common/knowledge/library/cross_device_fingerprint_graph.yaml",
-        "common/knowledge/proposals/"
-      ]
-    },
-    "allowed_live_library_session_entries": [
-      ".current_session",
-      "README.md"
-    ]
+    "finalization_receipt_artifact": "artifacts/finalization_receipt.yaml"
   },
   "platforms": {
-    "claude-code": {
-      "coordination_mode": "concurrent_team",
-      "required_surfaces": [
-        "agents",
-        "skills",
-        "hooks",
-        "mcp"
-      ],
-      "workflow_required": false,
-      "enforcement_mode": "native_hook_harness",
-      "enforcement_tier": "native-hooks",
-      "public_entrypoints": [
-        "rdc-debugger"
-      ],
-      "requires_run_compliance_artifact": true
-    },
-    "code-buddy": {
-      "coordination_mode": "concurrent_team",
-      "required_surfaces": [
-        "agents",
-        "skills",
-        "hooks",
-        "mcp"
-      ],
-      "workflow_required": false,
-      "enforcement_mode": "pseudo_hook_harness",
-      "enforcement_tier": "pseudo-hooks",
-      "public_entrypoints": [
-        "rdc-debugger"
-      ],
-      "requires_run_compliance_artifact": true
-    },
-    "codex": {
-      "coordination_mode": "staged_handoff",
-      "required_surfaces": [
-        "agents",
-        "skills",
-        "mcp"
-      ],
-      "workflow_required": false,
-      "enforcement_mode": "runtime_owner_gate_loop",
-      "enforcement_tier": "pseudo-hooks",
-      "public_entrypoints": [
-        "rdc-debugger"
-      ],
-      "requires_run_compliance_artifact": true
-    },
-    "copilot-cli": {
-      "coordination_mode": "staged_handoff",
-      "required_surfaces": [
-        "agents",
-        "skills",
-        "hooks",
-        "mcp"
-      ],
-      "workflow_required": false,
-      "enforcement_mode": "native_hook_harness",
-      "enforcement_tier": "native-hooks",
-      "public_entrypoints": [
-        "rdc-debugger"
-      ],
-      "requires_run_compliance_artifact": true
-    }
+    "claude-code": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "hooks", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "native-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true},
+    "code-buddy": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "hooks", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "pseudo-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true},
+    "codex": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "pseudo-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true},
+    "copilot-cli": {"coordination_mode": "staged_handoff", "required_surfaces": ["agents", "skills", "hooks", "mcp"], "workflow_required": false, "enforcement_mode": "shared_harness", "enforcement_tier": "native-hooks", "public_entrypoints": ["rdc-debugger"], "requires_run_compliance_artifact": true}
   }
 }

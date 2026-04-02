@@ -38,10 +38,7 @@ from harness_guard import (  # noqa: E402
     run_intake_gate as shared_run_intake_gate,
     run_preflight as shared_run_preflight,
     run_render_user_verdict as shared_run_render_user_verdict,
-    run_runtime_topology as shared_run_runtime_topology,
     run_specialist_feedback as shared_run_specialist_feedback,
-    validate_capability_token,
-    write_run_audit_artifact,
 )
 
 
@@ -49,72 +46,16 @@ def run_preflight(root: Path, *, case_root: Path | None = None):
     return shared_run_preflight(root, case_root=case_root)
 
 
-def run_entry_gate(
-    root: Path,
-    case_root: Path,
-    *,
-    platform: str,
-    entry_mode: str,
-    backend: str,
-    capture_paths: list[str] | None = None,
-    mcp_configured: bool = False,
-    remote_transport: str = "",
-    single_agent_requested: bool = False,
-):
-    return shared_run_entry_gate(
-        root,
-        case_root,
-        platform=platform,
-        entry_mode=entry_mode,
-        backend=backend,
-        capture_paths=capture_paths,
-        mcp_configured=mcp_configured,
-        remote_transport=remote_transport,
-        single_agent_requested=single_agent_requested,
-    )
+def run_entry_gate(root: Path, case_root: Path, *, platform: str, entry_mode: str, backend: str, capture_paths: list[str] | None = None, mcp_configured: bool = False, remote_transport: str = "", fix_reference_status: str = "strict_ready"):
+    return shared_run_entry_gate(root, case_root, platform=platform, entry_mode=entry_mode, backend=backend, capture_paths=capture_paths, mcp_configured=mcp_configured, remote_transport=remote_transport, fix_reference_status=fix_reference_status)
 
 
-def run_accept_intake(
-    root: Path,
-    case_root: Path,
-    *,
-    platform: str,
-    entry_mode: str,
-    backend: str,
-    capture_paths: list[str],
-    case_id: str = "",
-    run_id: str = "",
-    session_id: str = "",
-    mcp_configured: bool = False,
-    remote_transport: str = "",
-    single_agent_requested: bool = False,
-    user_goal: str = "",
-    symptom_summary: str = "",
-):
-    return shared_run_accept_intake(
-        root,
-        case_root,
-        platform=platform,
-        entry_mode=entry_mode,
-        backend=backend,
-        capture_paths=capture_paths,
-        case_id=case_id,
-        run_id=run_id,
-        session_id=session_id,
-        mcp_configured=mcp_configured,
-        remote_transport=remote_transport,
-        single_agent_requested=single_agent_requested,
-        user_goal=user_goal,
-        symptom_summary=symptom_summary,
-    )
+def run_accept_intake(root: Path, case_root: Path, *, platform: str, entry_mode: str, backend: str, capture_paths: list[str], case_id: str = "", run_id: str = "", session_id: str = "", mcp_configured: bool = False, remote_transport: str = "", user_goal: str = "", symptom_summary: str = ""):
+    return shared_run_accept_intake(root, case_root, platform=platform, entry_mode=entry_mode, backend=backend, capture_paths=capture_paths, case_id=case_id, run_id=run_id, session_id=session_id, mcp_configured=mcp_configured, remote_transport=remote_transport, user_goal=user_goal, symptom_summary=symptom_summary)
 
 
 def run_intake_gate(root: Path, run_root: Path):
     return shared_run_intake_gate(root, run_root)
-
-
-def run_runtime_topology(root: Path, run_root: Path, *, platform: str):
-    return shared_run_runtime_topology(root, run_root, platform=platform)
 
 
 def run_dispatch_readiness(root: Path, run_root: Path, *, platform: str):
@@ -122,14 +63,7 @@ def run_dispatch_readiness(root: Path, run_root: Path, *, platform: str):
 
 
 def run_dispatch_specialist(root: Path, run_root: Path, *, platform: str, target_agent: str, objective: str, ttl_seconds: int = 1800):
-    return shared_run_dispatch_specialist(
-        root,
-        run_root,
-        platform=platform,
-        target_agent=target_agent,
-        objective=objective,
-        ttl_seconds=ttl_seconds,
-    )
+    return shared_run_dispatch_specialist(root, run_root, platform=platform, target_agent=target_agent, objective=objective, ttl_seconds=ttl_seconds)
 
 
 def run_specialist_feedback(root: Path, run_root: Path, *, timeout_seconds: int = 300, now_ms: int | None = None):
@@ -137,7 +71,7 @@ def run_specialist_feedback(root: Path, run_root: Path, *, timeout_seconds: int 
 
 
 def run_final_audit(root: Path, run_root: Path, *, platform: str):
-    return write_run_audit_artifact(root, run_root.resolve(), platform)
+    return shared_run_final_audit(root, run_root.resolve(), platform=platform)
 
 
 def run_render_user_verdict(root: Path, run_root: Path):

@@ -8,7 +8,7 @@
 - `<session_id>/action_chain.jsonl`
 - `.current_session`（plain text；记录当前 `session_id`）
 
-不要在本目录存放 examples。示例 session 应放在 `../../examples/sessions/`。
+不要在本目录存放 examples。示例 session 应放在 `../../examples/sessions/`，示例 BugCard / BugFull / action chain 应放在 `../../examples/` 下的对应目录。
 
 在 finalization 之前，必须先更新 `.current_session`。
 

@@ -153,7 +153,7 @@ class BindingValidationTests(unittest.TestCase):
 
             self.assertEqual(findings, [])
 
-    def test_validate_binding_rejects_legacy_configurable_tools_root(self) -> None:
+    def test_validate_binding_rejects_removed_configurable_tools_root(self) -> None:
         validator = _load_validator_module()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "debugger"

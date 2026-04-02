@@ -1,11 +1,11 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "runtime_contract": {
-    "context_state_model": "single_current_runtime_per_context",
-    "local_parallelism": "multi_context_multi_daemon",
-    "remote_handle_lifecycle": "remote_id_single_consumer",
-    "remote_coordination_mode": "single_runtime_owner",
-    "rehydration_contract": "required"
+    "context_state_model": "single_runtime_single_context",
+    "runtime_owner_model": "broker_owned",
+    "runtime_parallelism": "single_runtime_single_context",
+    "handle_stability": "broker_runtime_view_only",
+    "recovery_contract": "single_controlled_recovery"
   },
   "platforms": {
     "claude-code": {
@@ -13,46 +13,26 @@
       "status_label": "full",
       "packaging": "project-config-plus-subagents",
       "default_entry_mode": "cli",
-      "allowed_entry_modes": [
-        "cli",
-        "mcp"
-      ],
-      "capabilities": {
-        "custom_agents": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "skills": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "hooks": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "mcp": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "per_agent_model": {
-          "supported": true,
-          "rendered": "alias"
-        },
-        "handoffs": {
-          "supported": true,
-          "rendered": "prompt-directed"
-        }
-      },
-      "coordination_mode": "concurrent_team",
-      "sub_agent_mode": "team_agents",
-      "peer_communication": "direct",
+      "allowed_entry_modes": ["cli", "mcp"],
+      "supported_entry_modes": ["cli", "mcp"],
+      "supported_backends": ["local", "remote"],
+      "coordination_mode": "staged_handoff",
+      "orchestration_mode": "multi_agent",
+      "sub_agent_mode": "puppet_sub_agents",
+      "peer_communication": "via_main_agent",
       "agent_description_mode": "independent_files",
-      "dispatch_topology": "mesh",
+      "dispatch_topology": "hub_and_spoke",
       "specialist_dispatch_requirement": "required",
       "host_delegation_policy": "platform_managed",
-      "host_delegation_fallback": "native",
-      "degradation_mode": "none",
-      "cli_discovery_policy": "mcp-discovery-ok,cli-reference-required",
+      "hook_ssot": "shared_harness",
+      "live_runtime_policy": "single_runtime_single_context",
+      "local_support": "verified",
+      "remote_support": "verified",
+      "enforcement_layer": "shared_harness",
+      "enforcement_tier": "native-hooks",
+      "guard_injection_points": ["session_start", "pre_tool_use", "post_tool_use", "stop"],
+      "public_entrypoints": ["rdc-debugger"],
+      "strict_hook_surface": "host-native",
       "required_paths": [
         "platforms/claude-code/README.md",
         "platforms/claude-code/AGENTS.md",
@@ -60,77 +40,40 @@
         "platforms/claude-code/.claude/CLAUDE.md",
         "platforms/claude-code/.claude/skills/rdc-debugger/SKILL.md"
       ],
-      "supported_entry_modes": [
-        "cli",
-        "mcp"
-      ],
-      "supported_backends": [
-        "local",
-        "remote"
-      ],
-      "remote_coordination_mode": "single_runtime_owner",
-      "local_live_runtime_policy": "multi_context_multi_owner",
-      "remote_live_runtime_policy": "single_runtime_owner",
-      "local_support": "verified",
-      "remote_support": "verified",
-      "enforcement_layer": "native_hooks",
-      "enforcement_tier": "native-hooks",
-      "guard_injection_points": [
-        "session_start",
-        "pre_tool_use",
-        "post_tool_use",
-        "stop"
-      ],
-      "public_entrypoints": [
-        "rdc-debugger"
-      ],
-      "strict_hook_surface": "host-native"
+      "capabilities": {
+        "custom_agents": {"supported": true, "rendered": "native"},
+        "skills": {"supported": true, "rendered": "native"},
+        "hooks": {"supported": true, "rendered": "native"},
+        "mcp": {"supported": true, "rendered": "native"},
+        "per_agent_model": {"supported": true, "rendered": "alias"},
+        "handoffs": {"supported": true, "rendered": "prompt-directed"}
+      }
     },
     "code-buddy": {
       "display_name": "Code Buddy",
       "status_label": "reference",
       "packaging": "plugin-bundle",
       "default_entry_mode": "cli",
-      "allowed_entry_modes": [
-        "cli",
-        "mcp"
-      ],
-      "capabilities": {
-        "custom_agents": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "skills": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "hooks": {
-          "supported": false,
-          "rendered": "pseudo-hooks"
-        },
-        "mcp": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "per_agent_model": {
-          "supported": true,
-          "rendered": "explicit"
-        },
-        "handoffs": {
-          "supported": true,
-          "rendered": "prompt-directed"
-        }
-      },
-      "coordination_mode": "concurrent_team",
-      "sub_agent_mode": "team_agents",
-      "peer_communication": "direct",
+      "allowed_entry_modes": ["cli", "mcp"],
+      "supported_entry_modes": ["cli", "mcp"],
+      "supported_backends": ["local", "remote"],
+      "coordination_mode": "staged_handoff",
+      "orchestration_mode": "multi_agent",
+      "sub_agent_mode": "puppet_sub_agents",
+      "peer_communication": "via_main_agent",
       "agent_description_mode": "independent_files",
-      "dispatch_topology": "mesh",
+      "dispatch_topology": "hub_and_spoke",
       "specialist_dispatch_requirement": "required",
       "host_delegation_policy": "platform_managed",
-      "host_delegation_fallback": "none",
-      "degradation_mode": "wrapper-pseudo-hooks",
-      "cli_discovery_policy": "mcp-discovery-ok,cli-reference-required",
+      "hook_ssot": "shared_harness",
+      "live_runtime_policy": "single_runtime_single_context",
+      "local_support": "verified",
+      "remote_support": "verified",
+      "enforcement_layer": "shared_harness",
+      "enforcement_tier": "pseudo-hooks",
+      "guard_injection_points": ["session_start", "pre_tool_use", "post_tool_use", "stop"],
+      "public_entrypoints": ["rdc-debugger"],
+      "strict_hook_surface": "wrapper-dispatched",
       "required_paths": [
         "platforms/code-buddy/README.md",
         "platforms/code-buddy/AGENTS.md",
@@ -139,77 +82,40 @@
         "platforms/code-buddy/hooks/hooks.json",
         "platforms/code-buddy/skills/rdc-debugger/SKILL.md"
       ],
-      "supported_entry_modes": [
-        "cli",
-        "mcp"
-      ],
-      "supported_backends": [
-        "local",
-        "remote"
-      ],
-      "remote_coordination_mode": "single_runtime_owner",
-      "local_live_runtime_policy": "multi_context_multi_owner",
-      "remote_live_runtime_policy": "single_runtime_owner",
-      "local_support": "verified",
-      "remote_support": "verified",
-      "enforcement_layer": "pseudo_hooks",
-      "enforcement_tier": "pseudo-hooks",
-      "guard_injection_points": [
-        "session_start",
-        "pre_tool_use",
-        "post_tool_use",
-        "stop"
-      ],
-      "public_entrypoints": [
-        "rdc-debugger"
-      ],
-      "strict_hook_surface": "wrapper-dispatched"
+      "capabilities": {
+        "custom_agents": {"supported": true, "rendered": "native"},
+        "skills": {"supported": true, "rendered": "native"},
+        "hooks": {"supported": false, "rendered": "pseudo-hooks"},
+        "mcp": {"supported": true, "rendered": "native"},
+        "per_agent_model": {"supported": true, "rendered": "explicit"},
+        "handoffs": {"supported": true, "rendered": "prompt-directed"}
+      }
     },
     "codex": {
       "display_name": "Codex",
       "status_label": "workspace-native",
       "packaging": "workspace-instructions-plus-role-config",
       "default_entry_mode": "cli",
-      "allowed_entry_modes": [
-        "cli",
-        "mcp"
-      ],
-      "capabilities": {
-        "custom_agents": {
-          "supported": true,
-          "rendered": "multi-agent-config"
-        },
-        "skills": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "hooks": {
-          "supported": false,
-          "rendered": "bash-guardrail-only"
-        },
-        "mcp": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "per_agent_model": {
-          "supported": true,
-          "rendered": "config-file"
-        },
-        "handoffs": {
-          "supported": true,
-          "rendered": "multi-agent"
-        }
-      },
+      "allowed_entry_modes": ["cli", "mcp"],
+      "supported_entry_modes": ["cli", "mcp"],
+      "supported_backends": ["local", "remote"],
       "coordination_mode": "staged_handoff",
+      "orchestration_mode": "multi_agent",
       "sub_agent_mode": "puppet_sub_agents",
       "peer_communication": "via_main_agent",
       "agent_description_mode": "independent_files",
       "dispatch_topology": "hub_and_spoke",
       "specialist_dispatch_requirement": "required",
       "host_delegation_policy": "platform_managed",
-      "host_delegation_fallback": "none",
-      "degradation_mode": "cli-first-staged-handoff",
-      "cli_discovery_policy": "mcp-discovery-ok,cli-reference-required",
+      "hook_ssot": "shared_harness",
+      "live_runtime_policy": "single_runtime_single_context",
+      "local_support": "verified",
+      "remote_support": "verified",
+      "enforcement_layer": "shared_harness",
+      "enforcement_tier": "pseudo-hooks",
+      "guard_injection_points": ["pre_tool_use", "post_tool_use", "stop"],
+      "public_entrypoints": ["rdc-debugger"],
+      "strict_hook_surface": "runtime-guard-wrapper",
       "required_paths": [
         "platforms/codex/README.md",
         "platforms/codex/AGENTS.md",
@@ -218,76 +124,40 @@
         "platforms/codex/.codex/agents/rdc-debugger.toml",
         "platforms/codex/.codex/skills/rdc-debugger/SKILL.md"
       ],
-      "supported_entry_modes": [
-        "cli",
-        "mcp"
-      ],
-      "supported_backends": [
-        "local",
-        "remote"
-      ],
-      "remote_coordination_mode": "single_runtime_owner",
-      "local_live_runtime_policy": "multi_context_orchestrated",
-      "remote_live_runtime_policy": "single_runtime_owner",
-      "local_support": "verified",
-      "remote_support": "verified",
-      "enforcement_layer": "runtime_owner",
-      "enforcement_tier": "pseudo-hooks",
-      "guard_injection_points": [
-        "pre_tool_use",
-        "post_tool_use",
-        "stop"
-      ],
-      "public_entrypoints": [
-        "rdc-debugger"
-      ],
-      "strict_hook_surface": "runtime-guard-wrapper"
+      "capabilities": {
+        "custom_agents": {"supported": true, "rendered": "multi-agent-config"},
+        "skills": {"supported": true, "rendered": "native"},
+        "hooks": {"supported": false, "rendered": "bash-guardrail-only"},
+        "mcp": {"supported": true, "rendered": "native"},
+        "per_agent_model": {"supported": true, "rendered": "config-file"},
+        "handoffs": {"supported": true, "rendered": "multi-agent"}
+      }
     },
     "copilot-cli": {
       "display_name": "Copilot CLI",
       "status_label": "full",
       "packaging": "cli-plugin",
       "default_entry_mode": "cli",
-      "allowed_entry_modes": [
-        "cli",
-        "mcp"
-      ],
-      "capabilities": {
-        "custom_agents": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "skills": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "hooks": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "mcp": {
-          "supported": true,
-          "rendered": "native"
-        },
-        "per_agent_model": {
-          "supported": true,
-          "rendered": "explicit"
-        },
-        "handoffs": {
-          "supported": true,
-          "rendered": "limited"
-        }
-      },
+      "allowed_entry_modes": ["cli", "mcp"],
+      "supported_entry_modes": ["cli", "mcp"],
+      "supported_backends": ["local", "remote"],
       "coordination_mode": "staged_handoff",
+      "orchestration_mode": "multi_agent",
       "sub_agent_mode": "puppet_sub_agents",
       "peer_communication": "via_main_agent",
       "agent_description_mode": "independent_files",
       "dispatch_topology": "hub_and_spoke",
       "specialist_dispatch_requirement": "required",
       "host_delegation_policy": "platform_managed",
-      "host_delegation_fallback": "none",
-      "degradation_mode": "limited-handoffs",
-      "cli_discovery_policy": "cli-reference-required",
+      "hook_ssot": "shared_harness",
+      "live_runtime_policy": "single_runtime_single_context",
+      "local_support": "verified",
+      "remote_support": "verified",
+      "enforcement_layer": "shared_harness",
+      "enforcement_tier": "native-hooks",
+      "guard_injection_points": ["session_start", "pre_tool_use", "post_tool_use", "stop"],
+      "public_entrypoints": ["rdc-debugger"],
+      "strict_hook_surface": "host-native",
       "required_paths": [
         "platforms/copilot-cli/README.md",
         "platforms/copilot-cli/AGENTS.md",
@@ -296,31 +166,14 @@
         "platforms/copilot-cli/hooks/hooks.json",
         "platforms/copilot-cli/skills/rdc-debugger/SKILL.md"
       ],
-      "supported_entry_modes": [
-        "cli",
-        "mcp"
-      ],
-      "supported_backends": [
-        "local",
-        "remote"
-      ],
-      "remote_coordination_mode": "single_runtime_owner",
-      "local_live_runtime_policy": "multi_context_orchestrated",
-      "remote_live_runtime_policy": "single_runtime_owner",
-      "local_support": "verified",
-      "remote_support": "verified",
-      "enforcement_layer": "native_hooks",
-      "enforcement_tier": "native-hooks",
-      "guard_injection_points": [
-        "session_start",
-        "pre_tool_use",
-        "post_tool_use",
-        "stop"
-      ],
-      "public_entrypoints": [
-        "rdc-debugger"
-      ],
-      "strict_hook_surface": "host-native"
+      "capabilities": {
+        "custom_agents": {"supported": true, "rendered": "native"},
+        "skills": {"supported": true, "rendered": "native"},
+        "hooks": {"supported": true, "rendered": "native"},
+        "mcp": {"supported": true, "rendered": "native"},
+        "per_agent_model": {"supported": true, "rendered": "explicit"},
+        "handoffs": {"supported": true, "rendered": "limited"}
+      }
     }
   }
 }

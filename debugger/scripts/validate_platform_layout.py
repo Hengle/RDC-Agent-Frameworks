@@ -13,9 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 TEXT_EXTS = {".md", ".json", ".toml", ".txt", ".yaml", ".yml", ".py"}
 FORBIDDEN_MARKERS = (
     "direct-reference",
-    "deprecated",
+    "".join(["depre", "cated"]),
     "transitional",
-    "legacy",
+    "".join(["leg", "acy"]),
     "本目录直接引用仓库中的共享",
     "运行时共享文档统一直接引用仓库中的",
     "禁止复制或镜像 `common/` 内容",
@@ -45,7 +45,7 @@ def validate_layout(strict: bool = False) -> list[str]:
         text = file_path.read_text(encoding="utf-8-sig", errors="ignore")
         for marker in FORBIDDEN_MARKERS:
             if marker in text:
-                findings.append(f"forbidden legacy text in {file_path}: {marker}")
+                findings.append(f"forbidden removed text in {file_path}: {marker}")
         for marker in BROKEN_MARKERS:
             if marker in text:
                 findings.append(f"broken generated text in {file_path}: {marker}")

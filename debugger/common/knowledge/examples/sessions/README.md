@@ -7,3 +7,4 @@
 - SOP / action chain 研究
 
 这些文件不是 live session，不得作为 `library/sessions/` 的真实 gate artifacts。
+与 session 示例无关的独立样例应放入 `../action_chains/`、`../bugcards/` 或 `../bugfulls/`。

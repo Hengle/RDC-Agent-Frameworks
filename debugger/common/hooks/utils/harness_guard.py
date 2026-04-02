@@ -6,10 +6,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import secrets
 import shutil
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -40,38 +39,18 @@ for path in (COMMON_UTILS, COMMON_VALIDATORS, COMMON_CONFIG):
 from entry_gate import run_entry_gate as shared_run_entry_gate  # noqa: E402
 from hypothesis_board_validator import validate_hypothesis_board  # noqa: E402
 from intake_gate import build_intake_gate_payload, run_intake_gate as shared_run_intake_gate  # noqa: E402
-from run_compliance_audit import (  # noqa: E402
-    ACTION_CHAIN_SCHEMA,
-    ACTION_SPECIALISTS,
-    load_action_chain_events,
-    specialist_handoff_path_ok,
-    workflow_stage_overreach_issues,
-    write_run_audit_artifact,
-)
-from runtime_topology import (  # noqa: E402
-    build_runtime_topology_payload,
-    run_runtime_topology as shared_run_runtime_topology,
-)
+from run_compliance_audit import ACTION_CHAIN_SCHEMA, ACTION_SPECIALISTS, load_action_chain_events, specialist_handoff_path_ok, workflow_stage_overreach_issues, write_run_audit_artifact  # noqa: E402
+from runtime_broker import acquire_lease, close_runtime, load_ownership_lease, load_runtime_failure, load_runtime_session, load_runtime_snapshot, ownership_lease_path, release_lease, runtime_failure_path, runtime_session_path, runtime_snapshot_path, start_runtime, validate_lease  # noqa: E402
 from validate_binding import validate_binding  # noqa: E402
 from validate_tool_contract_runtime import validate_runtime_tool_contract  # noqa: E402
 
 
-GUARD_SCHEMA = "2"
-CAPABILITY_TOKEN_SCHEMA = "1"
-RUNTIME_LOCK_SCHEMA = "1"
+GUARD_SCHEMA = "3"
 FREEZE_STATE_SCHEMA = "1"
 FINALIZATION_RECEIPT_SCHEMA = "1"
-QUALITY_CHECK_EVENT_TYPE = "quality_check"
-PROCESS_DEVIATION_EVENT_TYPE = "process_deviation"
-DISPATCH_FEEDBACK_EVENT_TYPES = {
-    "artifact_write",
-    "quality_check",
-    "counterfactual_reviewed",
-    "conflict_resolved",
-}
-SPECIALIST_TOKEN_AGENTS = ACTION_SPECIALISTS | {"skeptic_agent", "curator_agent"}
-DEFAULT_TOKEN_TTL_SECONDS = 1800
-DEFAULT_TOKEN_ACTIONS = ("write_note", "live_investigation", "submit_brief")
+DISPATCH_FEEDBACK_EVENT_TYPES = {"artifact_write", "quality_check", "counterfactual_reviewed", "conflict_resolved"}
+SPECIALIST_AGENTS = ACTION_SPECIALISTS | {"skeptic_agent", "curator_agent"}
+DEFAULT_LEASE_TTL_SECONDS = 1800
 NOTE_FILE_BY_AGENT = {
     "triage_agent": "triage.md",
     "capture_repro_agent": "capture_repro.md",
@@ -101,26 +80,21 @@ def _norm(path: Path | str) -> str:
     return str(path).replace("\\", "/")
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 def _now_iso() -> str:
-    return _now().isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _now_ms() -> int:
-    return int(_now().timestamp() * 1000)
+    return int(datetime.now(timezone.utc).timestamp() * 1000)
 
 
 def _status_ok(value: str) -> bool:
-    return str(value or "").strip() in {"passed", "ready", "not_applicable"}
+    return str(value or "").strip() in {"passed", "ready", "not_applicable", "issued"}
 
 
 def _sanitize_token(value: str) -> str:
     text = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "-" for ch in str(value or "").strip())
-    text = text.strip("-_")
-    return text or "unknown"
+    return text.strip("-_") or "unknown"
 
 
 def _extract_session_id(root: Path, run_root: Path) -> str:
@@ -128,16 +102,12 @@ def _extract_session_id(root: Path, run_root: Path) -> str:
     run_data = _read_yaml(run_yaml) if run_yaml.is_file() else {}
     if not isinstance(run_data, dict):
         run_data = {}
-    for value in (
-        run_data.get("session_id"),
-        (run_data.get("debug") or {}).get("session_id") if isinstance(run_data.get("debug"), dict) else None,
-        (run_data.get("runtime") or {}).get("session_id") if isinstance(run_data.get("runtime"), dict) else None,
-    ):
+    for value in (run_data.get("session_id"), (run_data.get("runtime") or {}).get("session_id") if isinstance(run_data.get("runtime"), dict) else None):
         if isinstance(value, str) and value.strip():
             return value.strip()
-    session_marker = root / "common" / "knowledge" / "library" / "sessions" / ".current_session"
-    if session_marker.is_file():
-        value = session_marker.read_text(encoding="utf-8").lstrip("\ufeff").strip()
+    marker = root / "common" / "knowledge" / "library" / "sessions" / ".current_session"
+    if marker.is_file():
+        value = marker.read_text(encoding="utf-8").lstrip("\ufeff").strip()
         if value and value != "session-unset":
             return value
     return ""
@@ -145,10 +115,8 @@ def _extract_session_id(root: Path, run_root: Path) -> str:
 
 def _action_chain_path(root: Path, run_root: Path) -> Path:
     session_id = _extract_session_id(root, run_root)
-    sessions_root = root / "common" / "knowledge" / "library" / "sessions"
-    if session_id:
-        return sessions_root / session_id / "action_chain.jsonl"
-    return sessions_root / "action_chain.jsonl"
+    base = root / "common" / "knowledge" / "library" / "sessions"
+    return base / session_id / "action_chain.jsonl" if session_id else base / "action_chain.jsonl"
 
 
 def _action_chain_events(root: Path, run_root: Path) -> list[dict[str, Any]]:
@@ -157,37 +125,16 @@ def _action_chain_events(root: Path, run_root: Path) -> list[dict[str, Any]]:
 
 
 def _append_event(path: Path, event: dict[str, Any]) -> None:
-    serialized = json.dumps(event, ensure_ascii=False)
+    payload = json.dumps(event, ensure_ascii=False)
     existing = _read_text(path) if path.exists() else ""
-    if serialized in existing:
+    if payload in existing:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8", newline="\n") as handle:
-        if existing and not existing.endswith("\n"):
-            handle.write("\n")
-        handle.write(serialized)
-        handle.write("\n")
-
-
-def _runtime_fields(run_root: Path) -> dict[str, str]:
-    topology_path = run_root / "artifacts" / "runtime_topology.yaml"
-    topology = _read_yaml(topology_path) if topology_path.is_file() else {}
-    if not isinstance(topology, dict):
-        topology = {}
-    bindings = list(topology.get("context_bindings") or [])
-    first_binding = bindings[0] if bindings else {}
-    contexts = list(topology.get("contexts") or [])
-    owners = list(topology.get("owners") or [])
-    return {
-        "entry_mode": str(topology.get("entry_mode") or "cli").strip() or "cli",
-        "backend": str(topology.get("backend") or "local").strip() or "local",
-        "context_id": str((contexts or ["default"])[0]),
-        "runtime_owner": str((owners or ["rdc-debugger"])[0]),
-        "baton_ref": "",
-        "context_binding_id": str(first_binding.get("context_binding_id") or "ctxbind-default"),
-        "capture_ref": str(first_binding.get("capture_ref") or ""),
-        "canonical_anchor_ref": str(first_binding.get("canonical_anchor_ref") or ""),
-    }
+    with path.open('a', encoding='utf-8', newline='\n') as handle:
+        if existing and not existing.endswith('\n'):
+            handle.write('\n')
+        handle.write(payload)
+        handle.write('\n')
 
 
 def _run_id(run_root: Path) -> str:
@@ -200,21 +147,7 @@ def _run_id(run_root: Path) -> str:
     return str(data.get("run_id") or run_root.name).strip() or run_root.name
 
 
-def _write_guard_artifact(run_root: Path, artifact_name: str, payload: dict[str, Any]) -> Path:
-    path = run_root / "artifacts" / artifact_name
-    _dump_yaml(path, payload)
-    return path
-
-
-def _guard_payload(
-    *,
-    stage: str,
-    status: str,
-    blockers: list[dict[str, Any]],
-    refs: list[str] | None = None,
-    paths: dict[str, str] | None = None,
-    extra: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+def _guard_payload(*, stage: str, status: str, blockers: list[dict[str, Any]], paths: dict[str, str] | None = None, extra: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
         "schema_version": GUARD_SCHEMA,
         "generated_by": "harness_guard",
@@ -223,91 +156,103 @@ def _guard_payload(
         "status": status,
         "blocking_codes": [str(item.get("code") or "").strip() for item in blockers if str(item.get("code") or "").strip()],
         "blockers": blockers,
-        **({"refs": refs} if refs else {}),
         **({"paths": paths} if paths else {}),
         **(extra or {}),
     }
 
 
+def _write_guard_artifact(run_root: Path, name: str, payload: dict[str, Any]) -> Path:
+    path = run_root / "artifacts" / name
+    _dump_yaml(path, payload)
+    return path
+
+
+def _runtime_fields(run_root: Path) -> dict[str, Any]:
+    session = load_runtime_session(run_root)
+    snapshot = load_runtime_snapshot(run_root)
+    return {
+        "entry_mode": str(session.get("entry_mode") or "cli").strip() or "cli",
+        "backend": str(session.get("backend") or "local").strip() or "local",
+        "runtime_generation": int(session.get("runtime_generation") or 1),
+        "snapshot_rev": int(snapshot.get("snapshot_rev") or 0),
+        "owner_agent_id": str(session.get("active_owner_agent_id") or "rdc-debugger").strip() or "rdc-debugger",
+        "lease_epoch": int(session.get("lease_epoch") or 0),
+        "continuity_status": str(session.get("continuity_status") or "fresh_start").strip() or "fresh_start",
+    }
+
+
 def _emit_quality_check(root: Path, run_root: Path, *, stage: str, payload: dict[str, Any], artifact_path: Path) -> None:
-    action_chain = _action_chain_path(root, run_root)
-    runtime = _runtime_fields(run_root)
     _append_event(
-        action_chain,
+        _action_chain_path(root, run_root),
         {
             "schema_version": ACTION_CHAIN_SCHEMA,
-            "event_id": f"evt-harness-guard-{stage}-{payload['status']}-{_now_ms()}",
+            "event_id": f"evt-harness-{stage}-{_now_ms()}",
             "ts_ms": _now_ms(),
             "run_id": _run_id(run_root),
             "session_id": _extract_session_id(root, run_root),
             "agent_id": "rdc-debugger",
-            "event_type": QUALITY_CHECK_EVENT_TYPE,
+            "event_type": "quality_check",
             "status": "pass" if payload["status"] == "passed" else "fail",
             "duration_ms": 0,
             "refs": [],
-            "payload": {
-                "validator": "harness_guard",
-                "guard_stage": stage,
-                "summary": f"harness guard {stage} {payload['status']}",
-                "path": _norm(artifact_path),
-                "blocking_codes": list(payload.get("blocking_codes") or []),
-                **runtime,
-            },
+            "payload": {"validator": "harness_guard", "path": _norm(artifact_path), "action_request_id": f"ar-harness-{stage}-{_now_ms()}", **_runtime_fields(run_root)},
         },
     )
 
 
-def _emit_process_deviation(
-    root: Path,
-    run_root: Path,
-    *,
-    deviation_code: str,
-    summary: str,
-    refs: list[str],
-    artifact_path: Path,
-) -> None:
-    action_chain = _action_chain_path(root, run_root)
-    runtime = _runtime_fields(run_root)
-    _append_event(
-        action_chain,
-        {
-            "schema_version": ACTION_CHAIN_SCHEMA,
-            "event_id": f"evt-harness-process-deviation-{_now_ms()}",
-            "ts_ms": _now_ms(),
-            "run_id": _run_id(run_root),
-            "session_id": _extract_session_id(root, run_root),
-            "agent_id": "rdc-debugger",
-            "event_type": PROCESS_DEVIATION_EVENT_TYPE,
-            "status": "blocked",
-            "duration_ms": 0,
-            "refs": refs,
-            "payload": {
-                "deviation_code": deviation_code,
-                "summary": summary,
-                "path": _norm(artifact_path),
-                **runtime,
-            },
-        },
-    )
-    freeze_run(
-        run_root,
-        blocking_codes=[deviation_code],
-        reason=summary,
-        refs=refs or [_norm(artifact_path)],
-    )
+def _freeze_state_path(run_root: Path) -> Path:
+    return run_root / "artifacts" / "freeze_state.yaml"
 
 
-def _flatten_tool_contract_findings(root: Path) -> list[str]:
-    try:
-        findings = validate_runtime_tool_contract(root)
-    except Exception as exc:  # noqa: BLE001
-        return [str(exc)]
-    rows: list[str] = []
-    for path, tools in sorted(findings.unknown_tools.items()):
-        rows.append(f"{path}: {', '.join(sorted(tools))}")
-    rows.extend(findings.missing_prerequisite_examples)
-    rows.extend(findings.banned_snippets)
-    return rows
+def _finalization_receipt_path(run_root: Path) -> Path:
+    return run_root / "artifacts" / "finalization_receipt.yaml"
+
+
+def _freeze_blockers(run_root: Path) -> list[dict[str, Any]]:
+    path = _freeze_state_path(run_root)
+    if not path.is_file():
+        return []
+    data = _read_yaml(path)
+    if not isinstance(data, dict) or str(data.get("status") or "").strip() == "frozen":
+        return [{"code": "BLOCKED_FREEZE_STATE_ACTIVE", "reason": "run is frozen until deviation is resolved", "refs": [_norm(path)]}]
+    return []
+
+
+def freeze_run(run_root: Path, *, blocking_codes: list[str], reason: str, refs: list[str] | None = None) -> dict[str, Any]:
+    payload = {"schema_version": FREEZE_STATE_SCHEMA, "generated_by": "harness_guard", "generated_at": _now_iso(), "status": "frozen", "blocking_codes": list(blocking_codes), "reason": reason, "refs": list(refs or [])}
+    _dump_yaml(_freeze_state_path(run_root), payload)
+    return payload
+
+
+def _default_reference_contract(capture_roles: list[str]) -> tuple[str, dict[str, Any]]:
+    if "baseline" in capture_roles:
+        return "cross_device", {"source_kind": "capture_baseline", "source_refs": ["capture:baseline"], "verification_mode": "device_parity", "probe_set": {"pixels": [{"name": "intake_probe", "x": 0, "y": 0}]}, "acceptance": {"fallback_only": True, "max_channel_delta": 0.05}, "readiness_status": "strict_ready"}
+    return "single", {"source_kind": "mixed", "source_refs": ["capture:anomalous"], "verification_mode": "visual_comparison", "probe_set": {"pixels": [{"name": "intake_probe", "x": 0, "y": 0}]}, "acceptance": {"fallback_only": True, "max_channel_delta": 0.05}, "readiness_status": "strict_ready"}
+
+
+def _default_hypothesis_board(session_id: str, user_goal: str, symptom_summary: str) -> dict[str, Any]:
+    return {"hypothesis_board": {"session_id": session_id, "entry_skill": "rdc-debugger", "user_goal": user_goal, "intake_state": "handoff_ready", "current_phase": "intake", "current_task": symptom_summary, "active_owner": "rdc-debugger", "pending_requirements": [], "blocking_issues": [], "progress_summary": ["accepted intake complete"], "next_actions": ["run triage before specialist dispatch"], "last_updated": _now_iso(), "intent_gate": {"classifier_version": 1, "judged_by": "rdc-debugger", "clarification_rounds": 0, "normalized_user_goal": user_goal, "primary_completion_question": "why is the render wrong", "dominant_operation": "diagnose", "requested_artifact": "debugger_verdict", "ab_role": "evidence_method", "scores": {"debugger": 9, "analyst": 0, "optimizer": 0}, "decision": "debugger", "confidence": "high", "hard_signals": {"debugger_positive": [], "analyst_positive": [], "optimizer_positive": [], "disqualifiers": []}, "rationale": symptom_summary, "redirect_target": ""}, "hypotheses": []}}
+
+
+def _next_run_id(case_root: Path) -> str:
+    runs_root = case_root / "runs"
+    existing = {path.name for path in runs_root.iterdir()} if runs_root.is_dir() else set()
+    index = 1
+    while True:
+        candidate = f"run_{index:03d}"
+        if candidate not in existing:
+            return candidate
+        index += 1
+def _resolve_case_id(case_root: Path, case_id: str | None = None) -> str:
+    if case_id and str(case_id).strip():
+        return str(case_id).strip()
+    return case_root.name or "case_001"
+
+
+def _resolve_session_id(case_id: str, run_id: str, session_id: str | None = None) -> str:
+    if session_id and str(session_id).strip():
+        return str(session_id).strip()
+    return f"sess_{_sanitize_token(case_id)}_{_sanitize_token(run_id)}"
 
 
 def _sha256(path: Path) -> str:
@@ -321,637 +266,88 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _guess_capture_role(index: int, total: int) -> str:
-    if index == 0:
-        return "anomalous"
-    if index == 1 and total >= 2:
-        return "baseline"
-    if index == 2 and total >= 3:
-        return "fixed"
-    return "fixed" if index == total - 1 and total > 2 else "baseline"
-
-
-def _guess_capture_source(role: str) -> str:
-    return "historical_good" if role == "baseline" else "user_supplied"
-
-
-def _default_reference_contract(capture_roles: list[str]) -> tuple[str, dict[str, Any]]:
-    if "baseline" in capture_roles:
-        return (
-            "cross_device",
-            {
-                "source_kind": "capture_baseline",
-                "source_refs": ["capture:baseline"],
-                "verification_mode": "device_parity",
-                "probe_set": {"pixels": [{"name": "intake_probe", "x": 0, "y": 0}]},
-                "acceptance": {"fallback_only": False, "max_channel_delta": 0.05},
-            },
-        )
-    return (
-        "single",
-        {
-            "source_kind": "mixed",
-            "source_refs": ["capture:anomalous"],
-            "verification_mode": "visual_comparison",
-            "probe_set": {"pixels": [{"name": "intake_probe", "x": 0, "y": 0}]},
-            "acceptance": {"fallback_only": True, "max_channel_delta": 0.05},
-        },
-    )
-
-
-def _default_hypothesis_board(session_id: str, user_goal: str, symptom_summary: str) -> dict[str, Any]:
-    return {
-        "hypothesis_board": {
-            "session_id": session_id,
-            "entry_skill": "rdc-debugger",
-            "user_goal": user_goal,
-            "intake_state": "handoff_ready",
-            "current_phase": "intake",
-            "current_task": symptom_summary,
-            "active_owner": "rdc-debugger",
-            "pending_requirements": [],
-            "blocking_issues": [],
-            "progress_summary": ["accepted intake complete"],
-            "next_actions": ["run dispatch_readiness before specialist dispatch"],
-            "last_updated": _now_iso(),
-            "intent_gate": {
-                "classifier_version": 1,
-                "judged_by": "rdc-debugger",
-                "clarification_rounds": 0,
-                "normalized_user_goal": user_goal,
-                "primary_completion_question": "why is the render wrong",
-                "dominant_operation": "diagnose",
-                "requested_artifact": "debugger_verdict",
-                "ab_role": "evidence_method",
-                "scores": {"debugger": 9, "analyst": 0, "optimizer": 0},
-                "decision": "debugger",
-                "confidence": "high",
-                "hard_signals": {
-                    "debugger_positive": [],
-                    "analyst_positive": [],
-                    "optimizer_positive": [],
-                    "disqualifiers": [],
-                },
-                "rationale": symptom_summary,
-                "redirect_target": "",
-            },
-            "hypotheses": [],
-        }
-    }
-
-
-def _next_run_id(case_root: Path) -> str:
-    runs_root = case_root / "runs"
-    existing = {path.name for path in runs_root.iterdir()} if runs_root.is_dir() else set()
-    index = 1
-    while True:
-        candidate = f"run_{index:03d}"
-        if candidate not in existing:
-            return candidate
-        index += 1
-
-
-def _resolve_case_id(case_root: Path, case_id: str | None = None) -> str:
-    if case_id and str(case_id).strip():
-        return str(case_id).strip()
-    return case_root.name or "case_001"
-
-
-def _resolve_session_id(case_id: str, run_id: str, session_id: str | None = None) -> str:
-    if session_id and str(session_id).strip():
-        return str(session_id).strip()
-    return f"sess_{_sanitize_token(case_id)}_{_sanitize_token(run_id)}"
-
-
 def _capture_tokens(case_root: Path, capture_paths: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
     entries: list[dict[str, Any]] = []
     refs: list[dict[str, Any]] = []
     roles: list[str] = []
-    total = len(capture_paths)
     captures_root = case_root / "inputs" / "captures"
     captures_root.mkdir(parents=True, exist_ok=True)
+    total = len(capture_paths)
     for index, raw in enumerate(capture_paths):
         source_path = Path(raw).resolve()
-        role = _guess_capture_role(index, total)
-        roles.append(role)
+        role = "anomalous" if index == 0 else ("baseline" if index == 1 and total >= 2 else "fixed")
         capture_id = f"cap-{role}-{index + 1:03d}"
-        dest_name = source_path.name
-        dest_path = captures_root / dest_name
+        dest_path = captures_root / source_path.name
         shutil.copy2(source_path, dest_path)
-        entries.append(
-            {
-                "capture_id": capture_id,
-                "capture_role": role,
-                "file_name": dest_name,
-                "source": _guess_capture_source(role),
-                "import_mode": "path",
-                "imported_at": _now_iso(),
-                "sha256": _sha256(dest_path),
-                "source_path": _norm(source_path),
-            }
-        )
-        refs.append({"capture_id": capture_id, "capture_role": role})
+        entries.append({"capture_id": capture_id, "capture_role": role, "file_name": source_path.name, "source": "historical_good" if role == "baseline" else "user_supplied", "import_mode": "path", "imported_at": _now_iso(), "sha256": _sha256(dest_path), "source_path": _norm(source_path)})
+        refs.append({"capture_id": capture_id, "capture_role": role, "file_name": source_path.name})
+        roles.append(role)
     return entries, refs, roles
-
-
-def _default_reference_manifest(reference_contract: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "references": [
-            {
-                "reference_id": "reference_contract_intake",
-                "source_kind": str(reference_contract.get("source_kind") or "mixed"),
-                "source_refs": list(reference_contract.get("source_refs") or []),
-                "verification_mode": str(reference_contract.get("verification_mode") or "visual_comparison"),
-            }
-        ]
-    }
-
-
-def _token_store(run_root: Path) -> Path:
-    return run_root / "artifacts" / "capability_tokens"
-
-
-def _token_path(run_root: Path, token_id: str) -> Path:
-    return _token_store(run_root) / f"{token_id}.yaml"
-
-
-def _allowed_path_match(target_path: str, allowed_paths: list[str]) -> bool:
-    normalized_target = _norm(target_path).lower()
-    for allowed in allowed_paths:
-        normalized_allowed = _norm(allowed).lower()
-        if normalized_target == normalized_allowed or normalized_target.startswith(normalized_allowed.rstrip("/") + "/"):
-            return True
-    return False
-
-
-def _runtime_lock_store(run_root: Path) -> Path:
-    return run_root / "artifacts" / "runtime_locks"
-
-
-def _runtime_lock_path(run_root: Path, lock_id: str) -> Path:
-    return _runtime_lock_store(run_root) / f"{lock_id}.yaml"
-
-
-def _freeze_state_path(run_root: Path) -> Path:
-    return run_root / "artifacts" / "freeze_state.yaml"
-
-
-def _finalization_receipt_path(run_root: Path) -> Path:
-    return run_root / "artifacts" / "finalization_receipt.yaml"
-
-
-def _freeze_blockers(run_root: Path) -> list[dict[str, Any]]:
-    freeze_state_path = _freeze_state_path(run_root)
-    if not freeze_state_path.is_file():
-        return []
-    data = _read_yaml(freeze_state_path)
-    if not isinstance(data, dict):
-        return [{"code": "BLOCKED_FREEZE_STATE_ACTIVE", "reason": "run is frozen until deviation is resolved", "refs": [_norm(freeze_state_path)]}]
-    if str(data.get("status") or "").strip() != "frozen":
-        return []
-    refs = [str(item).strip() for item in (data.get("blocking_codes") or []) if str(item).strip()]
-    return [{"code": "BLOCKED_FREEZE_STATE_ACTIVE", "reason": "run is frozen until deviation is resolved", "refs": refs[:8] or [_norm(freeze_state_path)]}]
-
-
-def issue_runtime_lock(
-    run_root: Path,
-    *,
-    agent_id: str,
-    workflow_stage: str,
-    context_binding_id: str,
-    context_id: str,
-    runtime_owner: str,
-    capture_ref: str = "",
-    canonical_anchor_ref: str = "",
-    baton_ref: str = "",
-    allowed_tool_classes: list[str] | None = None,
-    allowed_output_paths: list[str] | None = None,
-    ttl_seconds: int = DEFAULT_TOKEN_TTL_SECONDS,
-) -> dict[str, Any]:
-    lock_id = f"lock-{_sanitize_token(agent_id)}-{secrets.token_hex(6)}"
-    payload = {
-        "schema_version": RUNTIME_LOCK_SCHEMA,
-        "lock_id": lock_id,
-        "run_id": _run_id(run_root),
-        "agent_id": agent_id,
-        "workflow_stage": workflow_stage,
-        "context_binding_id": context_binding_id,
-        "context_id": context_id,
-        "runtime_owner": runtime_owner,
-        "capture_ref": capture_ref,
-        "canonical_anchor_ref": canonical_anchor_ref,
-        "baton_ref": baton_ref,
-        "lease_seq": _now_ms(),
-        "allowed_tool_classes": list(allowed_tool_classes or ["live_investigation", "artifact_write"]),
-        "allowed_output_paths": list(allowed_output_paths or []),
-        "issued_at": _now_iso(),
-        "expires_at": (_now() + timedelta(seconds=int(ttl_seconds))).isoformat(),
-        "status": "active",
-        "path": _norm(_runtime_lock_path(run_root, lock_id)),
-    }
-    _dump_yaml(_runtime_lock_path(run_root, lock_id), payload)
-    return payload
-
-
-def validate_runtime_lock(
-    run_root: Path,
-    *,
-    lock_ref: str,
-    agent_id: str,
-    workflow_stage: str,
-    context_binding_id: str,
-    context_id: str,
-    runtime_owner: str,
-    tool_class: str,
-    output_path: str = "",
-    now: datetime | None = None,
-) -> dict[str, Any]:
-    lock_path = Path(lock_ref)
-    if not lock_path.is_absolute():
-        lock_path = (run_root / lock_ref).resolve()
-    if not lock_path.is_file():
-        return {"status": "blocked", "blocking_code": "BLOCKED_RUNTIME_LOCK_REQUIRED", "reason": "runtime lock file is missing", "path": _norm(lock_path)}
-    lock = _read_yaml(lock_path)
-    if not isinstance(lock, dict):
-        return {"status": "blocked", "blocking_code": "BLOCKED_RUNTIME_LOCK_INVALID", "reason": "runtime lock payload must be a YAML object", "path": _norm(lock_path)}
-    if str(lock.get("status") or "").strip() != "active":
-        return {"status": "blocked", "blocking_code": "BLOCKED_RUNTIME_LOCK_INACTIVE", "reason": "runtime lock is not active", "path": _norm(lock_path)}
-    expires_at = str(lock.get("expires_at") or "").strip()
-    current = now or _now()
-    if not expires_at or current > datetime.fromisoformat(expires_at):
-        return {"status": "blocked", "blocking_code": "BLOCKED_RUNTIME_LOCK_EXPIRED", "reason": "runtime lock has expired", "path": _norm(lock_path)}
-    checks = {"agent_id": agent_id, "workflow_stage": workflow_stage, "context_binding_id": context_binding_id, "context_id": context_id, "runtime_owner": runtime_owner}
-    for key, expected in checks.items():
-        if str(lock.get(key) or "").strip() != str(expected or "").strip():
-            return {"status": "blocked", "blocking_code": "BLOCKED_RUNTIME_LOCK_MISMATCH", "reason": f"runtime lock {key} does not match execution payload", "path": _norm(lock_path)}
-    allowed_tool_classes = [str(item).strip() for item in (lock.get("allowed_tool_classes") or []) if str(item).strip()]
-    if tool_class not in allowed_tool_classes:
-        return {"status": "blocked", "blocking_code": "BLOCKED_RUNTIME_LOCK_TOOL_CLASS_MISMATCH", "reason": "runtime lock does not allow the requested tool class", "path": _norm(lock_path)}
-    allowed_output_paths = [str(item).strip() for item in (lock.get("allowed_output_paths") or []) if str(item).strip()]
-    if output_path and allowed_output_paths and not _allowed_path_match(output_path, allowed_output_paths):
-        return {"status": "blocked", "blocking_code": "BLOCKED_RUNTIME_LOCK_PATH_MISMATCH", "reason": "runtime lock does not allow the requested output path", "path": _norm(lock_path)}
-    return {"status": "passed", "lock_id": str(lock.get("lock_id") or "").strip(), "path": _norm(lock_path), "allowed_tool_classes": allowed_tool_classes, "allowed_output_paths": allowed_output_paths}
-
-
-def release_runtime_lock(run_root: Path, *, lock_ref: str, reason: str = "feedback_recorded") -> dict[str, Any] | None:
-    lock_path = Path(lock_ref)
-    if not lock_path.is_absolute():
-        lock_path = (run_root / lock_ref).resolve()
-    if not lock_path.is_file():
-        return None
-    payload = _read_yaml(lock_path)
-    if not isinstance(payload, dict):
-        return None
-    payload["status"] = "released"
-    payload["released_at"] = _now_iso()
-    payload["release_reason"] = reason
-    _dump_yaml(lock_path, payload)
-    return payload
-
-
-def freeze_run(
-    run_root: Path,
-    *,
-    blocking_codes: list[str],
-    reason: str,
-    refs: list[str] | None = None,
-) -> dict[str, Any]:
-    payload = {
-        "schema_version": FREEZE_STATE_SCHEMA,
-        "generated_by": "harness_guard",
-        "generated_at": _now_iso(),
-        "status": "frozen",
-        "blocking_codes": list(blocking_codes),
-        "reason": reason,
-        "refs": list(refs or []),
-    }
-    _dump_yaml(_freeze_state_path(run_root), payload)
-    return payload
-
-
-def issue_capability_token(
-    run_root: Path,
-    *,
-    target_agent: str,
-    runtime_owner: str,
-    allowed_actions: list[str] | None = None,
-    allowed_paths: list[str] | None = None,
-    ttl_seconds: int = DEFAULT_TOKEN_TTL_SECONDS,
-    issued_by: str = "rdc-debugger",
-) -> dict[str, Any]:
-    token_id = f"tok-{_sanitize_token(target_agent)}-{secrets.token_hex(6)}"
-    payload = {
-        "schema_version": CAPABILITY_TOKEN_SCHEMA,
-        "token_id": token_id,
-        "run_id": _run_id(run_root),
-        "target_agent": target_agent,
-        "runtime_owner": runtime_owner,
-        "allowed_actions": list(allowed_actions or DEFAULT_TOKEN_ACTIONS),
-        "allowed_paths": list(allowed_paths or []),
-        "ttl_seconds": int(ttl_seconds),
-        "issued_at": _now_iso(),
-        "expires_at": (_now() + timedelta(seconds=int(ttl_seconds))).isoformat(),
-        "issued_by": issued_by,
-        "nonce": secrets.token_hex(16),
-        "status": "active",
-        "path": _norm(_token_path(run_root, token_id)),
-    }
-    _dump_yaml(_token_path(run_root, token_id), payload)
-    return payload
-
-
-def validate_capability_token(
-    run_root: Path,
-    *,
-    token_ref: str,
-    agent_id: str,
-    runtime_owner: str,
-    action: str,
-    target_path: str = "",
-    now: datetime | None = None,
-) -> dict[str, Any]:
-    token_path = Path(token_ref)
-    if not token_path.is_absolute():
-        token_path = (run_root / token_ref).resolve()
-    if not token_path.is_file():
-        return {
-            "status": "blocked",
-            "blocking_code": "BLOCKED_CAPABILITY_TOKEN_REQUIRED",
-            "reason": "capability token file is missing",
-            "path": _norm(token_path),
-        }
-    token = _read_yaml(token_path)
-    if not isinstance(token, dict):
-        return {
-            "status": "blocked",
-            "blocking_code": "BLOCKED_CAPABILITY_TOKEN_INVALID",
-            "reason": "capability token payload must be a YAML object",
-            "path": _norm(token_path),
-        }
-    current = now or _now()
-    expires_at = str(token.get("expires_at") or "").strip()
-    if not expires_at:
-        return {
-            "status": "blocked",
-            "blocking_code": "BLOCKED_CAPABILITY_TOKEN_INVALID",
-            "reason": "capability token is missing expires_at",
-            "path": _norm(token_path),
-        }
-    if current > datetime.fromisoformat(expires_at):
-        return {
-            "status": "blocked",
-            "blocking_code": "BLOCKED_CAPABILITY_TOKEN_EXPIRED",
-            "reason": "capability token has expired",
-            "path": _norm(token_path),
-        }
-    if str(token.get("target_agent") or "").strip() != agent_id:
-        return {
-            "status": "blocked",
-            "blocking_code": "BLOCKED_CAPABILITY_TOKEN_AGENT_MISMATCH",
-            "reason": "capability token target_agent does not match agent_id",
-            "path": _norm(token_path),
-        }
-    if str(token.get("runtime_owner") or "").strip() != runtime_owner:
-        return {
-            "status": "blocked",
-            "blocking_code": "BLOCKED_CAPABILITY_TOKEN_OWNER_MISMATCH",
-            "reason": "capability token runtime_owner does not match runtime owner",
-            "path": _norm(token_path),
-        }
-    allowed_actions = [str(item).strip() for item in (token.get("allowed_actions") or []) if str(item).strip()]
-    if action not in allowed_actions:
-        return {
-            "status": "blocked",
-            "blocking_code": "BLOCKED_CAPABILITY_TOKEN_ACTION_MISMATCH",
-            "reason": "capability token does not allow the requested action",
-            "path": _norm(token_path),
-        }
-    allowed_paths = [str(item).strip() for item in (token.get("allowed_paths") or []) if str(item).strip()]
-    if target_path and allowed_paths and not _allowed_path_match(target_path, allowed_paths):
-        return {
-            "status": "blocked",
-            "blocking_code": "BLOCKED_CAPABILITY_TOKEN_PATH_MISMATCH",
-            "reason": "capability token does not allow the requested path",
-            "path": _norm(token_path),
-        }
-    return {
-        "status": "passed",
-        "token_id": str(token.get("token_id") or "").strip(),
-        "path": _norm(token_path),
-        "allowed_actions": allowed_actions,
-        "allowed_paths": allowed_paths,
-    }
 
 
 def run_preflight(root: Path, *, case_root: Path | None = None) -> dict[str, Any]:
     binding_findings = validate_binding(root)
-    tool_contract_findings = _flatten_tool_contract_findings(root)
+    try:
+        tool_findings = validate_runtime_tool_contract(root)
+        tool_refs = []
+        for path, tools in sorted(tool_findings.unknown_tools.items()):
+            tool_refs.append(f"{path}: {', '.join(sorted(tools))}")
+        tool_refs.extend(tool_findings.missing_prerequisite_examples)
+        tool_refs.extend(tool_findings.banned_snippets)
+    except Exception as exc:  # noqa: BLE001
+        tool_refs = [str(exc)]
     blockers: list[dict[str, Any]] = []
-    if binding_findings or tool_contract_findings:
-        blockers.append(
-            {
-                "code": "BLOCKED_BINDING_NOT_READY",
-                "reason": "binding validation and runtime tool contract must pass before debugger can enter harness flow",
-                "refs": (binding_findings + tool_contract_findings)[:20],
-            }
-        )
-    payload = _guard_payload(
-        stage="preflight",
-        status="passed" if not blockers else "blocked",
-        blockers=blockers,
-        paths={"root": _norm(root), **({"case_root": _norm(case_root)} if case_root else {})},
-        extra={
-            "checks": {
-                "binding_validation": "passed" if not binding_findings else "failed",
-                "runtime_tool_contract": "passed" if not tool_contract_findings else "failed",
-            }
-        },
-    )
+    if binding_findings:
+        blockers.append({"code": "BLOCKED_ENTRY_PREFLIGHT", "reason": "binding validation failed", "refs": binding_findings[:12]})
+    if tool_refs:
+        blockers.append({"code": "BLOCKED_ENTRY_PREFLIGHT", "reason": "runtime tool contract validation failed", "refs": tool_refs[:12]})
+    payload = _guard_payload(stage="preflight", status="passed" if not blockers else "blocked", blockers=blockers, paths={"root": _norm(root), **({"case_root": _norm(case_root)} if case_root else {})})
     if case_root:
-        artifact_path = case_root / "artifacts" / "preflight.yaml"
-        _dump_yaml(artifact_path, payload)
+        _dump_yaml(case_root / "artifacts" / "preflight.yaml", payload)
     return payload
 
 
-def run_entry_gate(
-    root: Path,
-    case_root: Path,
-    *,
-    platform: str,
-    entry_mode: str,
-    backend: str,
-    capture_paths: list[str] | None = None,
-    mcp_configured: bool = False,
-    remote_transport: str = "",
-    single_agent_requested: bool = False,
-) -> dict[str, Any]:
-    return shared_run_entry_gate(
-        root,
-        case_root.resolve(),
-        platform=platform,
-        entry_mode=entry_mode,
-        backend=backend,
-        capture_paths=capture_paths,
-        mcp_configured=mcp_configured,
-        remote_transport=remote_transport,
-        single_agent_requested=single_agent_requested,
-    )
+def run_entry_gate(root: Path, case_root: Path, *, platform: str, entry_mode: str, backend: str, capture_paths: list[str] | None = None, mcp_configured: bool = False, remote_transport: str = "", fix_reference_status: str = "strict_ready") -> dict[str, Any]:
+    return shared_run_entry_gate(root, case_root.resolve(), platform=platform, entry_mode=entry_mode, backend=backend, capture_paths=capture_paths, mcp_configured=mcp_configured, remote_transport=remote_transport, fix_reference_status=fix_reference_status)
 
 
-def run_accept_intake(
-    root: Path,
-    case_root: Path,
-    *,
-    platform: str,
-    entry_mode: str,
-    backend: str,
-    capture_paths: list[str],
-    case_id: str = "",
-    run_id: str = "",
-    session_id: str = "",
-    mcp_configured: bool = False,
-    remote_transport: str = "",
-    single_agent_requested: bool = False,
-    user_goal: str = "",
-    symptom_summary: str = "",
-) -> dict[str, Any]:
+def run_accept_intake(root: Path, case_root: Path, *, platform: str, entry_mode: str, backend: str, capture_paths: list[str], case_id: str = "", run_id: str = "", session_id: str = "", mcp_configured: bool = False, remote_transport: str = "", user_goal: str = "", symptom_summary: str = "") -> dict[str, Any]:
     case_root = case_root.resolve()
     capture_paths = [str(item or "").strip() for item in (capture_paths or []) if str(item or "").strip()]
-    entry_payload = run_entry_gate(
-        root,
-        case_root,
-        platform=platform,
-        entry_mode=entry_mode,
-        backend=backend,
-        capture_paths=capture_paths,
-        mcp_configured=mcp_configured,
-        remote_transport=remote_transport,
-        single_agent_requested=single_agent_requested,
-    )
+    entry_payload = run_entry_gate(root, case_root, platform=platform, entry_mode=entry_mode, backend=backend, capture_paths=capture_paths, mcp_configured=mcp_configured, remote_transport=remote_transport, fix_reference_status="strict_ready")
     if entry_payload["status"] != "passed":
-        return _guard_payload(
-            stage="accept_intake",
-            status="blocked",
-            blockers=list(entry_payload.get("blockers") or []),
-            paths={"case_root": _norm(case_root), "entry_gate": _norm(case_root / "artifacts" / "entry_gate.yaml")},
-            extra={"entry_gate_status": str(entry_payload.get("status") or "")},
-        )
+        return _guard_payload(stage="accept_intake", status="blocked", blockers=list(entry_payload.get("blockers") or []), paths={"case_root": _norm(case_root), "entry_gate": _norm(case_root / "artifacts" / "entry_gate.yaml")})
 
     case_id = _resolve_case_id(case_root, case_id)
     run_id = str(run_id or "").strip() or _next_run_id(case_root)
     run_root = case_root / "runs" / run_id
     if (run_root / "run.yaml").is_file():
-        return _guard_payload(
-            stage="accept_intake",
-            status="blocked",
-            blockers=[
-                {
-                    "code": "BLOCKED_RUN_ALREADY_INITIALIZED",
-                    "reason": "run_root already contains run.yaml; accept_intake must remain a single bootstrap transaction",
-                    "refs": [_norm(run_root)],
-                }
-            ],
-            paths={"run_root": _norm(run_root)},
-        )
+        return _guard_payload(stage="accept_intake", status="blocked", blockers=[{"code": "BLOCKED_RUN_ALREADY_INITIALIZED", "reason": "run_root already contains run.yaml", "refs": [_norm(run_root)]}], paths={"run_root": _norm(run_root)})
 
     session_id = _resolve_session_id(case_id, run_id, session_id)
     user_goal = str(user_goal or "").strip() or "locate the rendering root cause"
     symptom_summary = str(symptom_summary or "").strip() or "user supplied debugger capture"
-
     capture_entries, capture_refs, capture_roles = _capture_tokens(case_root, capture_paths)
     session_mode, reference_contract = _default_reference_contract(capture_roles)
-    references_manifest = _default_reference_manifest(reference_contract)
-
-    case_yaml = {"case_id": case_id, "current_run": run_id}
-    case_input = {
-        "schema_version": "1",
-        "case_id": case_id,
-        "session": {"mode": session_mode, "goal": user_goal},
-        "symptom": {"summary": symptom_summary},
-        "captures": [
-            {
-                "capture_id": item["capture_id"],
-                "role": item["capture_role"],
-                "file_name": item["file_name"],
-                "source": item["source"],
-                "provenance": {"source_path": item["source_path"]},
-            }
-            for item in capture_entries
-        ],
-        "environment": {"api": "unknown"},
-        "reference_contract": reference_contract,
-        "hints": {},
-        "project": {"engine": "unknown"},
-    }
-    run_yaml = {
-        "run_id": run_id,
-        "session_id": session_id,
-        "platform": platform,
-        "coordination_mode": str((entry_payload.get("platform_contract") or {}).get("coordination_mode") or "staged_handoff"),
-        "runtime": {
-            "coordination_mode": str((entry_payload.get("platform_contract") or {}).get("coordination_mode") or "staged_handoff"),
-            "orchestration_mode": str(entry_payload.get("orchestration_mode") or "multi_agent"),
-            "single_agent_reason": str(entry_payload.get("single_agent_reason") or ""),
-            "backend": backend,
-            "entry_mode": entry_mode,
-            "context_id": "ctx-orchestrator",
-            "runtime_owner": "rdc-debugger",
-            "session_id": session_id,
-            "workflow_stage": "accepted_intake_initialized",
-        },
-    }
-    hypothesis_board = _default_hypothesis_board(session_id, user_goal, symptom_summary)
-
-    _dump_yaml(case_root / "case.yaml", case_yaml)
+    case_input = {"schema_version": "1", "case_id": case_id, "session": {"mode": session_mode, "goal": user_goal}, "symptom": {"summary": symptom_summary}, "captures": [{"capture_id": item["capture_id"], "role": item["capture_role"], "file_name": item["file_name"], "source": item["source"], "provenance": {"source_path": item["source_path"]}} for item in capture_entries], "environment": {"api": "unknown"}, "reference_contract": reference_contract, "hints": {}, "project": {"engine": "unknown"}}
+    _dump_yaml(case_root / "case.yaml", {"case_id": case_id, "current_run": run_id})
     _dump_yaml(case_root / "case_input.yaml", case_input)
     _dump_yaml(case_root / "inputs" / "captures" / "manifest.yaml", {"captures": capture_entries})
-    _dump_yaml(case_root / "inputs" / "references" / "manifest.yaml", references_manifest)
-    _dump_yaml(run_root / "run.yaml", run_yaml)
+    _dump_yaml(case_root / "inputs" / "references" / "manifest.yaml", {"references": [{"reference_id": "reference_contract_intake", "source_kind": reference_contract["source_kind"], "source_refs": list(reference_contract["source_refs"]), "verification_mode": reference_contract["verification_mode"]}]})
+    _dump_yaml(run_root / "run.yaml", {"run_id": run_id, "session_id": session_id, "platform": platform, "coordination_mode": "staged_handoff", "runtime": {"coordination_mode": "staged_handoff", "orchestration_mode": "multi_agent", "backend": backend, "entry_mode": entry_mode, "session_id": session_id, "workflow_stage": "accepted_intake_initialized"}})
     _dump_yaml(run_root / "capture_refs.yaml", {"captures": capture_refs})
-    _dump_yaml(run_root / "notes" / "hypothesis_board.yaml", hypothesis_board)
-    session_marker = root / "common" / "knowledge" / "library" / "sessions" / ".current_session"
-    session_marker.parent.mkdir(parents=True, exist_ok=True)
-    session_marker.write_text(f"{session_id}\n", encoding="utf-8")
-
+    _dump_yaml(run_root / "notes" / "hypothesis_board.yaml", _default_hypothesis_board(session_id, user_goal, symptom_summary))
+    marker = root / "common" / "knowledge" / "library" / "sessions" / ".current_session"
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(f"{session_id}\n", encoding="utf-8")
     intake_payload = run_intake_gate(root, run_root)
-    topology_payload = run_runtime_topology(root, run_root, platform=platform)
+    runtime_payload = start_runtime(run_root, session_id=session_id, entry_mode=entry_mode, backend=backend)
     blockers: list[dict[str, Any]] = []
     if intake_payload["status"] != "passed":
-        blockers.append(
-            {
-                "code": "BLOCKED_INTAKE_GATE_REQUIRED",
-                "reason": "accepted intake did not satisfy the run-level intake gate",
-                "refs": [_norm(run_root / "artifacts" / "intake_gate.yaml")],
-            }
-        )
-    if topology_payload["status"] != "passed":
-        blockers.append(
-            {
-                "code": "BLOCKED_RUNTIME_TOPOLOGY_REQUIRED",
-                "reason": "accepted intake did not satisfy runtime topology generation",
-                "refs": [_norm(run_root / "artifacts" / "runtime_topology.yaml")],
-            }
-        )
-    payload = _guard_payload(
-        stage="accept_intake",
-        status="passed" if not blockers else "blocked",
-        blockers=blockers,
-        paths={
-            "case_root": _norm(case_root),
-            "run_root": _norm(run_root),
-            "entry_gate": _norm(case_root / "artifacts" / "entry_gate.yaml"),
-            "intake_gate": _norm(run_root / "artifacts" / "intake_gate.yaml"),
-            "runtime_topology": _norm(run_root / "artifacts" / "runtime_topology.yaml"),
-        },
-        extra={
-            "case_id": case_id,
-            "run_id": run_id,
-            "session_id": session_id,
-            "entry_gate_status": str(entry_payload.get("status") or ""),
-            "intake_gate_status": str(intake_payload.get("status") or ""),
-            "runtime_topology_status": str(topology_payload.get("status") or ""),
-        },
-    )
+        blockers.append({"code": "BLOCKED_INTAKE_GATE_REQUIRED", "reason": "accepted intake did not satisfy the run-level intake gate", "refs": [_norm(run_root / "artifacts" / "intake_gate.yaml")]})
+    if runtime_payload["status"] != "passed":
+        blockers.append({"code": "BLOCKED_RUNTIME_SESSION_REQUIRED", "reason": "accepted intake did not bootstrap runtime broker artifacts", "refs": [_norm(runtime_session_path(run_root)), _norm(runtime_snapshot_path(run_root)), _norm(ownership_lease_path(run_root)), _norm(runtime_failure_path(run_root))]})
+    payload = _guard_payload(stage="accept_intake", status="passed" if not blockers else "blocked", blockers=blockers, paths={"case_root": _norm(case_root), "run_root": _norm(run_root), "entry_gate": _norm(case_root / "artifacts" / "entry_gate.yaml"), "intake_gate": _norm(run_root / "artifacts" / "intake_gate.yaml"), "runtime_session": _norm(runtime_session_path(run_root)), "runtime_snapshot": _norm(runtime_snapshot_path(run_root)), "ownership_lease": _norm(ownership_lease_path(run_root)), "runtime_failure": _norm(runtime_failure_path(run_root))})
     _write_guard_artifact(run_root, "accept_intake.yaml", payload)
     return payload
 
@@ -960,335 +356,84 @@ def run_intake_gate(root: Path, run_root: Path) -> dict[str, Any]:
     return shared_run_intake_gate(root, run_root.resolve())
 
 
-def run_runtime_topology(root: Path, run_root: Path, *, platform: str) -> dict[str, Any]:
-    run_root = run_root.resolve()
-    payload = shared_run_runtime_topology(root, run_root, platform=platform)
-    if not _status_ok(str(payload.get("status") or "")):
-        _emit_quality_check(
-            root,
-            run_root,
-            stage="runtime-topology",
-            payload=_guard_payload(
-                stage="runtime_topology",
-                status="blocked",
-                blockers=[
-                    {
-                        "code": "BLOCKED_RUNTIME_TOPOLOGY_FAILED",
-                        "reason": "shared runtime_topology failed",
-                        "refs": [
-                            str(item.get("id") or "").strip()
-                            for item in payload.get("checks", [])
-                            if item.get("result") != "pass" and str(item.get("id") or "").strip()
-                        ][:12],
-                    }
-                ],
-                paths={"runtime_topology": _norm(run_root / "artifacts" / "runtime_topology.yaml")},
-            ),
-            artifact_path=run_root / "artifacts" / "runtime_topology.yaml",
-        )
-    return payload
+def validate_ownership_lease(run_root: Path, *, lease_ref: str, owner_agent_id: str, action_class: str, workflow_stage: str = "waiting_for_specialist_brief") -> dict[str, Any]:
+    return validate_lease(run_root, lease_ref=lease_ref, owner_agent_id=owner_agent_id, action_class=action_class, workflow_stage=workflow_stage)
 
 
 def run_dispatch_readiness(root: Path, run_root: Path, *, platform: str) -> dict[str, Any]:
     run_root = run_root.resolve()
     freeze_blockers = _freeze_blockers(run_root)
     if freeze_blockers:
-        return _guard_payload(
-            stage="dispatch_readiness",
-            status="blocked",
-            blockers=freeze_blockers,
-            paths={"run_root": _norm(run_root), "freeze_state": _norm(_freeze_state_path(run_root))},
-        )
-    case_root = run_root.parent.parent
-    entry_gate_path = case_root / "artifacts" / "entry_gate.yaml"
-    intake_gate_path = run_root / "artifacts" / "intake_gate.yaml"
-    topology_path = run_root / "artifacts" / "runtime_topology.yaml"
-    hypothesis_board_path = run_root / "notes" / "hypothesis_board.yaml"
-
-    entry_gate = _read_yaml(entry_gate_path) if entry_gate_path.is_file() else {}
-    intake_gate = _read_yaml(intake_gate_path) if intake_gate_path.is_file() else {}
-    runtime_topology = _read_yaml(topology_path) if topology_path.is_file() else {}
-    hypothesis_board = _read_yaml(hypothesis_board_path) if hypothesis_board_path.is_file() else {}
-    entry_gate = entry_gate if isinstance(entry_gate, dict) else {}
-    intake_gate = intake_gate if isinstance(intake_gate, dict) else {}
-    runtime_topology = runtime_topology if isinstance(runtime_topology, dict) else {}
-    hypothesis_board = hypothesis_board if isinstance(hypothesis_board, dict) else {}
-
+        return _guard_payload(stage="dispatch_readiness", status="blocked", blockers=freeze_blockers, paths={"run_root": _norm(run_root), "freeze_state": _norm(_freeze_state_path(run_root))})
     blockers: list[dict[str, Any]] = []
-    refs: list[str] = []
-
-    if str(entry_gate.get("status") or "").strip() != "passed":
-        blockers.append(
-            {
-                "code": "BLOCKED_REQUIRED_ARTIFACT_MISSING",
-                "reason": "artifacts/entry_gate.yaml must exist and be passed before specialist dispatch",
-                "refs": [_norm(entry_gate_path)],
-            }
-        )
+    case_root = run_root.parent.parent
+    entry_gate = _read_yaml(case_root / "artifacts" / "entry_gate.yaml") if (case_root / "artifacts" / "entry_gate.yaml").is_file() else {}
+    intake_gate = _read_yaml(run_root / "artifacts" / "intake_gate.yaml") if (run_root / "artifacts" / "intake_gate.yaml").is_file() else {}
+    runtime_session = load_runtime_session(run_root)
+    runtime_failure = load_runtime_failure(run_root)
+    ownership_lease = load_ownership_lease(run_root)
+    if str((entry_gate or {}).get("status") or "").strip() != "passed":
+        blockers.append({"code": "BLOCKED_ENTRY_GATE_REQUIRED", "reason": "entry_gate.yaml must be passed before specialist dispatch", "refs": [_norm(case_root / "artifacts" / "entry_gate.yaml")]})
     recomputed_intake = build_intake_gate_payload(root, run_root)
-    intake_failures = [item for item in recomputed_intake.get("checks", []) if item.get("result") != "pass"]
-    if str(intake_gate.get("status") or "").strip() != "passed" or intake_failures:
-        blockers.append(
-            {
-                "code": "BLOCKED_INTAKE_GATE_REQUIRED",
-                "reason": "artifacts/intake_gate.yaml must exist, be passed, and stay valid before specialist dispatch or live analysis",
-                "refs": [
-                    _norm(intake_gate_path),
-                    *[str(item.get("id") or "").strip() for item in intake_failures if str(item.get("id") or "").strip()],
-                ][:12],
-            }
-        )
-    recomputed_topology = build_runtime_topology_payload(root, run_root, platform=platform)
-    topology_failures = [item for item in recomputed_topology.get("checks", []) if item.get("result") != "pass"]
-    if str(runtime_topology.get("status") or "").strip() != "passed" or topology_failures:
-        blockers.append(
-            {
-                "code": "BLOCKED_RUNTIME_TOPOLOGY_REQUIRED",
-                "reason": "artifacts/runtime_topology.yaml must exist, be passed, and stay valid before staged handoff",
-                "refs": [
-                    _norm(topology_path),
-                    *[str(item.get("id") or "").strip() for item in topology_failures if str(item.get("id") or "").strip()],
-                ][:12],
-            }
-        )
-    board_issues = validate_hypothesis_board(hypothesis_board) if hypothesis_board else ["hypothesis_board missing"]
+    if str((intake_gate or {}).get("status") or "").strip() != "passed" or any(item.get("result") != "pass" for item in recomputed_intake.get("checks", [])):
+        blockers.append({"code": "BLOCKED_INTAKE_GATE_REQUIRED", "reason": "intake_gate.yaml must stay valid before staged handoff", "refs": [_norm(run_root / "artifacts" / "intake_gate.yaml")]})
+    if str(runtime_session.get("status") or "").strip() != "active":
+        blockers.append({"code": "BLOCKED_RUNTIME_SESSION_REQUIRED", "reason": "runtime_session.yaml must stay active before staged handoff", "refs": [_norm(runtime_session_path(run_root))]})
+    if str(runtime_failure.get("status") or "clear").strip() == "blocked":
+        blockers.append({"code": str(runtime_failure.get("blocking_code") or "BLOCKED_RUNTIME_FAILURE_OPEN"), "reason": "runtime_failure.yaml contains an unresolved blocked runtime failure", "refs": [_norm(runtime_failure_path(run_root))]})
+    if str(ownership_lease.get("status") or "released").strip() == "active":
+        blockers.append({"code": "BLOCKED_ACTIVE_OWNERSHIP_LEASE", "reason": "ownership_lease.yaml must be released before a new dispatch", "refs": [_norm(ownership_lease_path(run_root))]})
+    board_path = run_root / "notes" / "hypothesis_board.yaml"
+    board = _read_yaml(board_path) if board_path.is_file() else {}
+    board_issues = validate_hypothesis_board(board) if board else ["hypothesis_board missing"]
     if board_issues:
-        blockers.append(
-            {
-                "code": "BLOCKED_REQUIRED_ARTIFACT_MISSING",
-                "reason": "notes/hypothesis_board.yaml must exist and satisfy the shared schema before staged handoff",
-                "refs": [_norm(hypothesis_board_path), *board_issues[:8]],
-            }
-        )
-    orchestration_mode = str(
-        runtime_topology.get("orchestration_mode")
-        or recomputed_topology.get("orchestration_mode")
-        or ""
-    ).strip()
-    if orchestration_mode == "single_agent_by_user":
-        blockers.append(
-            {
-                "code": "BLOCKED_SINGLE_AGENT_MODE_NO_DISPATCH",
-                "reason": "single_agent_by_user runs must not dispatch specialists",
-            }
-        )
-
-    events = _action_chain_events(root, run_root)
-    overreach = workflow_stage_overreach_issues(
-        events,
-        coordination_mode=str(recomputed_topology.get("coordination_mode") or runtime_topology.get("coordination_mode") or "staged_handoff"),
-    )
-    refs.extend(overreach)
-    status = "passed"
+        blockers.append({"code": "BLOCKED_REQUIRED_ARTIFACT_MISSING", "reason": "hypothesis_board.yaml must satisfy the shared schema before staged handoff", "refs": [_norm(board_path), *board_issues[:8]]})
+    overreach = workflow_stage_overreach_issues(_action_chain_events(root, run_root), coordination_mode="staged_handoff")
     if overreach:
-        status = "blocked"
-        blockers = [
-            {
-                "code": "PROCESS_DEVIATION_MAIN_AGENT_OVERREACH",
-                "reason": "rdc-debugger attempted live investigation while waiting_for_specialist_brief",
-                "refs": overreach[:8],
-            }
-        ]
-    elif blockers:
-        status = "blocked"
-
-    payload = _guard_payload(
-        stage="dispatch_readiness",
-        status=status,
-        blockers=blockers,
-        refs=refs[:12] or None,
-        paths={
-            "run_root": _norm(run_root),
-            "entry_gate": _norm(entry_gate_path),
-            "intake_gate": _norm(intake_gate_path),
-            "runtime_topology": _norm(topology_path),
-            "hypothesis_board": _norm(hypothesis_board_path),
-            "action_chain": _norm(_action_chain_path(root, run_root)),
-        },
-        extra={
-            "orchestration_mode": orchestration_mode,
-            "recomputed_intake_status": str(recomputed_intake.get("status") or ""),
-            "recomputed_runtime_topology_status": str(recomputed_topology.get("status") or ""),
-        },
-    )
+        blockers = [{"code": "PROCESS_DEVIATION_MAIN_AGENT_OVERREACH", "reason": "rdc-debugger attempted live investigation while waiting_for_specialist_brief", "refs": overreach[:8]}]
+    payload = _guard_payload(stage="dispatch_readiness", status="passed" if not blockers else "blocked", blockers=blockers, paths={"run_root": _norm(run_root), "entry_gate": _norm(case_root / "artifacts" / "entry_gate.yaml"), "intake_gate": _norm(run_root / "artifacts" / "intake_gate.yaml"), "runtime_session": _norm(runtime_session_path(run_root)), "ownership_lease": _norm(ownership_lease_path(run_root)), "runtime_failure": _norm(runtime_failure_path(run_root))}, extra={"platform": platform, "coordination_mode": "staged_handoff", "orchestration_mode": "multi_agent"})
     artifact_path = _write_guard_artifact(run_root, "dispatch_readiness.yaml", payload)
-    if overreach:
-        _emit_process_deviation(
-            root,
-            run_root,
-            deviation_code="PROCESS_DEVIATION_MAIN_AGENT_OVERREACH",
-            summary="rdc-debugger attempted live investigation during waiting_for_specialist_brief",
-            refs=overreach[:8],
-            artifact_path=artifact_path,
-        )
-    elif blockers:
+    if blockers:
         _emit_quality_check(root, run_root, stage="dispatch-readiness", payload=payload, artifact_path=artifact_path)
     return payload
-
-
-def run_dispatch_specialist(
-    root: Path,
-    run_root: Path,
-    *,
-    platform: str,
-    target_agent: str,
-    objective: str,
-    ttl_seconds: int = DEFAULT_TOKEN_TTL_SECONDS,
-) -> dict[str, Any]:
+def run_dispatch_specialist(root: Path, run_root: Path, *, platform: str, target_agent: str, objective: str, ttl_seconds: int = DEFAULT_LEASE_TTL_SECONDS) -> dict[str, Any]:
     run_root = run_root.resolve()
     readiness = run_dispatch_readiness(root, run_root, platform=platform)
     if readiness["status"] != "passed":
         return readiness
-    if target_agent not in SPECIALIST_TOKEN_AGENTS:
-        payload = _guard_payload(
-            stage="dispatch_specialist",
-            status="blocked",
-            blockers=[
-                {
-                    "code": "BLOCKED_UNKNOWN_SPECIALIST",
-                    "reason": "dispatch target must be a known specialist, skeptic, or curator agent",
-                    "refs": [target_agent],
-                }
-            ],
-            paths={"run_root": _norm(run_root)},
-        )
+    if target_agent not in SPECIALIST_AGENTS:
+        payload = _guard_payload(stage="dispatch_specialist", status="blocked", blockers=[{"code": "BLOCKED_UNKNOWN_SPECIALIST", "reason": "dispatch target must be a known specialist, skeptic, or curator agent", "refs": [target_agent]}], paths={"run_root": _norm(run_root)})
         _write_guard_artifact(run_root, "dispatch_specialist.yaml", payload)
         return payload
-
-    note_name = NOTE_FILE_BY_AGENT.get(target_agent, f"{target_agent}.md")
-    allowed_note_path = _norm(run_root / "notes" / note_name)
-    token = issue_capability_token(
-        run_root,
-        target_agent=target_agent,
-        runtime_owner=target_agent,
-        allowed_actions=list(DEFAULT_TOKEN_ACTIONS),
-        allowed_paths=[allowed_note_path],
-        ttl_seconds=ttl_seconds,
-    )
-    action_chain = _action_chain_path(root, run_root)
+    lease_result = acquire_lease(run_root, owner_agent_id=target_agent, workflow_stage="waiting_for_specialist_brief", allowed_action_classes=["broker_action", "artifact_write", "submit_brief"], handoff_from="rdc-debugger", ttl_seconds=ttl_seconds)
+    if lease_result["status"] != "passed":
+        payload = _guard_payload(stage="dispatch_specialist", status="blocked", blockers=[{"code": str(lease_result.get("blocking_code") or "BLOCKED_ACTIVE_OWNERSHIP_LEASE"), "reason": str(lease_result.get("reason") or "lease acquisition failed"), "refs": [str(lease_result.get("path") or _norm(ownership_lease_path(run_root)))]}], paths={"run_root": _norm(run_root)})
+        _write_guard_artifact(run_root, "dispatch_specialist.yaml", payload)
+        return payload
+    lease = lease_result["lease"]
     runtime = _runtime_fields(run_root)
-    runtime_lock = issue_runtime_lock(
-        run_root,
-        agent_id=target_agent,
-        workflow_stage="waiting_for_specialist_brief",
-        context_binding_id=str(runtime.get("context_binding_id") or "ctxbind-default"),
-        context_id=str(runtime.get("context_id") or "default"),
-        runtime_owner=target_agent,
-        capture_ref=str(runtime.get("capture_ref") or ""),
-        canonical_anchor_ref=str(runtime.get("canonical_anchor_ref") or ""),
-        baton_ref=str(runtime.get("baton_ref") or ""),
-        allowed_tool_classes=["live_investigation", "artifact_write"],
-        allowed_output_paths=[allowed_note_path],
-        ttl_seconds=ttl_seconds,
-    )
     dispatch_event_id = f"evt-dispatch-{_sanitize_token(target_agent)}-{_now_ms()}"
-    _append_event(
-        action_chain,
-        {
-            "schema_version": ACTION_CHAIN_SCHEMA,
-            "event_id": dispatch_event_id,
-            "ts_ms": _now_ms(),
-            "run_id": _run_id(run_root),
-            "session_id": _extract_session_id(root, run_root),
-            "agent_id": "rdc-debugger",
-            "event_type": "dispatch",
-            "status": "sent",
-            "duration_ms": 0,
-            "refs": [],
-            "payload": {
-                **runtime,
-                "target_agent": target_agent,
-                "objective": objective,
-                "capability_token_ref": token["path"],
-                "runtime_lock_ref": runtime_lock["path"],
-                "delegation_status": "native_dispatch",
-                "fallback_execution_mode": "wrapper",
-                "degraded_reasons": [],
-            },
-        },
-    )
-    _append_event(
-        action_chain,
-        {
-            "schema_version": ACTION_CHAIN_SCHEMA,
-            "event_id": f"evt-stage-waiting-{_sanitize_token(target_agent)}-{_now_ms()}",
-            "ts_ms": _now_ms(),
-            "run_id": _run_id(run_root),
-            "session_id": _extract_session_id(root, run_root),
-            "agent_id": "rdc-debugger",
-            "event_type": "workflow_stage_transition",
-            "status": "entered",
-            "duration_ms": 0,
-            "refs": [dispatch_event_id],
-            "payload": {
-                "workflow_stage": "waiting_for_specialist_brief",
-                "blocking_code": "",
-                "blocking_codes": [],
-                "required_artifacts_before_transition": [f"notes/{note_name}"],
-            },
-        },
-    )
-    payload = _guard_payload(
-        stage="dispatch_specialist",
-        status="passed",
-        blockers=[],
-        paths={
-            "run_root": _norm(run_root),
-            "action_chain": _norm(action_chain),
-            "capability_token": token["path"],
-            "runtime_lock": runtime_lock["path"],
-        },
-        extra={
-            "target_agent": target_agent,
-            "objective": objective,
-            "capability_token": token,
-            "runtime_lock": runtime_lock,
-        },
-    )
+    _append_event(_action_chain_path(root, run_root), {"schema_version": ACTION_CHAIN_SCHEMA, "event_id": dispatch_event_id, "ts_ms": _now_ms(), "run_id": _run_id(run_root), "session_id": _extract_session_id(root, run_root), "agent_id": "rdc-debugger", "event_type": "dispatch", "status": "sent", "duration_ms": 0, "refs": [], "payload": {"target_agent": target_agent, "objective": objective, "ownership_lease_ref": lease["path"], "action_request_id": f"ar-dispatch-{_sanitize_token(target_agent)}-{_now_ms()}", **runtime}})
+    _append_event(_action_chain_path(root, run_root), {"schema_version": ACTION_CHAIN_SCHEMA, "event_id": f"evt-stage-waiting-{_sanitize_token(target_agent)}-{_now_ms()}", "ts_ms": _now_ms(), "run_id": _run_id(run_root), "session_id": _extract_session_id(root, run_root), "agent_id": "rdc-debugger", "event_type": "workflow_stage_transition", "status": "entered", "duration_ms": 0, "refs": [dispatch_event_id], "payload": {"workflow_stage": "waiting_for_specialist_brief", "required_artifacts_before_transition": [f"notes/{NOTE_FILE_BY_AGENT.get(target_agent, f'{target_agent}.md')}"]}})
+    payload = _guard_payload(stage="dispatch_specialist", status="passed", blockers=[], paths={"run_root": _norm(run_root), "action_chain": _norm(_action_chain_path(root, run_root)), "ownership_lease": lease["path"]}, extra={"target_agent": target_agent, "objective": objective, "ownership_lease": lease})
     _write_guard_artifact(run_root, "dispatch_specialist.yaml", payload)
     return payload
 
 
-def run_specialist_feedback(
-    root: Path,
-    run_root: Path,
-    *,
-    timeout_seconds: int = 300,
-    now_ms: int | None = None,
-) -> dict[str, Any]:
+def run_specialist_feedback(root: Path, run_root: Path, *, timeout_seconds: int = 300, now_ms: int | None = None) -> dict[str, Any]:
     run_root = run_root.resolve()
     freeze_blockers = _freeze_blockers(run_root)
     if freeze_blockers:
-        return _guard_payload(
-            stage="specialist_feedback",
-            status="blocked",
-            blockers=freeze_blockers,
-            paths={"run_root": _norm(run_root), "freeze_state": _norm(_freeze_state_path(run_root))},
-        )
-
-    topology_path = run_root / "artifacts" / "runtime_topology.yaml"
-    runtime_topology = _read_yaml(topology_path) if topology_path.is_file() else {}
-    runtime_topology = runtime_topology if isinstance(runtime_topology, dict) else {}
+        return _guard_payload(stage="specialist_feedback", status="blocked", blockers=freeze_blockers, paths={"run_root": _norm(run_root), "freeze_state": _norm(_freeze_state_path(run_root))})
     blockers: list[dict[str, Any]] = []
-
-    if str(runtime_topology.get("status") or "").strip() != "passed":
-        blockers.append(
-            {
-                "code": "BLOCKED_RUNTIME_TOPOLOGY_REQUIRED",
-                "reason": "specialist feedback guard requires a passed artifacts/runtime_topology.yaml",
-                "refs": [_norm(topology_path)],
-            }
-        )
-
+    if str(load_runtime_session(run_root).get("status") or "").strip() != "active":
+        blockers.append({"code": "BLOCKED_RUNTIME_SESSION_REQUIRED", "reason": "specialist feedback requires an active runtime_session.yaml", "refs": [_norm(runtime_session_path(run_root))]})
     events = _action_chain_events(root, run_root)
     now_value = int(now_ms if now_ms is not None else _now_ms())
     timeout_ms = int(timeout_seconds) * 1000
     pending: list[dict[str, Any]] = []
-
     for event in events:
-        if str(event.get("agent_id") or "").strip() != "rdc-debugger":
-            continue
-        if str(event.get("event_type") or "").strip() != "dispatch":
+        if str(event.get("agent_id") or "").strip() != "rdc-debugger" or str(event.get("event_type") or "").strip() != "dispatch":
             continue
         payload = event.get("payload")
         if not isinstance(payload, dict):
@@ -1297,76 +442,21 @@ def run_specialist_feedback(
         if target_agent not in ACTION_SPECIALISTS:
             continue
         dispatch_ts = int(event.get("ts_ms") or 0)
-        feedback = next(
-            (
-                candidate
-                for candidate in events
-                if int(candidate.get("ts_ms") or 0) >= dispatch_ts
-                and str(candidate.get("agent_id") or "").strip() == target_agent
-                and (
-                    (
-                        str(candidate.get("event_type") or "").strip() == "artifact_write"
-                        and specialist_handoff_path_ok(str(((candidate.get("payload") or {}).get("path") or "")), run_root)
-                    )
-                    or str(candidate.get("event_type") or "").strip() in DISPATCH_FEEDBACK_EVENT_TYPES - {"artifact_write"}
-                )
-            ),
-            None,
-        )
+        feedback = next((candidate for candidate in events if int(candidate.get("ts_ms") or 0) >= dispatch_ts and str(candidate.get("agent_id") or "").strip() == target_agent and ((str(candidate.get("event_type") or "").strip() == "artifact_write" and specialist_handoff_path_ok(str(((candidate.get("payload") or {}).get("path") or "")), run_root)) or str(candidate.get("event_type") or "").strip() in DISPATCH_FEEDBACK_EVENT_TYPES - {"artifact_write"})), None)
         if feedback is not None:
-            lock_ref = str(payload.get("runtime_lock_ref") or "").strip()
-            if lock_ref:
-                release_runtime_lock(run_root, lock_ref=lock_ref)
+            if str(load_ownership_lease(run_root).get("status") or "").strip() == "active":
+                release_lease(run_root, reason="feedback_recorded")
             continue
         age_ms = now_value - dispatch_ts
         if age_ms > timeout_ms:
-            pending.append(
-                {
-                    "target_agent": target_agent,
-                    "dispatch_event_id": str(event.get("event_id") or "").strip() or "?",
-                    "dispatch_ts_ms": dispatch_ts,
-                    "age_ms": age_ms,
-                }
-            )
-
+            pending.append({"target_agent": target_agent, "dispatch_event_id": str(event.get("event_id") or "").strip() or "?", "age_ms": age_ms})
     if pending:
-        blockers.append(
-            {
-                "code": "BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT",
-                "reason": "a dispatched specialist exceeded the feedback budget without writing a handoff artifact or review event",
-                "refs": [
-                    f"{item['target_agent']}@{item['dispatch_event_id']} age_ms={item['age_ms']}"
-                    for item in pending[:8]
-                ],
-            }
-        )
-
-    payload = _guard_payload(
-        stage="specialist_feedback",
-        status="passed" if not blockers else "blocked",
-        blockers=blockers,
-        paths={
-            "run_root": _norm(run_root),
-            "runtime_topology": _norm(topology_path),
-            "action_chain": _norm(_action_chain_path(root, run_root)),
-        },
-        extra={
-            "timeout_seconds": int(timeout_seconds),
-            "now_ms": now_value,
-            "pending_dispatches": pending,
-        },
-    )
+        blockers.append({"code": "BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT", "reason": "a dispatched specialist exceeded the feedback budget without writing a handoff artifact or review event", "refs": [f"{item['target_agent']}@{item['dispatch_event_id']} age_ms={item['age_ms']}" for item in pending[:8]]})
+    payload = _guard_payload(stage="specialist_feedback", status="passed" if not blockers else "blocked", blockers=blockers, paths={"run_root": _norm(run_root), "runtime_session": _norm(runtime_session_path(run_root)), "ownership_lease": _norm(ownership_lease_path(run_root)), "action_chain": _norm(_action_chain_path(root, run_root))}, extra={"timeout_seconds": int(timeout_seconds), "pending_dispatches": pending})
     artifact_path = _write_guard_artifact(run_root, "specialist_feedback.yaml", payload)
     if blockers:
         _emit_quality_check(root, run_root, stage="specialist-feedback", payload=payload, artifact_path=artifact_path)
-        _emit_process_deviation(
-            root,
-            run_root,
-            deviation_code="BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT",
-            summary="specialist feedback timeout froze the run",
-            refs=[f"{item['target_agent']}@{item['dispatch_event_id']}" for item in pending[:8]],
-            artifact_path=artifact_path,
-        )
+        freeze_run(run_root, blocking_codes=["BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT"], reason="specialist feedback timeout froze the run", refs=[f"{item['target_agent']}@{item['dispatch_event_id']}" for item in pending[:8]])
     return payload
 
 
@@ -1378,121 +468,34 @@ def run_render_user_verdict(root: Path, run_root: Path) -> dict[str, Any]:
     run_root = run_root.resolve()
     freeze_blockers = _freeze_blockers(run_root)
     if freeze_blockers:
-        return _guard_payload(
-            stage="user_verdict",
-            status="blocked",
-            blockers=freeze_blockers,
-            paths={"run_root": _norm(run_root), "freeze_state": _norm(_freeze_state_path(run_root))},
-        )
-
+        return _guard_payload(stage="user_verdict", status="blocked", blockers=freeze_blockers, paths={"run_root": _norm(run_root), "freeze_state": _norm(_freeze_state_path(run_root))})
+    blockers: list[dict[str, Any]] = []
     compliance_path = run_root / "artifacts" / "run_compliance.yaml"
     report_md = run_root / "reports" / "report.md"
     visual_report = run_root / "reports" / "visual_report.html"
     fix_verification = run_root / "artifacts" / "fix_verification.yaml"
-    receipt_path = _finalization_receipt_path(run_root)
-
-    blockers: list[dict[str, Any]] = []
     compliance = _read_yaml(compliance_path) if compliance_path.is_file() else {}
-    if not compliance_path.is_file():
-        blockers.append(
-            {
-                "code": "BLOCKED_RUN_COMPLIANCE_REQUIRED",
-                "reason": "render_user_verdict requires artifacts/run_compliance.yaml",
-                "refs": [_norm(compliance_path)],
-            }
-        )
-    elif str((compliance or {}).get("status") or "").strip() != "passed":
-        failing = [
-            str(item.get("id") or "").strip()
-            for item in ((compliance or {}).get("checks") or [])
-            if isinstance(item, dict) and str(item.get("result") or "").strip() == "fail"
-        ]
-        blockers.append(
-            {
-                "code": "BLOCKED_RUN_COMPLIANCE_NOT_PASSED",
-                "reason": "render_user_verdict requires run_compliance.yaml status=passed",
-                "refs": failing[:12] or [_norm(compliance_path)],
-            }
-        )
-    for path, code in (
-        (report_md, "BLOCKED_REPORT_MISSING"),
-        (visual_report, "BLOCKED_REPORT_MISSING"),
-        (fix_verification, "BLOCKED_FIX_VERIFICATION_MISSING"),
-    ):
+    if not compliance_path.is_file() or str((compliance or {}).get("status") or "").strip() != "passed":
+        blockers.append({"code": "BLOCKED_RUN_COMPLIANCE_NOT_PASSED", "reason": "render_user_verdict requires artifacts/run_compliance.yaml status=passed", "refs": [_norm(compliance_path)]})
+    for path, code in ((report_md, "BLOCKED_REPORT_MISSING"), (visual_report, "BLOCKED_REPORT_MISSING"), (fix_verification, "BLOCKED_FIX_VERIFICATION_MISSING"), (runtime_session_path(run_root), "BLOCKED_RUNTIME_SESSION_REQUIRED"), (runtime_snapshot_path(run_root), "BLOCKED_RUNTIME_SNAPSHOT_REQUIRED"), (ownership_lease_path(run_root), "BLOCKED_OWNERSHIP_LEASE_REQUIRED"), (runtime_failure_path(run_root), "BLOCKED_RUNTIME_FAILURE_REQUIRED")):
         if not path.is_file():
             blockers.append({"code": code, "reason": f"missing required artifact: {_norm(path)}", "refs": [_norm(path)]})
+    if str(load_ownership_lease(run_root).get("status") or "released").strip() == "active":
+        blockers.append({"code": "BLOCKED_ACTIVE_OWNERSHIP_LEASE", "reason": "render_user_verdict requires ownership_lease.yaml to be released", "refs": [_norm(ownership_lease_path(run_root))]})
+    failure = load_runtime_failure(run_root)
+    if str(failure.get("status") or "clear").strip() == "blocked":
+        blockers.append({"code": str(failure.get("blocking_code") or "BLOCKED_RUNTIME_FAILURE_OPEN"), "reason": "render_user_verdict requires runtime_failure.yaml to be cleared or recovered", "refs": [_norm(runtime_failure_path(run_root))]})
     if blockers:
-        return _guard_payload(
-            stage="user_verdict",
-            status="blocked",
-            blockers=blockers,
-            paths={"run_root": _norm(run_root), "run_compliance": _norm(compliance_path)},
-        )
-
-    active_locks: list[str] = []
-    lock_store = _runtime_lock_store(run_root)
-    if lock_store.is_dir():
-        for lock_path in sorted(lock_store.glob("*.yaml")):
-            data = _read_yaml(lock_path)
-            if isinstance(data, dict) and str(data.get("status") or "").strip() == "active":
-                active_locks.append(_norm(lock_path))
-    if active_locks:
-        return _guard_payload(
-            stage="user_verdict",
-            status="blocked",
-            blockers=[{
-                "code": "BLOCKED_ACTIVE_RUNTIME_LOCKS",
-                "reason": "render_user_verdict requires all runtime locks to be released",
-                "refs": active_locks[:8],
-            }],
-            paths={"run_root": _norm(run_root), "runtime_locks": _norm(lock_store)},
-        )
-
-    receipt = {
-        "schema_version": FINALIZATION_RECEIPT_SCHEMA,
-        "generated_by": "harness_guard",
-        "generated_at": _now_iso(),
-        "status": "issued",
-        "run_compliance": _norm(compliance_path),
-        "report_md": _norm(report_md),
-        "visual_report_html": _norm(visual_report),
-        "fix_verification": _norm(fix_verification),
-    }
-    _dump_yaml(receipt_path, receipt)
-
-    fix_data = _read_yaml(fix_verification)
+        return _guard_payload(stage="user_verdict", status="blocked", blockers=blockers, paths={"run_root": _norm(run_root), "run_compliance": _norm(compliance_path), "runtime_session": _norm(runtime_session_path(run_root)), "ownership_lease": _norm(ownership_lease_path(run_root)), "runtime_failure": _norm(runtime_failure_path(run_root))})
+    receipt = {"schema_version": FINALIZATION_RECEIPT_SCHEMA, "generated_by": "harness_guard", "generated_at": _now_iso(), "status": "issued", "run_compliance": _norm(compliance_path), "report_md": _norm(report_md), "visual_report_html": _norm(visual_report), "fix_verification": _norm(fix_verification), "runtime_session": _norm(runtime_session_path(run_root)), "runtime_snapshot": _norm(runtime_snapshot_path(run_root)), "ownership_lease": _norm(ownership_lease_path(run_root)), "runtime_failure": _norm(runtime_failure_path(run_root))}
+    _dump_yaml(_finalization_receipt_path(run_root), receipt)
+    close_runtime(run_root)
+    fix_data = _read_yaml(fix_verification) if fix_verification.is_file() else {}
     if not isinstance(fix_data, dict):
         fix_data = {}
     verdict = str(fix_data.get("verdict") or (fix_data.get("overall_result") or {}).get("verdict") or "").strip()
     overall_status = str((fix_data.get("overall_result") or {}).get("status") or "").strip()
-    response_lines = [
-        "DEBUGGER_USER_VERDICT",
-        "",
-        f"- verdict: {verdict or 'unknown'}",
-        f"- verification_status: {overall_status or 'unknown'}",
-        f"- reports: {_norm(report_md.relative_to(run_root))}, {_norm(visual_report.relative_to(run_root))}",
-        f"- run_compliance: {_norm(compliance_path.relative_to(run_root))} = passed",
-        f"- finalization_receipt: {_norm(receipt_path.relative_to(run_root))}",
-    ]
-    payload = {
-        "schema_version": GUARD_SCHEMA,
-        "generated_by": "harness_guard",
-        "generated_at": _now_iso(),
-        "guard_stage": "user_verdict",
-        "status": "passed",
-        "run_id": _run_id(run_root),
-        "session_id": _extract_session_id(root, run_root),
-        "verdict": verdict,
-        "verification_status": overall_status,
-        "response_lines": response_lines,
-        "paths": {
-            "report_md": _norm(report_md),
-            "visual_report_html": _norm(visual_report),
-            "run_compliance": _norm(compliance_path),
-            "fix_verification": _norm(fix_verification),
-            "finalization_receipt": _norm(receipt_path),
-        },
-    }
+    payload = {"schema_version": GUARD_SCHEMA, "generated_by": "harness_guard", "generated_at": _now_iso(), "guard_stage": "user_verdict", "status": "passed", "run_id": _run_id(run_root), "session_id": _extract_session_id(root, run_root), "verdict": verdict, "verification_status": overall_status, "response_lines": ["DEBUGGER_USER_VERDICT", "", f"- verdict: {verdict or 'unknown'}", f"- verification_status: {overall_status or 'unknown'}", f"- reports: {_norm(report_md.relative_to(run_root))}, {_norm(visual_report.relative_to(run_root))}", f"- run_compliance: {_norm(compliance_path.relative_to(run_root))} = passed", f"- finalization_receipt: {_norm(_finalization_receipt_path(run_root).relative_to(run_root))}"], "paths": {"report_md": _norm(report_md), "visual_report_html": _norm(visual_report), "run_compliance": _norm(compliance_path), "fix_verification": _norm(fix_verification), "finalization_receipt": _norm(_finalization_receipt_path(run_root))}}
     _write_guard_artifact(run_root, "user_verdict.yaml", payload)
     return payload
 
@@ -1505,11 +508,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Shared cross-platform harness guard")
     parser.add_argument("--root", type=Path, default=None, help="debugger root override")
     subparsers = parser.add_subparsers(dest="command", required=True)
-
-    preflight = subparsers.add_parser("preflight", help="run binding and runtime tool contract preflight")
-    preflight.add_argument("--case-root", type=Path, default=None, help="optional workspace case root for artifact output")
-
-    entry = subparsers.add_parser("entry-gate", help="run shared entry gate")
+    preflight = subparsers.add_parser("preflight")
+    preflight.add_argument("--case-root", type=Path, default=None)
+    entry = subparsers.add_parser("entry-gate")
     entry.add_argument("--case-root", type=Path, required=True)
     entry.add_argument("--platform", required=True)
     entry.add_argument("--entry-mode", required=True, choices=("cli", "mcp"))
@@ -1517,9 +518,8 @@ def main() -> int:
     entry.add_argument("--capture-path", action="append", default=[])
     entry.add_argument("--mcp-configured", action="store_true")
     entry.add_argument("--remote-transport", default="")
-    entry.add_argument("--single-agent-by-user", action="store_true")
-
-    accept = subparsers.add_parser("accept-intake", help="initialize case/run and run intake/topology as a single transaction")
+    entry.add_argument("--fix-reference-status", default="strict_ready")
+    accept = subparsers.add_parser("accept-intake")
     accept.add_argument("--case-root", type=Path, required=True)
     accept.add_argument("--platform", required=True)
     accept.add_argument("--entry-mode", required=True, choices=("cli", "mcp"))
@@ -1530,116 +530,57 @@ def main() -> int:
     accept.add_argument("--session-id", default="")
     accept.add_argument("--mcp-configured", action="store_true")
     accept.add_argument("--remote-transport", default="")
-    accept.add_argument("--single-agent-by-user", action="store_true")
     accept.add_argument("--user-goal", default="")
     accept.add_argument("--symptom-summary", default="")
-
-    intake = subparsers.add_parser("intake-gate", help="run shared intake gate")
+    intake = subparsers.add_parser("intake-gate")
     intake.add_argument("--run-root", type=Path, required=True)
-
-    dispatch_ready = subparsers.add_parser("dispatch-readiness", help="validate specialist dispatch preconditions")
+    dispatch_ready = subparsers.add_parser("dispatch-readiness")
     dispatch_ready.add_argument("--run-root", type=Path, required=True)
     dispatch_ready.add_argument("--platform", required=True)
-
-    dispatch = subparsers.add_parser("dispatch-specialist", help="issue a specialist capability token and append dispatch event")
+    dispatch = subparsers.add_parser("dispatch-specialist")
     dispatch.add_argument("--run-root", type=Path, required=True)
     dispatch.add_argument("--platform", required=True)
     dispatch.add_argument("--target-agent", required=True)
     dispatch.add_argument("--objective", required=True)
-    dispatch.add_argument("--ttl-seconds", type=int, default=DEFAULT_TOKEN_TTL_SECONDS)
-
-    feedback = subparsers.add_parser("specialist-feedback", help="check for specialist feedback timeout")
+    dispatch.add_argument("--ttl-seconds", type=int, default=DEFAULT_LEASE_TTL_SECONDS)
+    feedback = subparsers.add_parser("specialist-feedback")
     feedback.add_argument("--run-root", type=Path, required=True)
     feedback.add_argument("--timeout-seconds", type=int, default=300)
     feedback.add_argument("--now-ms", type=int, default=None)
-
-    topology = subparsers.add_parser("runtime-topology", help="run shared runtime topology builder")
-    topology.add_argument("--run-root", type=Path, required=True)
-    topology.add_argument("--platform", required=True)
-
-    final = subparsers.add_parser("final-audit", help="run shared final compliance audit")
+    final = subparsers.add_parser("final-audit")
     final.add_argument("--run-root", type=Path, required=True)
     final.add_argument("--platform", required=True)
-
-    verdict = subparsers.add_parser("render-user-verdict", help="render a deterministic user verdict from final artifacts")
+    verdict = subparsers.add_parser("render-user-verdict")
     verdict.add_argument("--run-root", type=Path, required=True)
-
     args = parser.parse_args()
     root = _debugger_root(args.root)
-
     try:
         if args.command == "preflight":
             payload = run_preflight(root, case_root=args.case_root.resolve() if args.case_root else None)
         elif args.command == "entry-gate":
-            payload = run_entry_gate(
-                root,
-                args.case_root.resolve(),
-                platform=str(args.platform or "").strip(),
-                entry_mode=args.entry_mode,
-                backend=args.backend,
-                capture_paths=list(args.capture_path or []),
-                mcp_configured=bool(args.mcp_configured),
-                remote_transport=str(args.remote_transport or "").strip(),
-                single_agent_requested=bool(args.single_agent_by_user),
-            )
+            payload = run_entry_gate(root, args.case_root.resolve(), platform=str(args.platform or "").strip(), entry_mode=args.entry_mode, backend=args.backend, capture_paths=list(args.capture_path or []), mcp_configured=bool(args.mcp_configured), remote_transport=str(args.remote_transport or "").strip(), fix_reference_status=str(args.fix_reference_status or "").strip())
         elif args.command == "accept-intake":
-            payload = run_accept_intake(
-                root,
-                args.case_root.resolve(),
-                platform=str(args.platform or "").strip(),
-                entry_mode=args.entry_mode,
-                backend=args.backend,
-                capture_paths=list(args.capture_path or []),
-                case_id=str(args.case_id or "").strip(),
-                run_id=str(args.run_id or "").strip(),
-                session_id=str(args.session_id or "").strip(),
-                mcp_configured=bool(args.mcp_configured),
-                remote_transport=str(args.remote_transport or "").strip(),
-                single_agent_requested=bool(args.single_agent_by_user),
-                user_goal=str(args.user_goal or "").strip(),
-                symptom_summary=str(args.symptom_summary or "").strip(),
-            )
+            payload = run_accept_intake(root, args.case_root.resolve(), platform=str(args.platform or "").strip(), entry_mode=args.entry_mode, backend=args.backend, capture_paths=list(args.capture_path or []), case_id=str(args.case_id or "").strip(), run_id=str(args.run_id or "").strip(), session_id=str(args.session_id or "").strip(), mcp_configured=bool(args.mcp_configured), remote_transport=str(args.remote_transport or "").strip(), user_goal=str(args.user_goal or "").strip(), symptom_summary=str(args.symptom_summary or "").strip())
         elif args.command == "intake-gate":
             payload = run_intake_gate(root, args.run_root.resolve())
         elif args.command == "dispatch-readiness":
             payload = run_dispatch_readiness(root, args.run_root.resolve(), platform=str(args.platform or "").strip())
         elif args.command == "dispatch-specialist":
-            payload = run_dispatch_specialist(
-                root,
-                args.run_root.resolve(),
-                platform=str(args.platform or "").strip(),
-                target_agent=str(args.target_agent or "").strip(),
-                objective=str(args.objective or "").strip(),
-                ttl_seconds=int(args.ttl_seconds),
-            )
+            payload = run_dispatch_specialist(root, args.run_root.resolve(), platform=str(args.platform or "").strip(), target_agent=str(args.target_agent or "").strip(), objective=str(args.objective or "").strip(), ttl_seconds=int(args.ttl_seconds))
         elif args.command == "specialist-feedback":
-            payload = run_specialist_feedback(
-                root,
-                args.run_root.resolve(),
-                timeout_seconds=int(args.timeout_seconds),
-                now_ms=args.now_ms,
-            )
-        elif args.command == "runtime-topology":
-            payload = run_runtime_topology(root, args.run_root.resolve(), platform=str(args.platform or "").strip())
+            payload = run_specialist_feedback(root, args.run_root.resolve(), timeout_seconds=int(args.timeout_seconds), now_ms=args.now_ms)
         elif args.command == "final-audit":
             payload = run_final_audit(root, args.run_root.resolve(), platform=str(args.platform or "").strip())
         elif args.command == "render-user-verdict":
             payload = run_render_user_verdict(root, args.run_root.resolve())
-        else:  # pragma: no cover
+        else:
             raise ValueError(f"unknown command: {args.command}")
     except Exception as exc:  # noqa: BLE001
         print(str(exc), file=sys.stderr)
         return 2
-
     _print_yaml(payload)
-    if not _status_ok(str(payload.get("status") or "")):
-        return 1
-    return 0
+    return 0 if _status_ok(str(payload.get("status") or "")) else 1
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-
-

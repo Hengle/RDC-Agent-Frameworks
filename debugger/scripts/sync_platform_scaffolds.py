@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Validate or refresh the minimal debugger platform scaffold topology."""
 
 from __future__ import annotations
@@ -369,7 +369,7 @@ def stale_findings(platform_key: str) -> list[str]:
     for path in package.rglob("README.copy-common.md"):
         findings.append(f"forbidden copy-common artifact: {path}")
     for path in package.rglob("renderdoc-rdc-gpu-debug"):
-        findings.append(f"legacy entry skill directory must not exist: {path}")
+        findings.append(f"obsolete entry skill directory must not exist: {path}")
     return findings
 
 
@@ -388,26 +388,25 @@ def main_skill_wrapper_text(ctx: dict[str, Any], platform_key: str) -> str:
     specialist_dispatch_requirement = str(platform_row.get("specialist_dispatch_requirement") or "").strip()
     host_delegation_policy = str(platform_row.get("host_delegation_policy") or "").strip()
     host_delegation_fallback = str(platform_row.get("host_delegation_fallback") or "").strip()
-    local_live_runtime_policy = str(platform_row.get("local_live_runtime_policy") or "").strip()
-    remote_live_runtime_policy = str(platform_row.get("remote_live_runtime_policy") or "").strip()
+    live_runtime_policy = str(platform_row.get("live_runtime_policy") or "single_runtime_single_context").strip()
     policy_notes: list[str] = []
-    if local_live_runtime_policy == "multi_context_orchestrated":
+    if live_runtime_policy == "single_runtime_single_context":
         policy_notes.extend([
-            "- 当前平台的 local `staged_handoff` 允许 specialist 各持独立 context，但所有协调、brief 重组与裁决都必须经 `rdc-debugger`。",
-            "- 跨 context live transfer / resume 只能通过 `runtime_baton`，不得直接跨 specialist 借用 live runtime。",
-            "- remote 一律服从 `single_runtime_owner`，不能把 local 的多 context 语义抬到 remote。",
+            "- ???????? runtime / ? context ??? specialist staged handoff?",
+            "- live tools process ?? broker-owned?specialist ???? ownership lease + broker action ???? live runtime?",
+            "- local / remote ???? `single_runtime_single_context`????? runtime ???",
         ])
-    elif local_live_runtime_policy == "multi_context_multi_owner":
+    elif False:
         policy_notes.extend([
-            "- 当前平台的 local `concurrent_team` 允许多个 team agents 各持独立 live context。",
-            "- remote 仍统一服从 `single_runtime_owner`。",
+            "- 当前平台的 local `staged_handoff` 允许多个 team agents 各持独立 live context。",
+            "- remote 仍统一服从 `single_runtime_single_context`。",
         ])
     else:
-        policy_notes.append("- 当前平台的 local / remote 都固定按 `single_runtime_owner` 推进 live runtime。")
+        policy_notes.append("- 当前平台的 local / remote 都固定按 `single_runtime_single_context` 推进 live runtime。")
     if specialist_dispatch_requirement == "required":
         policy_notes.extend([
             "- 默认 `orchestration_mode = multi_agent`；当前平台要求先走 specialist dispatch。",
-            "- 只有用户显式要求不要 multi-agent context 时，才允许 `single_agent_by_user`，并且必须把 `single_agent_reason = user_requested` 落盘到 `entry_gate.yaml` 与 `runtime_topology.yaml`。",
+            "- ????? multi-agent staged handoff ???????????",
             "- specialist dispatch 后，主 agent 必须进入 `waiting_for_specialist_brief` 并持续汇总阶段回报；短时 silence 不得触发 orchestrator 抢活。",
             "- 超过框架预算仍未收到阶段回报时，必须进入 `BLOCKED_SPECIALIST_FEEDBACK_TIMEOUT` 或等价阻断状态，而不是让 orchestrator 抢做 specialist live investigation。",
         ])
@@ -450,7 +449,7 @@ metadata:
 - intake 规范化
 - capture 导入 + case/run 初始化
 - `artifacts/intake_gate.yaml`
-- `artifacts/runtime_topology.yaml`
+- `artifacts/runtime_session.yaml` / `artifacts/runtime_snapshot.yaml` / `artifacts/ownership_lease.yaml` / `artifacts/runtime_failure.yaml`
 - specialist 分派、阶段推进与质量门裁决
 
 固定顺序：
@@ -459,7 +458,7 @@ metadata:
 2. `entry_gate`
 3. binding/preflight + capture import + case/run bootstrap
 4. `artifacts/intake_gate.yaml` pass
-5. `artifacts/runtime_topology.yaml`
+5. `artifacts/runtime_session.yaml` / `artifacts/runtime_snapshot.yaml` / `artifacts/ownership_lease.yaml` / `artifacts/runtime_failure.yaml`
 6. `{coordination_mode}`
 7. `artifacts/run_compliance.yaml` pass
 
@@ -509,7 +508,7 @@ def role_skill_wrapper_text(ctx: dict[str, Any], platform_key: str, role: dict[s
     if platform_key == "codex":
         dispatch_note = (
             "\n\n当前平台的 role gate 由 `rdc-debugger` 通过 `.codex/runtime_guard.py` 统一执行。"
-            "\n没有 passed `artifacts/intake_gate.yaml`、passed `artifacts/runtime_topology.yaml` 与主 agent handoff 前，不得进入 live 调查。"
+            "\n没有 passed `artifacts/intake_gate.yaml`、passed `artifacts/runtime_session.yaml` / `artifacts/runtime_snapshot.yaml` / `artifacts/ownership_lease.yaml` / `artifacts/runtime_failure.yaml` 与主 agent handoff 前，不得进入 live 调查。"
             "\n当前 role 只读消费 gate 结果，不得重判 intent gate，不得直接分派其他 specialist。"
         )
     elif False:
@@ -728,7 +727,7 @@ def codex_plugin_inner_agents_text() -> str:
 
 - 当前插件路径按 `no-hooks` 处理；Codex 的执行门禁固定为：
   1. `intent_gate`
-  2. `accept-intake`（内部顺序执行 `entry_gate -> capture import -> case/run bootstrap -> intake_gate -> runtime_topology`）
+  2. `accept-intake`??????? `entry_gate -> capture import -> case/run bootstrap -> intake_gate -> broker startup`?
   3. `dispatch_readiness` / `dispatch_specialist` / `specialist_feedback`
   4. `staged_handoff`
   5. `artifacts/run_compliance.yaml` pass

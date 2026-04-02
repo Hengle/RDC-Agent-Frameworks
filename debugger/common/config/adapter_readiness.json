@@ -1,48 +1,16 @@
 {
-  "schema_version": 1,
-  "description": "Current adapter readiness and rollout tracking for debugger platform shells. This file is the current-state companion to platform_capabilities.json, which remains the target contract.",
+  "schema_version": 2,
+  "description": "Current adapter readiness and rollout tracking for debugger platform shells. This file tracks platform shell completeness; the shared broker-owned harness remains the only runtime enforcement SSOT.",
   "semantics": {
     "target_contract_source": "common/config/platform_capabilities.json",
     "current_readiness_is_separate": true,
     "strict_runtime_requires_fail_closed_validation": true,
-    "readiness_levels": [
-      "planned",
-      "adapter_in_progress",
-      "compatible",
-      "strict_candidate",
-      "strict_validated"
-    ]
-  },
-  "waves": {
-    "wave1_strict": [
-      "codex",
-      "claude-code",
-      "code-buddy"
-    ],
-    "wave2_adapter": [
-      "copilot-cli"
-    ]
+    "readiness_levels": ["planned", "adapter_in_progress", "compatible", "strict_candidate", "strict_validated"]
   },
   "platforms": {
-    "claude-code": {
-      "current_adapter_readiness": "adapter_in_progress",
-      "strict_runtime_target": true,
-      "notes": "Retains concurrent_team/team_agents/direct target contract; strict adapter depends on shared harness and host hook wiring."
-    },
-    "code-buddy": {
-      "current_adapter_readiness": "adapter_in_progress",
-      "strict_runtime_target": true,
-      "notes": "Retains concurrent_team/team_agents/direct target contract; strict adapter must move beyond write-and-stop-only hooks."
-    },
-    "codex": {
-      "current_adapter_readiness": "adapter_in_progress",
-      "strict_runtime_target": true,
-      "notes": "Wave 1 strict target using runtime_guard plus common-first control interfaces."
-    },
-    "copilot-cli": {
-      "current_adapter_readiness": "adapter_in_progress",
-      "strict_runtime_target": false,
-      "notes": "Wave 2 adapter target focused on lifecycle hooks, MCP wiring, and truthful gating."
-    }
+    "claude-code": {"current_adapter_readiness": "adapter_in_progress", "strict_runtime_target": true, "notes": "Shared harness is the enforcement SSOT; host hooks only inject and relay."},
+    "code-buddy": {"current_adapter_readiness": "adapter_in_progress", "strict_runtime_target": true, "notes": "Pseudo-hooks must forward into the shared broker-owned harness without shadow contracts."},
+    "codex": {"current_adapter_readiness": "adapter_in_progress", "strict_runtime_target": true, "notes": "runtime_guard plus shared harness implements broker-owned staged handoff."},
+    "copilot-cli": {"current_adapter_readiness": "adapter_in_progress", "strict_runtime_target": true, "notes": "Native hooks relay into the shared broker-owned harness."}
   }
 }

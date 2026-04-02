@@ -1,7 +1,7 @@
 # Action Chain Event Ledger Schema
 #
-# action_chain.jsonl is the debugger framework's only append-only event ledger.
-# Each line must be a standalone JSON object that follows this schema.
+# action_chain.jsonl 是 debugger framework 唯一的 append-only 事件账本。
+# 每一行都必须是独立 JSON object。
 
 schema_version: "2"
 
@@ -9,7 +9,7 @@ artifact_contract:
   format: jsonl
   storage_mode: append_only
   source_of_truth_role: action_chain
-  description: "记录 run/session 内的事实事件，不承载快照状态。"
+  description: "记录 run/session 内发生过的结构化事件，不承载 broker snapshot 全量状态。"
 
 required_fields:
   - schema_version
@@ -83,12 +83,12 @@ common_runtime_payload_required:
   required_fields:
     - entry_mode
     - backend
-    - context_id
-    - runtime_owner
-    - baton_ref
-    - context_binding_id
-    - capture_ref
-    - canonical_anchor_ref
+    - runtime_generation
+    - snapshot_rev
+    - owner_agent_id
+    - lease_epoch
+    - continuity_status
+    - action_request_id
 
 event_types:
   dispatch:
@@ -96,57 +96,12 @@ event_types:
     payload_required:
       - target_agent
       - objective
+      - ownership_lease_ref
   tool_execution:
     statuses: [ok, error]
     payload_required:
       - tool_name
       - transport
-  hypothesis_transition:
-    statuses: [applied]
-    payload_required:
-      - hypothesis_id
-      - from_state
-      - to_state
-      - reason
-  conflict_opened:
-    statuses: [open]
-    payload_required:
-      - conflict_id
-      - hypothesis_id
-      - positions
-  conflict_resolved:
-    statuses: [resolved]
-    payload_required:
-      - conflict_id
-      - hypothesis_id
-      - reviewer_agent
-      - decision
-      - rationale
-  counterfactual_submitted:
-    statuses: [submitted]
-    payload_required:
-      - review_id
-      - hypothesis_id
-      - proposer_agent
-      - intervention
-      - target_variable
-      - reference_contract_ref
-      - verification_mode
-      - baseline_source
-      - probe_results
-      - isolation_checks
-      - measurements
-      - scoring
-      - evidence_refs
-  counterfactual_reviewed:
-    statuses: [approved, rejected]
-    payload_required:
-      - review_id
-      - hypothesis_id
-      - reviewer_agent
-      - semantic_verdict
-      - isolation_verdict
-      - evidence_refs
   artifact_write:
     statuses: [written, failed]
     payload_required:
@@ -161,9 +116,6 @@ event_types:
     statuses: [entered, exited, blocked]
     payload_required:
       - workflow_stage
-      - blocking_code
-      - blocking_codes
-      - required_artifacts_before_transition
   process_deviation:
     statuses: [detected]
     payload_required:
@@ -173,39 +125,3 @@ event_types:
       - blocking_code
       - impact_on_verdict
       - required_recovery_action
-  knowledge_candidate_emitted:
-    statuses: [emitted, updated]
-    payload_required:
-      - proposal_id
-      - proposal_type
-      - path
-  knowledge_candidate_transition:
-    statuses: [replay_validated, shadow_active, active, rolled_back]
-    payload_required:
-      - proposal_id
-      - proposal_type
-      - path
-
-counterfactual_payload_rules:
-  baseline_source_required:
-    - kind
-    - ref
-  isolation_checks_required:
-    - only_target_changed
-    - same_scene_same_input
-    - same_drawcall_count
-  measurements_required:
-    - pixel_before
-    - pixel_after
-    - pixel_baseline
-  scoring_required:
-    - pixel_recovery
-    - variable_isolation
-    - symptom_coverage
-    - total
-
-example_lines:
-  - |
-    {"schema_version":"2","event_id":"evt-0001-dispatch","ts_ms":1772537600000,"run_id":"run-20260315-001","session_id":"session-03rdc-debug-001","agent_id":"rdc-debugger","event_type":"dispatch","status":"sent","duration_ms":18,"refs":[],"payload":{"target_agent":"triage_agent","objective":"分类当前 banding / precision 症状","handoff_brief":"优先判断是否命中精度类 SOP"}}
-  - |
-    {"schema_version":"2","event_id":"evt-0007-counterfactual-submit","ts_ms":1772537641000,"run_id":"run-20260315-001","session_id":"session-03rdc-debug-001","agent_id":"shader_ir_agent","event_type":"counterfactual_submitted","status":"submitted","duration_ms":310,"refs":["evt-0003-pixel-history","H-001"],"payload":{"review_id":"CF-001","hypothesis_id":"H-001","proposer_agent":"shader_ir_agent","intervention":"half diffuse -> float diffuse","target_variable":"shader precision","reference_contract_ref":"../workspace/cases/case-001/case_input.yaml#reference_contract","verification_mode":"device_parity","baseline_source":{"kind":"capture_baseline","ref":"capture:baseline"},"probe_results":[{"probe_id":"hair_hotspot","probe_type":"pixel","pixel_before":{"x":512,"y":384,"rgba":[0.21,0.19,0.18,1.0]},"pixel_after":{"x":512,"y":384,"rgba":[0.37,0.34,0.32,1.0]},"pixel_baseline":{"x":512,"y":384,"rgba":[0.38,0.35,0.33,1.0]}}],"isolation_checks":{"only_target_changed":true,"same_scene_same_input":true,"same_drawcall_count":true},"measurements":{"pixel_before":{"x":512,"y":384,"rgba":[0.21,0.19,0.18,1.0]},"pixel_after":{"x":512,"y":384,"rgba":[0.37,0.34,0.32,1.0]},"pixel_baseline":{"x":512,"y":384,"rgba":[0.38,0.35,0.33,1.0]}},"scoring":{"pixel_recovery":0.94,"variable_isolation":1.0,"symptom_coverage":1.0,"total":0.97},"evidence_refs":["evt-0003-pixel-history"]}}
