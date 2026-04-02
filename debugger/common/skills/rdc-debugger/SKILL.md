@@ -67,6 +67,15 @@ Execution 规则：
 
 ## Sub-Agent 委派强制规则 (MANDATORY DELEGATION)
 
+### 核心原则
+
+**强制委托（Mandatory Delegation）** 是本框架的核心安全机制：
+- **主 Agent 禁止直接执行** 调查、分析、验证等核心任务
+- **所有核心任务必须通过 Sub-Agent 执行**
+- **主 Agent 仅负责协调、决策和流程推进**
+
+### 必须委托的节点
+
 以下节点 **必须** 通过 sub-agent 执行，禁止主 Agent 直接执行：
 
 | 节点 | 委派目标 | 产出物 | 违规后果 |
@@ -75,6 +84,37 @@ Execution 规则：
 | `specialist_investigation` | 各类 specialist agent (如 `shader_specialist`, `pipeline_specialist`, `resource_specialist`) | `brief.yaml`, `session_evidence.yaml` | 主 Agent 产出视为无效证据；记录 `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` |
 | `skeptic_review` | `skeptic_agent` | `challenge.yaml` 或 `signoff.yaml` | 缺少 skeptic 审计的 brief 不得进入 curator；记录 `PROCESS_DEVIATION_MISSING_SKEPTIC` |
 | `curator_finalize` | `curator_agent` | `curator_report.yaml`, `final_hypothesis.yaml` | 未经验证的结论不得输出给用户；记录 `PROCESS_DEVIATION_PREMATURE_VERDICT` |
+
+### 主 Agent 禁止行为清单 (PROHIBITED ACTIONS)
+
+主 Agent 在任何时候都 **禁止** 执行以下操作：
+
+| 禁止行为 | 说明 | 违规后果 |
+|---------|------|---------|
+| 直接分析 RDC capture 文件 | 必须通过 `specialist` sub-agent | `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` |
+| 直接编写 `session_evidence.yaml` | 必须由 `specialist` 产出 | `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` |
+| 直接编写 `brief.yaml` | 必须由 `specialist` 产出 | `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` |
+| 直接执行 shader 分析 | 必须通过 `shader_specialist` | `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` |
+| 直接执行 pixel forensics | 必须通过 `pixel_forensics_agent` | `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` |
+| 直接验证 fix | 必须通过 `fix_verification_agent` | `PROCESS_DEVIATION_MAIN_AGENT_OVERREACH` |
+| 跳过 triage 直接 dispatch | 必须先通过 `triage` | `PROCESS_DEVIATION_SKIPPED_TRIAGE` |
+| 跳过 skeptic 直接结案 | 必须通过 `skeptic` 审计 | `PROCESS_DEVIATION_MISSING_SKEPTIC` |
+
+### 主 Agent 允许行为清单 (ALLOWED ACTIONS)
+
+主 Agent **仅允许** 执行以下操作：
+
+| 允许行为 | 说明 |
+|---------|------|
+| 读取和解析用户输入 | 理解用户意图和需求 |
+| 生成 `debug_plan` | 在 Plan 阶段生成执行计划 |
+| 调用 `entry_gate`, `intake_gate` | 执行控制面 gate 检查 |
+| 委派任务给 Sub-Agent | 通过 `dispatch_specialist` 等机制 |
+| 读取 Sub-Agent 产出物 | 读取 `brief.yaml`, `challenge.yaml` 等 |
+| 更新 `hypothesis_board.yaml` | 更新 blocker 和决策状态 |
+| 决定 redispatch 或 escalation | 基于 Sub-Agent 反馈做决策 |
+| 调用 `final_audit` | 执行最终审计 |
+| 输出最终 verdict 给用户 | 基于 curator 报告输出结论 |
 
 ### 委派验证机制 (Delegation Verification)
 
@@ -144,3 +184,4 @@ Execution 规则：
 2. **产出物依赖**：前一 Gate 的产出物是后一 Gate 的必需输入
 3. **失败阻断**：任一 Gate 失败必须进入 `blocker` 状态，明确记录 `blocker_type` 和 `next_action`
 4. **重入检查**：从 blocker 恢复时必须重新通过当前 Gate，禁止直接跳到下一 Gate
+5. **Sub-Agent 强制**：所有调查、分析、验证任务必须通过 Sub-Agent 执行，主 Agent 直接执行视为违规

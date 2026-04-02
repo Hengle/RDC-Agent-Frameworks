@@ -89,7 +89,14 @@ specialist brief、skeptic challenge、curator 结案都只允许引用：
 | 替 specialist 补充调查 | [BLOCKED] | 禁止在 specialist 返回前进行平行调查 |
 | 抢写 specialist 证据文件 | [BLOCKED] | 禁止覆盖 `session_evidence.yaml` 等 specialist 产出 |
 
-### 5.2 允许操作白名单 (EXCLUSIVE LIST)
+### 5.2 允许操作白名单 (EXCLUSIVE LIST) - 白名单约束模式
+
+**核心原则：白名单约束（White-List Constraints）**
+
+与黑名单模式（列出禁止事项）不同，本框架采用**白名单模式**：
+- **默认拒绝**：任何未明确列出的操作都被视为禁止
+- **显式允许**：只有白名单中的操作才被允许执行
+- **最小权限**：每个阶段只授予完成该阶段任务所必需的最小权限
 
 LOCK 状态下 **唯一** 允许的操作：
 
@@ -113,13 +120,26 @@ LOCK 状态下 **唯一** 允许的操作：
    - 设置 `blocker_type: SPECIALIST_FEEDBACK_TIMEOUT`
    - 触发 redispatch 或 escalation 流程
 
+**白名单与黑名单对比**：
+
+| 模式 | 默认行为 | 安全级别 | 适用场景 |
+|------|---------|---------|---------|
+| 黑名单 | 允许所有，除非明确禁止 | 低 | 开放系统 |
+| 白名单 | 禁止所有，除非明确允许 | 高 | 安全关键系统 |
+
+本框架选择**白名单模式**以确保：
+- 任何新添加的操作默认被禁止，直到被明确审查并加入白名单
+- 防止因遗漏黑名单项而导致的安全漏洞
+- 强制执行最小权限原则
+
 ### 5.3 违规检测与后果
 
 **违规判定标准**：
 
-- 在 LOCKED 状态下执行了任何非白名单操作
+- 在 LOCKED 状态下执行了任何非白名单操作（白名单模式：未明确允许即禁止）
 - 通过临时 wrapper 间接执行被阻断操作
 - 以"辅助"、"验证"名义替 specialist 补充证据
+- 尝试执行白名单边界模糊的操作（需先申请明确授权）
 
 **违规后果**：
 
@@ -133,10 +153,10 @@ LOCK 状态下 **唯一** 允许的操作：
 **严重级别定义**：
 
 - `critical`: 直接操作 live runtime 或替 specialist 写证据 → 强制 curator 介入
-- `major`: 尝试执行被阻断操作但未成功 → 记录并警告
-- `minor`: 边界模糊操作 → 记录并提示
+- `major`: 尝试执行被阻断操作（即使是边界模糊的操作）→ 记录并警告
+- `minor`: 仅记录并提示（白名单模式下极少出现，因为默认拒绝）
 
-### 5.4 快速检查清单 (MUST CHECK BEFORE ACTION)
+### 5.4 快速检查清单 (MUST CHECK BEFORE ACTION) - 白名单版本
 
 在每次执行操作前，必须完成以下检查：
 
@@ -144,25 +164,29 @@ LOCK 状态下 **唯一** 允许的操作：
 □ 当前 current_phase 是什么？
   □ 检查 `hypothesis_board.yaml` 中的 `current_phase` 字段
 
-□ 如果处于 LOCKED 状态，我的操作在白名单中吗？
-  □ 对照 5.2 节 EXCLUSIVE LIST 确认
+□ 我的操作在白名单 (5.2节 EXCLUSIVE LIST) 中吗？
+  □ 如果不在白名单中 → **禁止执行**（白名单模式：未明确允许即禁止）
+  □ 如果操作边界模糊 → 先申请明确授权
 
 □ 我是否正在尝试"辅助"specialist？
   □ 任何以"验证"、"确认"、"补充"为名义的调查都属于违规
 
 □ 是否涉及 live runtime？
   □ 检查是否调用任何 runtime tool 或 wrapper
+  □ 涉及 runtime → **禁止执行**（除非在特定解锁阶段）
 
 □ 是否修改了 specialist 的产出物？
   □ 检查是否写入 `session_evidence.yaml` 等 specialist 文件
+  □ 修改 specialist 产出 → **禁止执行**
 
-□ 如果以上任一答案为"是"，立即停止并记录 blocker
+□ 如果以上任一检查未通过，立即停止并记录 blocker
 ```
 
 **强制执行**：
 
 - 每次 `current_phase` 变更后，必须在 `action_chain.jsonl` 中记录 CHECKPOINT_PASSED 或 CHECKPOINT_FAILED
-- 未通过检查清单的操作将被 framework 层拒绝执行
+- 未在白名单中的操作将被 framework 层**自动拒绝**（白名单模式）
+- 边界模糊的操作需经 `curator_agent` 审查后才能加入白名单
 
 ## 6. Sub-Agent 分层
 
